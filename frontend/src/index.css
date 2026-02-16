@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom component styles */
+@layer components {
+
+    /* Buttons */
+    .btn-primary {
+        @apply bg-primary-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors;
+    }
+
+    .btn-secondary {
+        @apply bg-gray-200 text-gray-800 px-6 py-2.5 rounded-lg font-medium hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors;
+    }
+
+    .btn-danger {
+        @apply bg-red-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors;
+    }
+
+    /* Form inputs */
+    .input-field {
+        @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all;
+    }
+
+    /* Cards */
+    .card {
+        @apply bg-white rounded-lg shadow-md p-6;
+    }
+
+    /* Tables */
+    .table-container {
+        @apply overflow-x-auto;
+    }
+
+    .table {
+        @apply min-w-full divide-y divide-gray-200;
+    }
+
+    .table thead {
+        @apply bg-gray-50;
+    }
+
+    .table th {
+        @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+    }
+
+    .table td {
+        @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+    }
+
+    /* Badges */
+    .badge-easy {
+        @apply inline-block px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800;
+    }
+
+    .badge-medium {
+        @apply inline-block px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800;
+    }
+
+    .badge-hard {
+        @apply inline-block px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800;
+    }
+
+    /* Verdict badges */
+    .verdict-accepted {
+        @apply inline-block px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800;
+    }
+
+    .verdict-wrong-answer {
+        @apply inline-block px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800;
+    }
+
+    .verdict-tle {
+        @apply inline-block px-3 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800;
+    }
+
+    /* Spinner */
+    .spinner {
+        @apply inline-block w-6 h-6 border-4 border-gray-200 border-t-primary-600 rounded-full animate-spin;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+        @apply fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50;
+    }
+
+    .modal-content {
+        @apply bg-white rounded-lg p-6 max-w-2xl w-full mx-4;
+    }
+
+    /* Heatmap */
+    .heatmap-cell {
+        @apply rounded-sm cursor-pointer hover:ring-2 hover:ring-primary-400;
+    }
+}
+
+/* Fullscreen mode for contests */
+.fullscreen-mode {
+    @apply fixed inset-0 z-50 bg-white;
+}
+
+/* Secure mode (disable text selection) */
+body.secure-mode {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Monaco Editor container */
+.editor-container {
+    @apply h-full w-full;
+}
+
+/* Add to your global CSS file */
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-5px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(5px);
+    }
+}
+
+.animate-shake {
+    animation: shake 0.5s;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+}
+
+.spinner {
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: currentColor;
+    width: 24px;
+    height: 24px;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Scrollbar styling */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
