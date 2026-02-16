@@ -65,6 +65,7 @@ const updateProfile = async (req, res) => {
         const updateData = {};
 
         // Profile fields
+        if (req.body.profilePicture) updateData['profile.profilePicture'] = req.body.profilePicture;
         if (req.body.phone) updateData['profile.phone'] = req.body.phone;
         if (req.body.whatsapp) updateData['profile.whatsapp'] = req.body.whatsapp;
         if (req.body.dob) updateData['profile.dob'] = new Date(req.body.dob);
@@ -129,28 +130,37 @@ const linkExternalProfile = async (req, res) => {
         const { platform, username } = req.body;
         const studentId = req.user.userId;
 
-        // Check if profile already exists
-        const existingProfile = await ExternalProfile.findByStudentAndPlatform(studentId, platform);
-        if (existingProfile) {
-            return res.status(400).json({
-                success: false,
-                message: `${platform} profile already linked`
+        // Check if profile already exists for this platform
+        let profile = await ExternalProfile.findByStudentAndPlatform(studentId, platform);
+
+        if (profile) {
+            // If the handle is different, update it and reset sync status to force a refresh
+            if (profile.username !== username) {
+                await ExternalProfile.update(profile._id, {
+                    username,
+                    lastSynced: new Date(0) // Forces immediate sync on next run
+                });
+                // Fetch the updated version to return in response
+                profile = await ExternalProfile.findById(profile._id);
+
+                // Trigger an immediate re-sync for the new username
+                await require('../services/profileSyncService').syncProfile(profile._id);
+            }
+        } else {
+            // Create new profile if it doesn't exist
+            profile = await ExternalProfile.create({
+                studentId,
+                platform,
+                username
             });
+
+            // Initial sync for the brand new profile
+            await require('../services/profileSyncService').syncProfile(profile._id);
         }
 
-        // Create profile
-        const profile = await ExternalProfile.create({
-            studentId,
-            platform,
-            username
-        });
-
-        // Initial sync
-        await require('../services/profileSyncService').syncProfile(profile._id);
-
-        res.status(201).json({
+        res.status(profile ? 200 : 201).json({
             success: true,
-            message: 'External profile linked successfully',
+            message: 'External profile updated successfully',
             profile
         });
     } catch (error) {

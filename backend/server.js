@@ -68,11 +68,12 @@ app.use('/api/instructor', require('./routes/instructor'));
 app.use('/api/contest', require('./routes/contest'));
 app.use('/api/reports', require('./routes/report'));
 app.use('/api/public', require('./routes/public'));
-
+app.use('/api/upload', require('./routes/uploadRoutes'));
+app.use('/api/batches', require('./routes/batch'));
 // 404 handler
 app.use(notFoundHandler);
 
-// Global error handler
+// Global error handlerf
 app.use(errorHandler);
 
 // Server port

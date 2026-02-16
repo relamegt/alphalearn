@@ -117,6 +117,21 @@ const authService = {
         }
     },
 
+    // Get batch details
+    getBatchDetails: async (batchId) => {
+        try {
+            const accessToken = Cookies.get('accessToken');
+            const response = await apiClient.get(`/batches/${batchId}`, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to fetch batch details' };
+        }
+    },
+
     // Change password
     changePassword: async (currentPassword, newPassword) => {
         try {

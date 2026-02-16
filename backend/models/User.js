@@ -23,6 +23,7 @@ class User {
                 activeSessionToken: null,
                 deviceFingerprint: null,
                 profile: {
+                    profilePicture: userData.profile?.profilePicture || null,
                     phone: userData.profile?.phone || null,
                     whatsapp: userData.profile?.whatsapp || null,
                     dob: userData.profile?.dob || null,

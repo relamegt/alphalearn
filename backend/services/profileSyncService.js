@@ -3,7 +3,13 @@ const cheerio = require('cheerio');
 const ExternalProfile = require('../models/ExternalProfile');
 const Leaderboard = require('../models/Leaderboard');
 const puppeteer = require('puppeteer');
+const Bottleneck = require('bottleneck');
 
+// Initialize the limiter globally in this file
+const limiter = new Bottleneck({
+    minTime: 2000,        // Wait 2 seconds between each request
+    maxConcurrent: 1      // Run only 1 request at a time
+});
 // Helper for consistent headers
 const COMMON_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -378,58 +384,203 @@ const fetchCodeforcesStats = async (username) => {
 };
 
 // ============================================
-// HACKERRANK - Web Scraping
+// HACKERRANK - Uses REST endpoint to get current_points (no Puppeteer)
 // ============================================
 const fetchHackerRankStats = async (username) => {
     try {
-        const response = await axios.get(
-            `https://www.hackerrank.com/rest/hackers/${username}/scores_elo`,
-            {
-                headers: COMMON_HEADERS,
-                timeout: 10000
-            }
-        );
+        const url = `https://www.hackerrank.com/rest/hackers/${encodeURIComponent(username)}/badges`;
 
-        const data = response.data;
+        const res = await axios.get(url, {
+            headers: {
+                ...COMMON_HEADERS,
+                Accept: "application/json, text/plain, */*",
+                Referer: `https://www.hackerrank.com/${username}`,
+                Origin: "https://www.hackerrank.com"
+            },
+            timeout: 20000,
+            // Sometimes HR blocks requests without redirects/cookies; keep defaults
+            validateStatus: (s) => s >= 200 && s < 500
+        });
+
+        if (res.status !== 200) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+
+        const payload = res.data;
+
+        // The response shape can vary; handle common possibilities safely
+        const badges =
+            payload?.badges ||
+            payload?.models ||
+            payload?.data ||
+            payload?.result ||
+            [];
+
+        if (!Array.isArray(badges)) {
+            throw new Error("Unexpected badges response format");
+        }
+
+        // Pick "problem-solving" badge if present, else take max current_points
+        const ps =
+            badges.find(b => b?.badge_type === "problem-solving" || /problem/i.test(b?.badge_name || "")) ||
+            null;
+
+        const currentPoints = ps?.current_points ??
+            Math.max(0, ...badges.map(b => Number(b?.current_points || 0)));
 
         return {
-            problemsSolved: data.problems_solved || 0,
-            rating: Math.round(data.elo || 0),
+            problemsSolved: ps?.solved || 0,     // optional (you can ignore)
+            rating: Math.round(Number(currentPoints) || 0), // <-- THIS is what you want
             totalContests: 0,
-            rank: data.rank || 0,
+            rank: ps?.hacker_rank || "N/A",
+            currentPoints: Math.round(Number(currentPoints) || 0),
             allContests: []
         };
-    } catch (error) {
-        console.error('HackerRank fetch error:', error.message);
-        throw new Error(`Failed to fetch HackerRank data: ${error.message}`);
+    } catch (err) {
+        throw new Error(`Failed to fetch HackerRank badges: ${err.message}`);
     }
 };
 
-// ============================================
-// INTERVIEWBIT - Placeholder
-// ============================================
-const fetchInterviewBitStats = async (username) => {
-    return {
-        problemsSolved: 0,
-        rating: 0,
-        totalContests: 0,
-        rank: 0,
-        allContests: []
-    };
-};
 
 // ============================================
-// SPOJ - Placeholder
+// INTERVIEWBIT - Robust profile scrape (text-regex based)
 // ============================================
-const fetchSPOJStats = async (username) => {
-    return {
-        problemsSolved: 0,
-        rating: 0,
-        totalContests: 0,
-        rank: 0,
-        allContests: []
-    };
+const fetchInterviewBitStats = async (username) => {
+    const browser = await puppeteer.launch({
+        headless: "new",
+        args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    try {
+        const page = await browser.newPage();
+        await page.setUserAgent(COMMON_HEADERS["User-Agent"]);
+
+        const url = `https://www.interviewbit.com/profile/${username}`;
+        await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+
+        // Prefer condition-based waits; then a small sleep for dynamic text
+        await page.waitForSelector("body", { timeout: 20000 });
+        await sleep(3500);
+
+        const data = await page.evaluate(() => {
+            const text = document.body?.innerText || "";
+
+            const grabNumber = (re) => {
+                const m = text.match(re);
+                return m ? parseInt(m[1].replace(/,/g, ""), 10) : 0;
+            };
+
+            const totalScore = grabNumber(/Total\s+Score\s+(\d+(?:,\d+)?)/i);
+            const problemsSolved =
+                grabNumber(/Total\s+Problems\s+Solved\s+(\d+(?:,\d+)?)/i) ||
+                grabNumber(/Problems\s*-\s*(\d+(?:,\d+)?)/i);
+
+            const globalRank = grabNumber(/Global\s+Rank\s*#?\s*(\d+(?:,\d+)?)/i);
+            const coins = grabNumber(/Coins\s+(\d+(?:,\d+)?)/i);
+            const streak = grabNumber(/Streak\s+(\d+(?:,\d+)?)/i);
+
+            return { totalScore, problemsSolved, globalRank, coins, streak };
+        });
+
+        return {
+            problemsSolved: data.problemsSolved,
+            rating: data.totalScore,
+            totalContests: 0,
+            rank: data.globalRank,
+            coins: data.coins,
+            streak: data.streak,
+            allContests: []
+        };
+    } catch (error) {
+        throw new Error(`Failed to scrape InterviewBit: ${error.message}`);
+    } finally {
+        await browser.close();
+    }
 };
+
+
+// ============================================
+// SPOJ - Robust scrape from https://www.spoj.com/users/{username}/
+// ============================================
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const looksLikeCloudflareBlock = (text = "") => {
+    const t = text.toLowerCase();
+    return (
+        t.includes("cloudflare") ||
+        t.includes("attention required") ||
+        t.includes("verify you are human") ||
+        t.includes("captcha") ||
+        t.includes("checking your browser")
+    );
+};
+
+const fetchSPOJStats = async (username) => {
+    const browser = await puppeteer.launch({
+        headless: "new",
+        userDataDir: require("path").join(process.cwd(), "sessions", "spoj"),
+        args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+
+    try {
+        const page = await browser.newPage();
+        await page.setUserAgent(COMMON_HEADERS["User-Agent"]);
+
+        const url = `https://www.spoj.com/users/${username}/`;
+        await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+        await page.waitForSelector("body", { timeout: 20000 });
+        await sleep(1500);
+
+        const data = await page.evaluate(() => {
+            const text = document.body?.innerText || "";
+
+            // rank best-effort
+            const rank = parseInt((text.match(/World\s+Rank:\s*#?(\d+)/i)?.[1] || "0"), 10);
+
+            // solved codes from links
+            const solvedCodes = new Set();
+            for (const a of document.querySelectorAll('a[href*="/status/"]')) {
+                const href = a.getAttribute("href") || "";
+                const m = href.match(/\/status\/([^,\/]+),/i);
+                if (m?.[1]) solvedCodes.add(m[1].trim());
+            }
+
+            return {
+                preview: text.slice(0, 500),
+                rank,
+                problemsSolved: solvedCodes.size,
+                solvedProblems: Array.from(solvedCodes).slice(0, 10)
+            };
+        });
+
+        if (looksLikeCloudflareBlock(data.preview)) {
+            // Don’t return wrong zeros; instead return a clear “blocked” signal
+            return {
+                problemsSolved: 0,
+                rating: 0,
+                totalContests: 0,
+                rank: 0,
+                solvedProblems: [],
+                allContests: [],
+                blocked: true
+            };
+        }
+
+        return {
+            problemsSolved: data.problemsSolved,
+            rating: 0,
+            totalContests: 0,
+            rank: data.rank,
+            solvedProblems: data.solvedProblems,
+            allContests: []
+        };
+    } finally {
+        await browser.close();
+    }
+};
+
 
 // ============================================
 // MAIN FETCH FUNCTION
@@ -464,6 +615,7 @@ const fetchExternalProfileStats = async (platform, username) => {
             default:
                 throw new Error(`Unsupported platform: ${platform}`);
         }
+
 
         console.log(`✅ Successfully fetched ${platform} stats for ${username}`);
         console.log(`   Problems: ${stats.problemsSolved}, Rating: ${stats.rating}, Contests: ${stats.totalContests}, Rank: ${stats.rank}`);
@@ -659,6 +811,9 @@ module.exports = {
     autoSyncProfiles,
     // Export individual fetchers for testing
     fetchLeetCodeStats,
+    fetchInterviewBitStats,
+    fetchSPOJStats,
     fetchCodeChefStats,
-    fetchCodeforcesStats
+    fetchCodeforcesStats,
+    fetchHackerRankStats
 };

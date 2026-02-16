@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
 // Create batch
 const createBatch = async (req, res) => {
     try {
-        const { name, startDate, endDate, description } = req.body;
+        const { name, startDate, endDate, description, education, streams } = req.body;
         const adminId = req.user.userId;
 
         const batch = await Batch.create({
@@ -18,6 +18,8 @@ const createBatch = async (req, res) => {
             startDate,
             endDate,
             description,
+            education,
+            streams,
             createdBy: adminId
         });
 
@@ -122,6 +124,30 @@ const getBatchStatistics = async (req, res) => {
     }
 };
 
+// Get batch by ID (for students to access batch data like streams)
+const getBatchById = async (req, res) => {
+    try {
+        const { batchId } = req.params;
+
+        const batch = await Batch.getById(batchId);
+
+        if (!batch) {
+            return res.status(404).json({
+                success: false,
+                message: 'Batch not found'
+            });
+        }
+
+        res.json(batch);
+    } catch (error) {
+        console.error('Get batch error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch batch',
+            error: error.message
+        });
+    }
+};
 
 // ============================================
 // USER MANAGEMENT (WITHIN BATCH)
@@ -164,6 +190,19 @@ const addUserToBatch = async (req, res) => {
         const tempPassword = email.split('@')[0];
 
         // Create user with minimal data
+        // For students, populate education from batch
+        let educationData = null;
+        if (role === 'student' && batch.education) {
+            educationData = {
+                institution: batch.education.institution,
+                degree: batch.education.degree,
+                stream: null, // Student will fill this during profile completion
+                rollNumber: null,
+                startYear: batch.education?.startYear || new Date(batch.startDate).getFullYear(),
+                endYear: batch.education?.endYear || new Date(batch.endDate).getFullYear()
+            };
+        }
+
         const userData = {
             email,
             password: tempPassword,
@@ -172,7 +211,7 @@ const addUserToBatch = async (req, res) => {
             role,
             batchId,
             profile: {},
-            education: null
+            education: educationData
         };
 
         const user = await User.create(userData);
@@ -279,6 +318,19 @@ const bulkAddUsersToBatch = async (req, res) => {
                 const tempPassword = email.split('@')[0];
 
                 // Create user
+                // For students, populate education from batch
+                let educationData = null;
+                if (role === 'student' && batch.education) {
+                    educationData = {
+                        institution: batch.education.institution,
+                        degree: batch.education.degree,
+                        stream: null, // Student will fill this during profile completion
+                        rollNumber: null,
+                        startYear: batch.education?.startYear || new Date(batch.startDate).getFullYear(),
+                        endYear: batch.education?.endYear || new Date(batch.endDate).getFullYear()
+                    };
+                }
+
                 const userData = {
                     email,
                     password: tempPassword,
@@ -287,7 +339,7 @@ const bulkAddUsersToBatch = async (req, res) => {
                     role,
                     batchId,
                     profile: {},
-                    education: null
+                    education: educationData
                 };
 
                 const user = await User.create(userData);

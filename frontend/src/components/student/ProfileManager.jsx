@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import profileService from '../../services/profileService';
+import uploadService from '../../services/uploadService';
 import authService from '../../services/authService';
 import toast from 'react-hot-toast';
 
@@ -23,6 +24,8 @@ const ProfileManager = () => {
     const [syncing, setSyncing] = useState(false);
 
     const [personalData, setPersonalData] = useState({
+        profilePicture: '',
+        profilePictureFile: null,
         phone: '',
         whatsapp: '',
         dob: '',
@@ -59,11 +62,14 @@ const ProfileManager = () => {
         skills: [],
     });
 
-    const [linkProfileData, setLinkProfileData] = useState({
-        platform: 'leetcode',
-        username: '',
+    const [codingData, setCodingData] = useState({
+        leetcode: '',
+        codechef: '',
+        codeforces: '',
+        hackerrank: '',
+        interviewbit: '',
+        spoj: ''
     });
-
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
         newPassword: '',
@@ -80,6 +86,7 @@ const ProfileManager = () => {
             const userData = await authService.getCurrentUser();
 
             setPersonalData({
+                profilePicture: userData.profile?.profilePicture || '',
                 phone: userData.profile?.phone || '',
                 whatsapp: userData.profile?.whatsapp || '',
                 dob: userData.profile?.dob || '',
@@ -95,6 +102,14 @@ const ProfileManager = () => {
                 education: userData.education || {},
                 skills: userData.skills || [],
             });
+            // Map existing external profiles to the form fields
+            if (userData.externalProfiles) {
+                const mappedCoding = {};
+                userData.externalProfiles.forEach(p => {
+                    mappedCoding[p.platform] = p.username;
+                });
+                setCodingData(prev => ({ ...prev, ...mappedCoding }));
+            }
         } catch (error) {
             toast.error('Failed to load profile');
         }
@@ -104,16 +119,65 @@ const ProfileManager = () => {
         try {
             const data = await profileService.getExternalProfiles();
             setExternalProfiles(data.profiles);
+
+            // This populates the input fields with existing data
+            if (data.profiles && data.profiles.length > 0) {
+                const existingMappedData = {};
+                data.profiles.forEach(p => {
+                    existingMappedData[p.platform] = p.username;
+                });
+                setCodingData(prev => ({ ...prev, ...existingMappedData }));
+            }
         } catch (error) {
             console.error('Failed to load external profiles');
         }
+    };
+    const handleProfilePictureChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('File size must be less than 5MB');
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            toast.error('Only image files are allowed');
+            return;
+        }
+
+        setPersonalData({
+            ...personalData,
+            profilePictureFile: file
+        });
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPersonalData(prev => ({
+                ...prev,
+                profilePicture: reader.result
+            }));
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleUpdatePersonal = async (e) => {
         e.preventDefault();
         setLoading(true);
+
         try {
-            await profileService.updateProfile(personalData);
+            let profilePictureUrl = personalData.profilePicture;
+
+            // Upload new profile picture if file selected
+            if (personalData.profilePictureFile) {
+                const uploadResult = await uploadService.uploadProfilePicture(personalData.profilePictureFile);
+                profilePictureUrl = uploadResult.data.url;
+            }
+
+            await profileService.updateProfile({
+                ...personalData,
+                profilePicture: profilePictureUrl
+            });
             toast.success('Personal details updated successfully');
             updateUser(personalData);
         } catch (error) {
@@ -167,7 +231,42 @@ const ProfileManager = () => {
             setSyncing(false);
         }
     };
+    const handleUpdateCodingProfiles = async (e) => {
+        e.preventDefault();
+        setLoading(true);
 
+        try {
+            const platforms = Object.keys(codingData);
+            const updatePromises = [];
+
+            for (const platform of platforms) {
+                const username = codingData[platform];
+
+                // Get the existing profile for this platform from our state
+                const existing = externalProfiles.find(p => p.platform === platform);
+
+                // Only call the API if:
+                // 1. There is a username entered AND (it's new OR it has changed)
+                if (username && (!existing || existing.username !== username)) {
+                    updatePromises.push(profileService.linkExternalProfile(platform, username));
+                }
+            }
+
+            if (updatePromises.length > 0) {
+                await Promise.all(updatePromises);
+                toast.success('Coding profiles updated successfully');
+                await fetchExternalProfiles(); // Refresh local data
+            } else {
+                toast('No changes detected', { icon: 'ℹ️' });
+            }
+        } catch (error) {
+            // The backend now updates instead of erroring, 
+            // so this will only trigger for actual network/server errors.
+            toast.error(error.message || 'Error updating profiles');
+        } finally {
+            setLoading(false);
+        }
+    };
     const handleDeleteProfile = async (profileId, platform) => {
         if (!window.confirm(`Delete ${platform} profile link?`)) return;
 
@@ -249,6 +348,32 @@ const ProfileManager = () => {
             {activeTab === 'personal' && (
                 <div className="card">
                     <form onSubmit={handleUpdatePersonal} className="space-y-6">
+                        {/* Profile Picture */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Profile Picture
+                            </label>
+                            <div className="flex items-center space-x-4">
+                                {personalData.profilePicture && (
+                                    <img
+                                        src={personalData.profilePicture}
+                                        alt="Profile"
+                                        className="w-24 h-24 rounded-full object-cover border-2 border-gray-300"
+                                    />
+                                )}
+                                <div className="flex-1">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleProfilePictureChange}
+                                        className="input-field"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        JPG, PNG, GIF, WebP. Max 5MB
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                         {/* Basic Details */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -510,38 +635,79 @@ const ProfileManager = () => {
                 <div className="card">
                     <form onSubmit={handleUpdateProfessional} className="space-y-4">
                         <h3 className="text-lg font-semibold text-gray-900">Education</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Institution *</label>
-                                <input
-                                    type="text"
-                                    value={professionalData.education.institution}
-                                    onChange={(e) =>
-                                        setProfessionalData({
-                                            ...professionalData,
-                                            education: { ...professionalData.education, institution: e.target.value },
-                                        })
-                                    }
-                                    className="mt-1 input-field"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Roll Number *</label>
-                                <input
-                                    type="text"
-                                    value={professionalData.education.rollNumber}
-                                    onChange={(e) =>
-                                        setProfessionalData({
-                                            ...professionalData,
-                                            education: { ...professionalData.education, rollNumber: e.target.value },
-                                        })
-                                    }
-                                    className="mt-1 input-field"
-                                    required
-                                />
+
+                        {/* Read-only fields from batch */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                            <p className="text-sm text-blue-800 mb-3">
+                                <strong>Note:</strong> These education details are set during batch creation and profile completion, and cannot be modified here.
+                            </p>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Institution (From Batch)</label>
+                                    <input
+                                        type="text"
+                                        value={professionalData.education.institution || ''}
+                                        readOnly
+                                        disabled
+                                        className="mt-1 input-field bg-gray-100 cursor-not-allowed"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Degree (From Batch)</label>
+                                    <input
+                                        type="text"
+                                        value={professionalData.education.degree || ''}
+                                        readOnly
+                                        disabled
+                                        className="mt-1 input-field bg-gray-100 cursor-not-allowed"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Start Year (From Batch)</label>
+                                    <input
+                                        type="number"
+                                        value={professionalData.education.startYear || ''}
+                                        readOnly
+                                        disabled
+                                        className="mt-1 input-field bg-gray-100 cursor-not-allowed"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">End Year (From Batch)</label>
+                                    <input
+                                        type="number"
+                                        value={professionalData.education.endYear || ''}
+                                        readOnly
+                                        disabled
+                                        className="mt-1 input-field bg-gray-100 cursor-not-allowed"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Branch/Stream (Selected During Profile Completion)</label>
+                                    <input
+                                        type="text"
+                                        value={professionalData.education.stream || ''}
+                                        readOnly
+                                        disabled
+                                        className="mt-1 input-field bg-gray-100 cursor-not-allowed"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Roll Number (Entered During Profile Completion)</label>
+                                    <input
+                                        type="text"
+                                        value={professionalData.education.rollNumber || ''}
+                                        readOnly
+                                        disabled
+                                        className="mt-1 input-field bg-gray-100 cursor-not-allowed"
+                                    />
+                                </div>
+
+
                             </div>
                         </div>
+
+                        
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Skills</label>
@@ -568,51 +734,87 @@ const ProfileManager = () => {
 
             {/* Coding Profiles Tab */}
             {activeTab === 'coding' && (
-                <div className="space-y-6">
-                    <div className="card">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900">External Coding Profiles</h3>
-                            <div className="space-x-2">
-                                <button onClick={() => setShowLinkModal(true)} className="btn-primary">
-                                    + Link Profile
-                                </button>
-                                <button onClick={handleManualSync} disabled={syncing} className="btn-secondary">
-                                    {syncing ? 'Syncing...' : '🔄 Manual Sync (1/week)'}
-                                </button>
-                            </div>
+                <div className="card">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-semibold text-gray-900">Coding Platform Profiles</h3>
+                        <button
+                            onClick={handleManualSync}
+                            disabled={syncing}
+                            className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
+                        >
+                            {syncing ? 'Syncing...' : '🔄 Sync All Stats'}
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleUpdateCodingProfiles} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                            {PLATFORMS.map((platform) => {
+                                // Find existing data for this specific platform
+                                const stats = externalProfiles.find(p => p.platform === platform.value);
+
+                                return (
+                                    <div key={platform.value} className="flex flex-col">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            {platform.label} Username
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                placeholder={`Enter ${platform.label} handle`}
+                                                value={codingData[platform.value] || ''}
+                                                onChange={(e) => setCodingData({
+                                                    ...codingData,
+                                                    [platform.value]: e.target.value
+                                                })}
+                                                className="input-field w-full"
+                                            />
+                                            {stats && (
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500" title="Profile Linked">
+                                                    ✓
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Statistics Display Below the Input */}
+                                        <div className="mt-2 flex items-center space-x-4 h-5">
+                                            {stats ? (
+                                                <>
+                                                    <div className="flex items-center text-xs text-gray-500">
+                                                        <span className="font-semibold text-gray-700 mr-1">Rating:</span>
+                                                        {stats.stats?.rating || 'N/A'}
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-gray-500">
+                                                        <span className="font-semibold text-gray-700 mr-1">Solved:</span>
+                                                        {stats.stats?.problemsSolved || 0}
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-400 italic">
+                                                        Synced: {new Date(stats.lastSynced).toLocaleDateString()}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <span className="text-[10px] text-gray-400 italic">No profile linked yet</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
 
-                        <div className="space-y-3">
-                            {externalProfiles.map((profile) => (
-                                <div
-                                    key={profile._id}
-                                    className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"
-                                >
-                                    <div>
-                                        <p className="font-semibold text-gray-900 capitalize">{profile.platform}</p>
-                                        <p className="text-sm text-gray-600">@{profile.username}</p>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Last synced: {new Date(profile.lastSynced).toLocaleString()}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm text-gray-700">
-                                            Problems: {profile.stats.problemsSolved} | Rating: {profile.stats.rating}
-                                        </p>
-                                        <button
-                                            onClick={() => handleDeleteProfile(profile._id, profile.platform)}
-                                            className="text-sm text-red-600 hover:text-red-800 mt-2"
-                                        >
-                                            Unlink
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="pt-6 border-t border-gray-100 flex items-center justify-between">
+                            <p className="text-xs text-gray-500 max-w-xs">
+                                Updates may take a few minutes to reflect after saving. All fields are optional.
+                            </p>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="btn-primary"
+                            >
+                                {loading ? 'Saving...' : 'Update All Profiles'}
+                            </button>
                         </div>
-                    </div>
+                    </form>
                 </div>
             )}
-
             {/* Security Tab */}
             {activeTab === 'security' && (
                 <div className="card">
@@ -630,7 +832,7 @@ const ProfileManager = () => {
                         <h2 className="text-2xl font-bold mb-4">Link External Profile</h2>
                         <form onSubmit={handleLinkProfile} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Platform *</label>
+                                <label className="block text-sm font-medium text-gray-700">Platform</label>
                                 <select
                                     value={linkProfileData.platform}
                                     onChange={(e) =>
@@ -644,9 +846,10 @@ const ProfileManager = () => {
                                         </option>
                                     ))}
                                 </select>
+                                <p className="text-xs text-gray-500 mt-1">You can only add each platform once</p>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Username *</label>
+                                <label className="block text-sm font-medium text-gray-700">Username</label>
                                 <input
                                     type="text"
                                     value={linkProfileData.username}
@@ -654,8 +857,7 @@ const ProfileManager = () => {
                                         setLinkProfileData({ ...linkProfileData, username: e.target.value })
                                     }
                                     className="mt-1 input-field"
-                                    placeholder="Your username on the platform"
-                                    required
+                                    placeholder="Your username on the platform (optional)"
                                 />
                             </div>
                             <div className="flex justify-end space-x-3">

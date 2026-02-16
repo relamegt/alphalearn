@@ -155,6 +155,7 @@ const completeFirstLoginProfile = async (req, res) => {
             firstName,
             lastName,
             newPassword,
+            profilePicture,
             phone,
             whatsapp,
             dob,
@@ -168,6 +169,7 @@ const completeFirstLoginProfile = async (req, res) => {
             startYear,
             endYear
         } = req.body;
+
 
         // Validate required fields
         if (!firstName || !lastName || !newPassword) {
@@ -207,6 +209,7 @@ const completeFirstLoginProfile = async (req, res) => {
             profileCompleted: true,
             profile: {
                 ...user.profile,
+                profilePicture: profilePicture || user.profile?.profilePicture,
                 phone: phone || user.profile?.phone,
                 whatsapp: whatsapp || user.profile?.whatsapp,
                 dob: dob || user.profile?.dob,

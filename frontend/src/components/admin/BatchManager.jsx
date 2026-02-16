@@ -23,6 +23,13 @@ const BatchManager = () => {
         startDate: '',
         endDate: '',
         description: '',
+        education: {
+            institution: '',
+            degree: '',
+            startYear: '',
+            endYear: ''
+        },
+        streams: [] // Available branches/streams for students
     });
 
     const [editFormData, setEditFormData] = useState({
@@ -30,6 +37,13 @@ const BatchManager = () => {
         startDate: '',
         endDate: '',
         description: '',
+        education: {
+            institution: '',
+            degree: '',
+            startYear: '',
+            endYear: ''
+        },
+        streams: [] // Available branches/streams for students
     });
 
     useEffect(() => {
@@ -63,7 +77,17 @@ const BatchManager = () => {
             await adminService.createBatch(formData);
             toast.success('Batch created successfully');
             setShowCreateModal(false);
-            setFormData({ name: '', startDate: '', endDate: '', description: '' });
+            setFormData({
+                name: '',
+                startDate: '',
+                endDate: '',
+                description: '',
+                education: {
+                    institution: '',
+                    degree: ''
+                },
+                streams: []
+            });
             fetchBatches();
             fetchSystemAnalytics();
         } catch (error) {
@@ -78,6 +102,13 @@ const BatchManager = () => {
             startDate: new Date(batch.startDate).toISOString().split('T')[0],
             endDate: new Date(batch.endDate).toISOString().split('T')[0],
             description: batch.description || '',
+            education: {
+                institution: batch.education?.institution || '',
+                degree: batch.education?.degree || '',
+                startYear: batch.education?.startYear || new Date(batch.startDate).getFullYear(),
+                endYear: batch.education?.endYear || new Date(batch.endDate).getFullYear()
+            },
+            streams: batch.streams || []
         });
         setShowEditModal(true);
     };
@@ -309,6 +340,93 @@ const BatchManager = () => {
                                     />
                                 </div>
                             </div>
+
+                            {/* Educational Details Section */}
+                            <div className="border-t pt-4 mt-4">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-3">Educational Details</h3>
+                                <p className="text-sm text-gray-600 mb-4">These details will be automatically assigned to all students in this batch</p>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        College/Institution
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.education.institution}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                education: { ...formData.education, institution: e.target.value }
+                                            })
+                                        }
+                                        className="mt-1 input-field"
+                                        placeholder="e.g., ABC Engineering College"
+                                    />
+                                </div>
+
+                                <div className="mt-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Degree
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.education.degree}
+                                            onChange={(e) =>
+                                                setFormData({
+                                                    ...formData,
+                                                    education: { ...formData.education, degree: e.target.value }
+                                                })
+                                            }
+                                            className="mt-1 input-field"
+                                            placeholder="e.g., B.Tech, B.E., MCA"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Available Branches/Streams
+                                </label>
+                                <p className="text-xs text-gray-500 mb-2">Students will select from these options</p>
+                                <div className="space-y-2">
+                                    {formData.streams.map((stream, index) => (
+                                        <div key={index} className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                value={stream}
+                                                onChange={(e) => {
+                                                    const newStreams = [...formData.streams];
+                                                    newStreams[index] = e.target.value;
+                                                    setFormData({ ...formData, streams: newStreams });
+                                                }}
+                                                className="input-field flex-1"
+                                                placeholder="e.g., CSE, IT, AIML"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const newStreams = formData.streams.filter((_, i) => i !== index);
+                                                    setFormData({ ...formData, streams: newStreams });
+                                                }}
+                                                className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, streams: [...formData.streams, ''] })}
+                                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                                    >
+                                        + Add Branch/Stream
+                                    </button>
+                                </div>
+                            </div>
+
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">
                                     Description
@@ -390,6 +508,51 @@ const BatchManager = () => {
                                     />
                                 </div>
                             </div>
+
+                            {/* Educational Details Section */}
+                            <div className="border-t pt-4 mt-4">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-3">Educational Details</h3>
+                                <p className="text-sm text-gray-600 mb-4">These details will be automatically assigned to all students in this batch</p>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        College/Institution
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.education.institution}
+                                        onChange={(e) =>
+                                            setEditFormData({
+                                                ...editFormData,
+                                                education: { ...editFormData.education, institution: e.target.value }
+                                            })
+                                        }
+                                        className="mt-1 input-field"
+                                        placeholder="e.g., ABC Engineering College"
+                                    />
+                                </div>
+
+                                <div className="mt-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Degree
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editFormData.education.degree}
+                                            onChange={(e) =>
+                                                setEditFormData({
+                                                    ...editFormData,
+                                                    education: { ...editFormData.education, degree: e.target.value }
+                                                })
+                                            }
+                                            className="mt-1 input-field"
+                                            placeholder="e.g., B.Tech, B.E., MCA"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">
                                     Description

@@ -17,6 +17,15 @@ class Batch {
             status: 'active',
             description: batchData.description || '',
             studentCount: 0,
+            // Educational details for all students in this batch
+            education: {
+                institution: batchData.education?.institution || null,
+                degree: batchData.education?.degree || null,
+                startYear: batchData.education?.startYear || new Date(batchData.startDate).getFullYear(),
+                endYear: batchData.education?.endYear || new Date(batchData.endDate).getFullYear()
+            },
+            // Available streams/branches for this batch (e.g., CSE, IT, AIML)
+            streams: batchData.streams || [],
             createdBy: new ObjectId(batchData.createdBy),
             createdAt: new Date()
         };

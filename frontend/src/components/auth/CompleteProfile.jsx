@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import authService from '../../services/authService';
+import uploadService from '../../services/uploadService';
 import toast from 'react-hot-toast';
 
 const CompleteProfile = () => {
@@ -16,14 +17,14 @@ const CompleteProfile = () => {
         lastName: '',
         newPassword: '',
         confirmPassword: '',
-
+        profilePicture: '',
+        profilePictureFile: null,
         // Contact Info
         phone: '',
         whatsapp: '',
         dob: '',
         gender: '',
         tshirtSize: '',
-
         // Address
         address: {
             building: '',
@@ -43,6 +44,42 @@ const CompleteProfile = () => {
     });
 
     const [errors, setErrors] = useState({});
+    const [availableStreams, setAvailableStreams] = useState([]);
+
+    // Fetch user data to pre-fill education from batch
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const userData = await authService.getCurrentUser();
+                if (userData && userData.education) {
+                    setFormData(prev => ({
+                        ...prev,
+                        institution: userData.education.institution || '',
+                        degree: userData.education.degree || '',
+                        startYear: userData.education.startYear || '',
+                        endYear: userData.education.endYear || ''
+                        // stream and rollNumber remain empty for user to fill
+                    }));
+                }
+
+                // Fetch batch data to get available streams
+                if (userData && userData.batchId) {
+                    try {
+                        const batchData = await authService.getBatchDetails(userData.batchId);
+                        setAvailableStreams(batchData.streams || []);
+                    } catch (error) {
+                        console.error('Error fetching batch streams:', error);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
+        };
+
+        if (user?.role === 'student') {
+            fetchUserData();
+        }
+    }, [user]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -62,6 +99,37 @@ const CompleteProfile = () => {
 
         // Clear error for this field
         setErrors({ ...errors, [name]: '' });
+    };
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validate file size (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('File size must be less than 5MB');
+            return;
+        }
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            toast.error('Only image files are allowed');
+            return;
+        }
+
+        setFormData({
+            ...formData,
+            profilePictureFile: file
+        });
+
+        // Preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setFormData(prev => ({
+                ...prev,
+                profilePicture: reader.result
+            }));
+        };
+        reader.readAsDataURL(file);
     };
 
     const validateStep1 = () => {
@@ -118,14 +186,6 @@ const CompleteProfile = () => {
             newErrors.rollNumber = 'Roll number is required';
         }
 
-        if (!formData.institution.trim()) {
-            newErrors.institution = 'Institution is required';
-        }
-
-        if (!formData.degree) {
-            newErrors.degree = 'Degree is required';
-        }
-
         if (!formData.stream.trim()) {
             newErrors.stream = 'Branch/Stream is required';
         }
@@ -154,21 +214,28 @@ const CompleteProfile = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        let isValid = false;
-        if (step === 3) {
-            isValid = validateStep3();
-        }
-
-        if (!isValid) return;
-
+        // ...validation...
         setLoading(true);
 
         try {
+            let profilePictureUrl = null;
+
+            // Upload profile picture first if exists
+            if (formData.profilePictureFile) {
+                try {
+                    const uploadResult = await uploadService.uploadProfilePicture(formData.profilePictureFile);
+                    profilePictureUrl = uploadResult.data.url;
+                } catch (error) {
+                    toast.error('Failed to upload profile picture');
+                    console.error(error);
+                }
+            }
+
             const profileData = {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 newPassword: formData.newPassword,
+                profilePicture: profilePictureUrl,
                 phone: formData.phone,
                 whatsapp: formData.whatsapp || formData.phone,
                 dob: formData.dob || null,
@@ -222,8 +289,8 @@ const CompleteProfile = () => {
                                 <div className="flex flex-col items-center flex-1">
                                     <div
                                         className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${step >= stepNumber
-                                                ? 'bg-primary-600 text-white'
-                                                : 'bg-gray-300 text-gray-600'
+                                            ? 'bg-primary-600 text-white'
+                                            : 'bg-gray-300 text-gray-600'
                                             }`}
                                     >
                                         {step > stepNumber ? '✓' : stepNumber}
@@ -254,6 +321,31 @@ const CompleteProfile = () => {
                                 <h2 className="text-2xl font-semibold text-gray-900 mb-6">
                                     Basic Information
                                 </h2>
+
+                                {/* Profile Picture Upload */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Profile Picture (Optional)
+                                    </label>
+                                    <div className="flex items-center space-x-4">
+                                        {formData.profilePicture && (
+                                            <img
+                                                src={formData.profilePicture}
+                                                alt="Profile Preview"
+                                                className="w-24 h-24 rounded-full object-cover border-2 border-gray-300"
+                                            />
+                                        )}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleFileChange}
+                                            className="input-field"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Upload an image (JPG, PNG, GIF, WebP). Max size: 5MB
+                                    </p>
+                                </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
@@ -509,60 +601,58 @@ const CompleteProfile = () => {
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Institution *
+                                                Institution (From Batch)
                                             </label>
                                             <input
                                                 type="text"
                                                 name="institution"
                                                 value={formData.institution}
-                                                onChange={handleChange}
-                                                className={`input-field ${errors.institution ? 'border-red-500' : ''}`}
-                                                placeholder="Your College/University"
+                                                readOnly
+                                                disabled
+                                                className="input-field bg-gray-100 cursor-not-allowed"
+                                                placeholder="Auto-filled from your batch"
                                             />
-                                            {errors.institution && (
-                                                <p className="text-red-500 text-xs mt-1">{errors.institution}</p>
-                                            )}
+                                            <p className="text-xs text-gray-500 mt-1">This is automatically set from your batch</p>
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Degree *
+                                                    Degree (From Batch)
                                                 </label>
-                                                <select
+                                                <input
+                                                    type="text"
                                                     name="degree"
                                                     value={formData.degree}
-                                                    onChange={handleChange}
-                                                    className={`input-field ${errors.degree ? 'border-red-500' : ''}`}
-                                                >
-                                                    <option value="">Select Degree</option>
-                                                    <option value="B.Tech">B.Tech</option>
-                                                    <option value="B.E.">B.E.</option>
-                                                    <option value="M.Tech">M.Tech</option>
-                                                    <option value="M.E.">M.E.</option>
-                                                    <option value="MCA">MCA</option>
-                                                    <option value="BCA">BCA</option>
-                                                    <option value="Other">Other</option>
-                                                </select>
-                                                {errors.degree && (
-                                                    <p className="text-red-500 text-xs mt-1">{errors.degree}</p>
-                                                )}
+                                                    readOnly
+                                                    disabled
+                                                    className="input-field bg-gray-100 cursor-not-allowed"
+                                                    placeholder="Auto-filled from your batch"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">This is automatically set from your batch</p>
                                             </div>
 
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                                     Branch/Stream *
                                                 </label>
-                                                <input
-                                                    type="text"
+                                                <select
                                                     name="stream"
                                                     value={formData.stream}
                                                     onChange={handleChange}
                                                     className={`input-field ${errors.stream ? 'border-red-500' : ''}`}
-                                                    placeholder="CSE, ECE, etc."
-                                                />
+                                                    required
+                                                >
+                                                    <option value="">Select your branch/stream</option>
+                                                    {availableStreams.map((stream, index) => (
+                                                        <option key={index} value={stream}>{stream}</option>
+                                                    ))}
+                                                </select>
                                                 {errors.stream && (
                                                     <p className="text-red-500 text-xs mt-1">{errors.stream}</p>
+                                                )}
+                                                {availableStreams.length === 0 && (
+                                                    <p className="text-xs text-gray-500 mt-1">No streams available for this batch</p>
                                                 )}
                                             </div>
                                         </div>
@@ -570,33 +660,31 @@ const CompleteProfile = () => {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Start Year
+                                                    Start Year (From Batch)
                                                 </label>
                                                 <input
                                                     type="number"
                                                     name="startYear"
                                                     value={formData.startYear}
-                                                    onChange={handleChange}
-                                                    className="input-field"
-                                                    placeholder="2022"
-                                                    min="2000"
-                                                    max="2030"
+                                                    readOnly
+                                                    disabled
+                                                    className="input-field bg-gray-100 cursor-not-allowed"
+                                                    placeholder="Auto-filled"
                                                 />
                                             </div>
 
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    End Year
+                                                    End Year (From Batch)
                                                 </label>
                                                 <input
                                                     type="number"
                                                     name="endYear"
                                                     value={formData.endYear}
-                                                    onChange={handleChange}
-                                                    className="input-field"
-                                                    placeholder="2026"
-                                                    min="2000"
-                                                    max="2035"
+                                                    readOnly
+                                                    disabled
+                                                    className="input-field bg-gray-100 cursor-not-allowed"
+                                                    placeholder="Auto-filled"
                                                 />
                                             </div>
                                         </div>
