@@ -268,6 +268,16 @@ class Submission {
 
         return stats;
     }
+
+    // Check if a student has solved a problem (accepted at least once)
+    static async isProblemSolved(studentId, problemId) {
+        const submission = await collections.submissions.findOne({
+            studentId: new ObjectId(studentId),
+            problemId: new ObjectId(problemId),
+            verdict: 'Accepted'
+        });
+        return !!submission;
+    }
 }
 
 module.exports = Submission;

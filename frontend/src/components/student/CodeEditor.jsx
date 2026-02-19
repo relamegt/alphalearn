@@ -6,7 +6,6 @@ import {
     CheckCircle,
     AlertTriangle,
     ChevronDown,
-    ChevronRight,
     Maximize2,
     Minimize2,
     Loader2,
@@ -17,8 +16,8 @@ import {
     Terminal,
     Coins,
     Menu,
-    X,
-    Lock
+    Lock,
+    XCircle
 } from 'lucide-react';
 import problemService from '../../services/problemService';
 import useCodeExecution from '../../hooks/useCodeExecution';
@@ -28,7 +27,7 @@ import toast from 'react-hot-toast';
 import ProblemSidebar from './ProblemSidebar';
 import SubmissionsTab from './SubmissionsTab';
 
-// ─── BookOpen icon (not in older lucide-react) ─────────────────────────────
+// ─── BookOpen icon ──────────────────────────────────────────────────────────
 const BookOpenIcon = ({ size = 14, className = '' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
         fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
@@ -38,14 +37,14 @@ const BookOpenIcon = ({ size = 14, className = '' }) => (
     </svg>
 );
 
-// ─── Drag‑Handle helper ──────────────────────────────────────────────────────
+// ─── Drag‑Handle helpers ─────────────────────────────────────────────────────
 const DragHandleH = ({ onMouseDown }) => (
     <div
         onMouseDown={onMouseDown}
         className="w-1 bg-gray-200 hover:bg-primary-400 cursor-col-resize shrink-0 transition-colors z-10 group relative"
         title="Drag to resize"
     >
-        <div className="absolute inset-y-0 -left-1 -right-1" /> {/* wider hit area */}
+        <div className="absolute inset-y-0 -left-1 -right-1" />
     </div>
 );
 
@@ -59,7 +58,7 @@ const DragHandleV = ({ onMouseDown }) => (
     </div>
 );
 
-// ─── Language & template data ───────────────────────────────────────────────
+// ─── Language & template data ────────────────────────────────────────────────
 const LANGUAGE_OPTIONS = [
     { value: 'c', label: 'C', monacoLang: 'c' },
     { value: 'cpp', label: 'C++', monacoLang: 'cpp' },
@@ -88,6 +87,69 @@ const DiffBadge = ({ d }) => {
     );
 };
 
+// ─── Verdict color helper ───────────────────────────────────────────────────
+const getVerdictColor = (verdict) => {
+    switch (verdict) {
+        case 'Accepted': return { text: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' };
+        case 'Wrong Answer': return { text: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' };
+        case 'Compilation Error': return { text: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100' };
+        case 'Runtime Error': return { text: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' };
+        case 'TLE': return { text: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-100' };
+        default: return { text: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' };
+    }
+};
+
+// ─── LeetCode-style Progress Bar ────────────────────────────────────────────
+const ExecutionProgress = ({ isRunning, isSubmitting, total }) => {
+    const [count, setCount] = useState(0);
+    const intervalRef = useRef(null);
+
+    useEffect(() => {
+        if (isRunning || isSubmitting) {
+            setCount(0);
+            const step = Math.max(1, Math.floor(total / 15));
+            intervalRef.current = setInterval(() => {
+                setCount(prev => {
+                    const next = prev + step;
+                    return next >= total - 1 ? total - 1 : next;
+                });
+            }, 400);
+        } else {
+            clearInterval(intervalRef.current);
+            setCount(0);
+        }
+        return () => clearInterval(intervalRef.current);
+    }, [isRunning, isSubmitting, total]);
+
+    if (!isRunning && !isSubmitting) return null;
+
+    const progress = total > 0 ? Math.round((count / total) * 100) : 0;
+    const label = isSubmitting ? 'Submitting' : 'Running';
+
+    return (
+        <div className="flex flex-col h-full items-center justify-center gap-4 px-8">
+            <div className="text-center">
+                <p className="text-sm font-semibold text-gray-700 mb-1">
+                    {label} test cases...
+                </p>
+                <p className="text-2xl font-bold text-primary-600">
+                    {count} <span className="text-gray-400 text-lg font-normal">/ {total}</span>
+                </p>
+            </div>
+            <div className="w-full max-w-xs bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div
+                    className="h-2 bg-primary-500 rounded-full transition-all duration-500"
+                    style={{ width: `${progress}%` }}
+                />
+            </div>
+            <p className="text-xs text-gray-400">
+                <Loader2 size={12} className="inline animate-spin mr-1" />
+                {label} code against test cases
+            </p>
+        </div>
+    );
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  Main Component
 // ═══════════════════════════════════════════════════════════════════════════
@@ -95,14 +157,13 @@ const CodeEditor = () => {
     const { problemId } = useParams();
     const navigate = useNavigate();
     const editorRef = useRef(null);
-    const monacoRef = useRef(null); // Capture monaco instance
-    const containerRef = useRef(null);   // outer wrapper
+    const monacoRef = useRef(null);
+    const containerRef = useRef(null);
 
-    // ── layout widths (% of total width) ──
-    const [sidebarW, setSidebarW] = useState(20);   // left col %
-    const [descW, setDescW] = useState(38);   // middle col %
-    const [editorTopH, setEditorTopH] = useState(65);   // editor row % of right col
-
+    // ── layout widths ──
+    const [sidebarW, setSidebarW] = useState(20);
+    const [descW, setDescW] = useState(38);
+    const [editorTopH, setEditorTopH] = useState(65);
     const [showSidebar, setShowSidebar] = useState(true);
 
     // ── problem data ──
@@ -122,7 +183,8 @@ const CodeEditor = () => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [pasteAttempts, setPasteAttempts] = useState(0);
     const [testCases, setTestCases] = useState([]);
-    const [activeCase, setActiveCase] = useState(0);
+    const [activeResultCase, setActiveResultCase] = useState(0); // result tab index
+    const [activeInputCase, setActiveInputCase] = useState(0);   // test case input tab index
     const [isCustomInput, setIsCustomInput] = useState(false);
     const [customInputVal, setCustomInputVal] = useState('');
 
@@ -149,7 +211,6 @@ const CodeEditor = () => {
                 navigate('/student/problems');
             })
             .finally(() => { if (mounted) setLoading(false); });
-
         return () => { mounted = false; };
     }, [problemId]);
 
@@ -169,54 +230,46 @@ const CodeEditor = () => {
         });
     }, [editorRef.current]);
 
-    // ───── auto‑switch to results tab ────────────────────────────────────────
+    // ───── auto-switch to results tab ────────────────────────────────────────
     useEffect(() => {
-        if (runResult || submitResult || execError) setBottomTab('results');
+        if (runResult || submitResult || execError) {
+            setBottomTab('results');
+            setActiveResultCase(0);
+        }
     }, [runResult, submitResult, execError]);
 
-    // ───── Error Marker Logic (LeetCode Style) ───────────────────────────────
-    // Derived error state
-    const isCompileErr = runResult?.verdict === 'Compilation Error'
-        || submitResult?.submission?.verdict === 'Compilation Error';
-    const compileErrMsg = runResult?.error || submitResult?.error || execError;
+    // ───── compilation error markers ─────────────────────────────────────────
+    const activeResult = submitResult || runResult;
+    const isCompileErr = activeResult?.verdict === 'Compilation Error';
+    const compileErrMsg = activeResult?.error || execError;
 
     useEffect(() => {
         const editor = editorRef.current;
         const monaco = monacoRef.current;
-
         if (!editor || !monaco) return;
-
         const model = editor.getModel();
         if (!model) return;
 
-        // Clear markers first
         monaco.editor.setModelMarkers(model, 'owner', []);
 
         if (isCompileErr && compileErrMsg) {
             const markers = [];
             const lines = compileErrMsg.split('\n');
-
-            // Regex patterns for different languages
-
             const patterns = [
-                /:(\d+):(\d+): error:/, // GCC-style (C/C++) with col
-                /:(\d+): error:/,       // GCC-style (C/C++) no col
-                /line (\d+)/i,           // Python style
-                /:(\d+)/                // Generic fallback
+                /:(\\d+):(\\d+): error:/,
+                /:(\\d+): error:/,
+                /line (\\d+)/i,
+                /:(\\d+)/
             ];
-
-            // Try to find the line number in the error message
             for (const line of lines) {
                 let match = null;
                 for (const pattern of patterns) {
                     match = line.match(pattern);
                     if (match) break;
                 }
-
                 if (match) {
                     const lineNum = parseInt(match[1], 10);
                     if (!isNaN(lineNum) && lineNum > 0 && lineNum <= model.getLineCount()) {
-                        // Add marker
                         markers.push({
                             startLineNumber: lineNum,
                             startColumn: 1,
@@ -228,37 +281,23 @@ const CodeEditor = () => {
                     }
                 }
             }
-
-            if (markers.length > 0) {
-                monaco.editor.setModelMarkers(model, 'owner', markers);
-            }
+            if (markers.length > 0) monaco.editor.setModelMarkers(model, 'owner', markers);
         }
-
     }, [isCompileErr, compileErrMsg]);
 
     // ═══ Drag Resize Logic ════════════════════════════════════════════════════
-    const dragging = useRef(null); // { type, startX, startY, startVal, startVal2? }
+    const dragging = useRef(null);
 
     const onMouseMoveResize = useCallback((e) => {
         const d = dragging.current;
         if (!d || !containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
-
         if (d.type === 'sidebar') {
-            const totalW = rect.width;
-            const dx = e.clientX - d.startX;
-            const newSidebar = Math.min(30, Math.max(12, d.startVal + dx / totalW * 100));
-            setSidebarW(newSidebar);
+            setSidebarW(Math.min(30, Math.max(12, d.startVal + (e.clientX - d.startX) / rect.width * 100)));
         } else if (d.type === 'desc') {
-            const totalW = rect.width;
-            const dx = e.clientX - d.startX;
-            const newDesc = Math.min(50, Math.max(20, d.startVal + dx / totalW * 100));
-            setDescW(newDesc);
+            setDescW(Math.min(50, Math.max(20, d.startVal + (e.clientX - d.startX) / rect.width * 100)));
         } else if (d.type === 'editorH') {
-            const totalH = rect.height - 1; // minus header
-            const dy = e.clientY - d.startY;
-            const newH = Math.min(85, Math.max(15, d.startVal + dy / totalH * 100));
-            setEditorTopH(newH);
+            setEditorTopH(Math.min(85, Math.max(15, d.startVal + (e.clientY - d.startY) / rect.height * 100)));
         }
     }, []);
 
@@ -293,10 +332,7 @@ const CodeEditor = () => {
     const handleRun = async () => {
         const monaco = monacoRef.current;
         const editor = editorRef.current;
-        if (monaco && editor) {
-            monaco.editor.setModelMarkers(editor.getModel(), 'owner', []);
-        }
-
+        if (monaco && editor) monaco.editor.setModelMarkers(editor.getModel(), 'owner', []);
         if (!code.trim()) return toast.error('Code cannot be empty');
         await runCode(problemId, code, language, isCustomInput ? customInputVal : undefined);
     };
@@ -304,10 +340,7 @@ const CodeEditor = () => {
     const handleSubmit = async () => {
         const monaco = monacoRef.current;
         const editor = editorRef.current;
-        if (monaco && editor) {
-            monaco.editor.setModelMarkers(editor.getModel(), 'owner', []);
-        }
-
+        if (monaco && editor) monaco.editor.setModelMarkers(editor.getModel(), 'owner', []);
         if (!code.trim()) return toast.error('Code cannot be empty');
         if (!window.confirm('Submit solution? This will be tracked.')) return;
         await submitCode(problemId, code, language);
@@ -332,18 +365,21 @@ const CodeEditor = () => {
     }
     if (!problem) return null;
 
-    // Determine what to show in results
-    const isRun = bottomTab === 'results' && !!runResult;
-    const isSubmit = bottomTab === 'results' && !!submitResult;
-
-    // Unified result object
-    const activeResult = isSubmit ? submitResult : (isRun ? runResult : null);
-
-    // For Run: show filtered cases. For Submit: show everything (masked handled by backend)
-    const displayResults = activeResult?.results || [];
-
-    // column widths
     const rightW = 100 - (showSidebar ? sidebarW : 0) - descW;
+
+    // ─── Result data ───────────────────────────────────────────────────────────
+    // Unified single result object (prefer submitResult then runResult)
+    const displayResult = submitResult || runResult || null;
+    const displayResults = displayResult?.results || [];
+
+    // Count visible (non-hidden) results for tabs display
+    const visibleResults = displayResult?.isSubmitMode
+        ? displayResults // show all (hidden shows locked card)
+        : displayResults;
+
+    // Determine executing state
+    const isExecuting = running || submitting;
+    const totalTestCasesForProgress = problem?.testCases?.length || testCases.length || 3;
 
     return (
         <div
@@ -351,7 +387,7 @@ const CodeEditor = () => {
             className={`flex flex-col bg-white text-gray-800 select-none overflow-hidden
                 ${isFullScreen ? 'fixed inset-0 z-50 h-screen' : 'h-[calc(100vh-64px)]'}`}
         >
-            {/* ── Top Header ─────────────────────────────────────────────── */}
+            {/* ── Top Header ───────────────────────────────────────────────── */}
             <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 z-20 shadow-sm">
                 {/* left */}
                 <div className="flex items-center gap-4 overflow-hidden">
@@ -386,7 +422,7 @@ const CodeEditor = () => {
                     <div className="flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
                         <button
                             onClick={handleRun}
-                            disabled={running || submitting}
+                            disabled={isExecuting}
                             className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-gray-700 rounded-md hover:bg-white hover:shadow-sm transition-all disabled:opacity-50"
                         >
                             {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} className="fill-current" />}
@@ -394,7 +430,7 @@ const CodeEditor = () => {
                         </button>
                         <button
                             onClick={handleSubmit}
-                            disabled={running || submitting}
+                            disabled={isExecuting}
                             className="flex items-center gap-1.5 px-3 py-1 ml-1 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-md shadow-sm transition-all disabled:opacity-50"
                         >
                             {submitting ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
@@ -425,7 +461,6 @@ const CodeEditor = () => {
 
                 {/* ─ Col 2: Description / Editorial / Submissions ─ */}
                 <div style={{ width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 bg-white">
-
                     {/* Tabs */}
                     <div className="flex items-center h-9 border-b border-gray-200 bg-white shrink-0">
                         {[
@@ -606,7 +641,7 @@ const CodeEditor = () => {
                     {/* ── Bottom: Test Cases / Results ── */}
                     <div style={{ height: `${100 - editorTopH}%` }} className="flex flex-col overflow-hidden border-t border-gray-100">
                         {/* bottom tabs */}
-                        <div className="flex items-center h-9 border-b border-gray-200 bg-gray-50 shrink-0">
+                        <div className="flex items-center h-9 border-b border-gray-200 bg-gray-50 shrink-0 px-1">
                             <button
                                 onClick={() => setBottomTab('testcases')}
                                 className={`flex items-center gap-1.5 px-4 h-full text-xs font-medium transition-colors border-b-2
@@ -621,12 +656,20 @@ const CodeEditor = () => {
                                     ${bottomTab === 'results' ? 'border-primary-600 text-primary-700 bg-white' : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100'}`}
                             >
                                 {isCompileErr ? (
-                                    <span className="flex items-center gap-1.5 text-red-600">
+                                    <span className="flex items-center gap-1.5 text-orange-600">
                                         <AlertTriangle size={12} /> Compilation Error
+                                    </span>
+                                ) : displayResult && !isExecuting ? (
+                                    <span className={`flex items-center gap-1.5 ${displayResult.verdict === 'Accepted' ? 'text-green-600' : 'text-red-600'}`}>
+                                        {displayResult.verdict === 'Accepted'
+                                            ? <CheckCircle size={12} />
+                                            : <XCircle size={12} />
+                                        }
+                                        {displayResult.isSubmitMode ? 'Submission Result' : 'Run Result'}
                                     </span>
                                 ) : (
                                     <>
-                                        <Terminal size={12} /> Run Results
+                                        <Terminal size={12} /> Results
                                     </>
                                 )}
                             </button>
@@ -641,13 +684,13 @@ const CodeEditor = () => {
                                     {/* Header Actions */}
                                     <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 shrink-0">
                                         <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1">
-                                            {/* Standard Cases */}
-                                            {!isCustomInput && testCases.filter(tc => !tc.isHidden).map((_, i) => (
+                                            {/* Sample Test Case tabs (visible, non-hidden) */}
+                                            {!isCustomInput && testCases.map((_, i) => (
                                                 <button
                                                     key={i}
-                                                    onClick={() => setActiveCase(i)}
+                                                    onClick={() => setActiveInputCase(i)}
                                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap
-                                                        ${activeCase === i
+                                                        ${activeInputCase === i
                                                             ? 'bg-gray-100 text-gray-900 font-semibold'
                                                             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                                                         }`}
@@ -655,7 +698,6 @@ const CodeEditor = () => {
                                                     Case {i + 1}
                                                 </button>
                                             ))}
-                                            {/* Custom Input Badge */}
                                             {isCustomInput && (
                                                 <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-100">
                                                     Custom Input
@@ -687,14 +729,14 @@ const CodeEditor = () => {
                                                 />
                                             </div>
                                         ) : (
-                                            testCases.filter(tc => !tc.isHidden)[activeCase] && (
+                                            testCases[activeInputCase] && (
                                                 <div className="space-y-4 max-w-2xl">
                                                     <div>
                                                         <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
                                                         <textarea
                                                             className="w-full h-auto min-h-[50px] bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none"
                                                             rows={3}
-                                                            value={testCases.filter(tc => !tc.isHidden)[activeCase].input}
+                                                            value={testCases[activeInputCase].input}
                                                             readOnly
                                                         />
                                                     </div>
@@ -703,7 +745,7 @@ const CodeEditor = () => {
                                                         <textarea
                                                             className="w-full h-auto min-h-[50px] bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 outline-none resize-none opacity-80 cursor-not-allowed"
                                                             rows={3}
-                                                            value={testCases.filter(tc => !tc.isHidden)[activeCase].output}
+                                                            value={testCases[activeInputCase].output}
                                                             readOnly
                                                         />
                                                     </div>
@@ -716,134 +758,208 @@ const CodeEditor = () => {
 
                             {/* ── Results tab ── */}
                             {bottomTab === 'results' && (
-                                <div className="h-full overflow-y-auto">
-                                    {isCompileErr ? (
-                                        <div className="flex flex-col h-full bg-red-50/30">
-                                            {/* Header */}
-                                            <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2 shrink-0">
-                                                <div className="bg-red-100 p-1.5 rounded-full">
-                                                    <AlertTriangle className="text-red-600" size={16} />
-                                                </div>
-                                                <h3 className="text-red-800 font-bold text-sm">Compilation Failed</h3>
-                                                <span className="text-xs text-red-500 ml-auto font-medium">Check code for syntax errors</span>
-                                            </div>
+                                <div className="h-full overflow-y-auto flex flex-col">
 
+                                    {/* ── Executing (live progress) ── */}
+                                    {isExecuting && (
+                                        <ExecutionProgress
+                                            isRunning={running}
+                                            isSubmitting={submitting}
+                                            total={submitting ? totalTestCasesForProgress : testCases.length || 3}
+                                        />
+                                    )}
+
+                                    {/* ── Compilation Error ── */}
+                                    {!isExecuting && isCompileErr && (
+                                        <div className="flex flex-col bg-orange-50/30">
+                                            <div className="bg-orange-50 border-b border-orange-100 px-4 py-3 flex items-center gap-2 shrink-0">
+                                                <div className="bg-orange-100 p-1.5 rounded-full">
+                                                    <AlertTriangle className="text-orange-600" size={16} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-orange-800 font-bold text-sm">Compilation Error</h3>
+                                                    <p className="text-xs text-orange-600">Check your code for syntax errors</p>
+                                                </div>
+                                            </div>
                                             <div className="p-4">
-                                                <pre className="font-mono text-xs text-red-700 bg-red-50/50 border border-red-100 rounded-lg p-3 whitespace-pre-wrap leading-relaxed shadow-sm">
+                                                <pre className="font-mono text-xs text-orange-700 bg-orange-50/50 border border-orange-100 rounded-lg p-3 whitespace-pre-wrap leading-relaxed shadow-sm">
                                                     {compileErrMsg || 'Unknown error'}
                                                 </pre>
                                             </div>
                                         </div>
-                                    ) : activeResult ? (
+                                    )}
+
+                                    {/* ── Has results ── */}
+                                    {!isExecuting && !isCompileErr && displayResult && (
                                         <div className="flex flex-col h-full">
-                                            {/* Main Result Verdict */}
-                                            <div className={`px-5 py-4 border-b shrink-0 flex items-center gap-3
-                                                ${activeResult.verdict === 'Accepted'
-                                                    ? 'bg-green-50 border-green-100'
-                                                    : 'bg-red-50 border-red-100'
-                                                }`}>
-                                                <div className={`p-2 rounded-full ${activeResult.verdict === 'Accepted' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                    {activeResult.verdict === 'Accepted' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-                                                </div>
-                                                <div>
-                                                    <h2 className={`text-lg font-bold ${activeResult.verdict === 'Accepted' ? 'text-green-700' : 'text-red-700'}`}>
-                                                        {activeResult.verdict}
-                                                    </h2>
-                                                    <div className="flex items-center gap-3 text-xs opacity-80 mt-1">
-                                                        <span className={activeResult.verdict === 'Accepted' ? 'text-green-800' : 'text-red-800'}>
-                                                            {activeResult.testCasesPassed} / {activeResult.totalTestCases} Test cases passed
-                                                        </span>
-                                                        {activeResult.submission?.points > 0 && (
-                                                            <span className="flex items-center gap-1 font-bold text-amber-600 bg-white/50 px-2 py-0.5 rounded-full border border-amber-200">
-                                                                <Coins size={10} /> +{activeResult.submission.points} Coins
-                                                            </span>
-                                                        )}
+                                            {/* ── LeetCode-style Verdict Header ── */}
+                                            {(() => {
+                                                const vc = getVerdictColor(displayResult.verdict);
+                                                const isAccepted = displayResult.verdict === 'Accepted';
+                                                return (
+                                                    <div className={`px-5 py-4 border-b shrink-0 ${vc.bg} ${vc.border}`}>
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                                    {isAccepted ? <CheckCircle size={20} /> : <XCircle size={20} />}
+                                                                </div>
+                                                                <div>
+                                                                    <h2 className={`text-lg font-bold ${vc.text}`}>
+                                                                        {displayResult.verdict}
+                                                                    </h2>
+                                                                    {/* LeetCode-style: X / Y testcases passed */}
+                                                                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                                                        <span className={`text-sm font-medium ${vc.text}`}>
+                                                                            {displayResult.testCasesPassed} / {displayResult.totalTestCases} testcases passed
+                                                                        </span>
+                                                                        {displayResult.isSubmitMode && (
+                                                                            <span className="text-xs text-gray-500">
+                                                                                {displayResult.isCustomInput ? 'Custom Input' : 'All Test Cases'}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Coins earned badge (submit only) */}
+                                                            {displayResult.isSubmitMode && displayResult.coinsEarned > 0 && (
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <span className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-sm font-bold">
+                                                                        <Coins size={14} />
+                                                                        +{displayResult.coinsEarned} Alpha Coins
+                                                                    </span>
+                                                                    {displayResult.totalCoins > 0 && (
+                                                                        <span className="text-[10px] text-amber-500 font-medium">
+                                                                            Total: {displayResult.totalCoins} coins
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
+                                                );
+                                            })()}
+
+                                            {/* ── Test Case Tabs (LeetCode style) ── */}
+                                            {visibleResults.length > 0 && (
+                                                <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0 bg-white">
+                                                    {visibleResults.map((r, i) => (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => setActiveResultCase(i)}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
+                                                                ${activeResultCase === i
+                                                                    ? `${r.passed
+                                                                        ? 'bg-green-50 border-green-300 text-green-700'
+                                                                        : 'bg-red-50 border-red-300 text-red-700'
+                                                                    } font-semibold`
+                                                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                                                }`}
+                                                        >
+                                                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                            {displayResult.isSubmitMode && r.isHidden
+                                                                ? `Hidden ${i + 1}`
+                                                                : `Case ${i + 1}`
+                                                            }
+                                                        </button>
+                                                    ))}
                                                 </div>
-                                            </div>
+                                            )}
 
-                                            {/* Results Horizontal Tabs */}
-                                            <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0 bg-white">
-                                                {displayResults.map((r, i) => (
-                                                    <button
-                                                        key={i}
-                                                        onClick={() => setActiveCase(i)}
-                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-2
-                                                            ${activeResult.results[i] && activeCase === i
-                                                                ? 'bg-gray-100 text-gray-900 font-semibold'
-                                                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                                                            }`}
-                                                    >
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                        {isCustomInput ? 'Custom' : `Case ${i + 1}`}
-                                                    </button>
-                                                ))}
-                                            </div>
-
-                                            {/* Result Details */}
+                                            {/* ── Result Details ── */}
                                             <div className="flex-1 p-4 overflow-y-auto">
-                                                {displayResults[activeCase] && (
-                                                    <div className="space-y-4 max-w-3xl animate-in fade-in duration-200">
-                                                        {displayResults[activeCase].isHidden ? (
-                                                            <div className="p-12 text-center border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 text-gray-400">
-                                                                <Lock size={24} className="mx-auto mb-2 opacity-50" />
-                                                                <p className="text-xs font-medium uppercase tracking-wider">Hidden Test Case</p>
-                                                                <p className="text-[10px] mt-1 text-gray-400">
-                                                                    {displayResults[activeCase].passed ? "Passed" : "Failed (Wrong Answer)"}
+                                                {visibleResults[activeResultCase] ? (
+                                                    <div className="space-y-4 max-w-3xl">
+                                                        {/* Hidden test case placeholder */}
+                                                        {visibleResults[activeResultCase].isHidden ? (
+                                                            <div className={`p-10 text-center border-2 border-dashed rounded-xl ${visibleResults[activeResultCase].passed ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'}`}>
+                                                                <Lock size={24} className={`mx-auto mb-3 ${visibleResults[activeResultCase].passed ? 'text-green-400' : 'text-red-400'}`} />
+                                                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Hidden Test Case</p>
+                                                                <p className={`text-sm font-semibold mt-2 ${visibleResults[activeResultCase].passed ? 'text-green-600' : 'text-red-600'}`}>
+                                                                    {visibleResults[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}
                                                                 </p>
+                                                                <p className="text-[10px] text-gray-400 mt-1">Input and expected output are hidden</p>
                                                             </div>
                                                         ) : (
                                                             <>
+                                                                {/* Pass / Fail badge */}
+                                                                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${visibleResults[activeResultCase].passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                                    {visibleResults[activeResultCase].passed
+                                                                        ? <><CheckCircle size={12} /> Passed</>
+                                                                        : <><XCircle size={12} /> {visibleResults[activeResultCase].verdict || 'Failed'}</>
+                                                                    }
+                                                                </div>
+
+                                                                {/* Input + Expected side by side */}
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                     <div>
                                                                         <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap">
-                                                                            {displayResults[activeCase].input}
+                                                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
+                                                                            {visibleResults[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
                                                                         </div>
                                                                     </div>
-                                                                    {/* Expected Output - Hide if Custom Input */}
-                                                                    {!isCustomInput && (
+                                                                    {/* Only show expected output for non-custom submissions */}
+                                                                    {(!displayResult.isCustomInput) && (
                                                                         <div>
                                                                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap">
-                                                                                {displayResults[activeCase].expectedOutput}
+                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
+                                                                                {visibleResults[activeResultCase].expectedOutput ?? <span className="text-gray-400 italic">N/A</span>}
                                                                             </div>
                                                                         </div>
                                                                     )}
                                                                 </div>
+
+                                                                {/* Your Output */}
                                                                 <div>
                                                                     <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Your Output</p>
-                                                                    <div className={`rounded-lg p-3 text-xs font-mono whitespace-pre-wrap border
-                                                                        ${displayResults[activeCase].passed
+                                                                    <div className={`rounded-lg p-3 text-xs font-mono whitespace-pre-wrap border min-h-[48px]
+                                                                        ${visibleResults[activeResultCase].passed
                                                                             ? 'bg-green-50/40 border-green-200 text-gray-900'
                                                                             : 'bg-red-50/40 border-red-200 text-gray-900'
                                                                         }`}
                                                                     >
-                                                                        {displayResults[activeCase].actualOutput || <span className="text-gray-400 italic">No output</span>}
+                                                                        {visibleResults[activeResultCase].actualOutput || <span className="text-gray-400 italic">No output</span>}
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Display Runtime Error / Traceback if present */}
-                                                                {displayResults[activeCase].error && (
-                                                                    <div className="mt-3 animate-in fade-in slide-in-from-top-1">
-                                                                        <p className="text-[10px] font-bold text-red-500 uppercase mb-1.5">Error Message</p>
+                                                                {/* Runtime error / stderr */}
+                                                                {visibleResults[activeResultCase].error && (
+                                                                    <div>
+                                                                        <p className="text-[10px] font-bold text-red-500 uppercase mb-1.5">Error / Traceback</p>
                                                                         <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap">
-                                                                            {displayResults[activeCase].error}
+                                                                            {visibleResults[activeResultCase].error}
                                                                         </pre>
                                                                     </div>
                                                                 )}
                                                             </>
                                                         )}
                                                     </div>
+                                                ) : (
+                                                    <div className="flex items-center justify-center h-full text-gray-400 text-xs">
+                                                        No result data for this case.
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
-                                    ) : (
+                                    )}
+
+                                    {/* ── No results yet ── */}
+                                    {!isExecuting && !displayResult && !execError && (
                                         <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
                                             <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
                                                 <Play size={20} className="ml-1 text-gray-300" />
                                             </div>
                                             <p className="text-sm font-medium">Run code to view results</p>
+                                        </div>
+                                    )}
+
+                                    {/* ── Generic error (no results) ── */}
+                                    {!isExecuting && execError && !displayResult && (
+                                        <div className="p-4">
+                                            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                                <p className="text-xs font-bold text-red-600 mb-2">Error</p>
+                                                <p className="text-xs text-red-700">{execError}</p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>

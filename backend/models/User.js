@@ -197,6 +197,23 @@ class User {
         );
     }
 
+    // Atomically add coins to user (thread-safe increment)
+    static async addCoins(userId, amount) {
+        return await collections.users.updateOne(
+            { _id: new ObjectId(userId) },
+            { $inc: { alphacoins: amount } }
+        );
+    }
+
+    // Get user's current coin balance
+    static async getCoins(userId) {
+        const user = await collections.users.findOne(
+            { _id: new ObjectId(userId) },
+            { projection: { alphacoins: 1 } }
+        );
+        return user?.alphacoins || 0;
+    }
+
     // Update profile
     static async updateProfile(userId, profileData) {
         return await collections.users.updateOne(

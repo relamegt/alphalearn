@@ -2,6 +2,7 @@ const Submission = require('../models/Submission');
 const Problem = require('../models/Problem');
 const Progress = require('../models/Progress');
 const Leaderboard = require('../models/Leaderboard');
+const User = require('../models/User');
 const { executeWithTestCases, validateCode } = require('../services/judge0Service');
 
 // Run code (sample test cases only)
@@ -25,20 +26,14 @@ const runCode = async (req, res) => {
         // Get problem
         const problem = await Problem.findById(problemId);
         if (!problem) {
-            console.log('   ❌ Problem not found');
-            return res.status(404).json({
-                success: false,
-                message: 'Problem not found'
-            });
+            return res.status(404).json({ success: false, message: 'Problem not found' });
         }
 
         // Determine test cases (Custom or Sample)
         let testCases;
         if (customInput !== undefined && customInput !== null) {
-            // If custom input is provided, run only that
             testCases = [{ input: customInput, output: null, isHidden: false }];
         } else {
-            // Otherwise run sample test cases
             testCases = await Problem.getSampleTestCases(problemId);
         }
 
@@ -53,7 +48,15 @@ const runCode = async (req, res) => {
             verdict: result.verdict,
             testCasesPassed: result.testCasesPassed,
             totalTestCases: result.totalTestCases,
-            results: result.results,
+            results: result.results.map(r => ({
+                input: r.input,
+                expectedOutput: r.expectedOutput,
+                actualOutput: r.actualOutput,
+                passed: r.passed,
+                verdict: r.verdict,
+                error: r.error,
+                isHidden: false // run mode - never hidden
+            })),
             error: result.error
         });
     } catch (error) {
@@ -72,6 +75,8 @@ const submitCode = async (req, res) => {
         const { problemId, code, language } = req.body;
         const studentId = req.user.userId;
 
+        console.log(`\n📥 [API] POST /student/code/submit - Problem: ${problemId}, Lang: ${language}, Student: ${studentId}`);
+
         // Validate code
         const validation = validateCode(code, language);
         if (!validation.valid) {
@@ -85,19 +90,16 @@ const submitCode = async (req, res) => {
         // Get problem
         const problem = await Problem.findById(problemId);
         if (!problem) {
-            return res.status(404).json({
-                success: false,
-                message: 'Problem not found'
-            });
+            return res.status(404).json({ success: false, message: 'Problem not found' });
         }
 
-        // Get all test cases
+        // Get all test cases (sample + hidden)
         const allTestCases = await Problem.getAllTestCases(problemId);
 
-        // Execute code
+        // Execute code against all test cases
         const result = await executeWithTestCases(language, code, allTestCases, problem.timeLimit);
 
-        // Create submission
+        // Create submission record
         const submission = await Submission.create({
             studentId,
             problemId,
@@ -108,33 +110,80 @@ const submitCode = async (req, res) => {
             totalTestCases: result.totalTestCases
         });
 
-        // Update progress if accepted
-        if (result.verdict === 'Accepted') {
-            await Progress.updateProblemsSolved(studentId, problemId);
-            await Progress.recalculateSectionProgress(studentId);
-            await Progress.updateStreak(studentId);
+        let coinsEarned = 0;
+        let totalCoins = 0;
+        let isFirstSolve = false;
 
-            // Update leaderboard
-            await Leaderboard.recalculateScores(studentId);
+        // Award coins only on Accepted verdict
+        if (result.verdict === 'Accepted') {
+            // Check if problem was ALREADY solved before this submission
+            // We check for any prior accepted submission from before now
+            const previouslySolved = await Submission.isProblemSolved(studentId, problemId);
+            // Note: isProblemSolved will now return true since we just created the submission
+            // So we need to check if there were >1 accepted submissions (the one we just created + any prior)
+            // A more robust approach: we pass isFirstSolve based on whether progress already has it
+            const progress = await Progress.findByStudent(studentId);
+            const alreadyInProgress = progress?.problemsSolved?.some(
+                id => id.toString() === problemId.toString()
+            );
+            isFirstSolve = !alreadyInProgress;
+
+            if (isFirstSolve) {
+                // Award coins atomically (thread-safe)
+                coinsEarned = problem.points || 0;
+                await User.addCoins(studentId, coinsEarned);
+                console.log(`   💰 Coins Awarded: +${coinsEarned} to student ${studentId}`);
+            } else {
+                console.log(`   ℹ️ Problem already solved before - no duplicate coins`);
+            }
+
+            // Always update progress and leaderboard on accepted
+            await Promise.all([
+                Progress.updateProblemsSolved(studentId, problemId),
+                Progress.recalculateSectionProgress(studentId),
+                Progress.updateStreak(studentId),
+                Leaderboard.recalculateScores(studentId)
+            ]);
         }
+
+        // Get updated coin total for the user
+        const updatedUser = await User.findById(studentId);
+        totalCoins = updatedUser?.alphacoins || 0;
+
+        // Map results, masking hidden test cases
+        const mappedResults = result.results.map(r => ({
+            input: r.isHidden ? null : r.input,
+            expectedOutput: r.isHidden ? null : r.expectedOutput,
+            actualOutput: r.isHidden ? null : r.actualOutput,
+            passed: r.passed,
+            verdict: r.verdict,
+            error: r.isHidden ? null : r.error,
+            isHidden: r.isHidden || false
+        }));
+
+        console.log(`   ✅ Submit Complete: ${result.verdict} (${result.testCasesPassed}/${result.totalTestCases}), CoinsEarned: ${coinsEarned}`);
 
         res.json({
             success: true,
             message: 'Code submitted successfully',
+            verdict: result.verdict,
+            testCasesPassed: result.testCasesPassed,
+            totalTestCases: result.totalTestCases,
             submission: {
                 id: submission._id,
                 verdict: submission.verdict,
                 testCasesPassed: submission.testCasesPassed,
                 totalTestCases: submission.totalTestCases,
-                submittedAt: submission.submittedAt
+                submittedAt: submission.submittedAt,
+                coinsEarned,
+                totalCoins,
+                isFirstSolve
             },
-            results: result.results.map(r => ({
-                input: r.isHidden ? 'Hidden' : r.input,
-                expectedOutput: r.isHidden ? 'Hidden' : r.expectedOutput,
-                actualOutput: r.isHidden ? (r.passed ? 'Hidden' : 'Wrong Answer') : r.actualOutput,
-                passed: r.passed
-            })),
-            error: result.error
+            results: mappedResults,
+            error: result.error,
+            coinsEarned,
+            totalCoins,
+            isFirstSolve
         });
     } catch (error) {
         console.error('Submit code error:', error);
@@ -153,31 +202,17 @@ const getSubmissionById = async (req, res) => {
 
         const submission = await Submission.findById(submissionId);
         if (!submission) {
-            return res.status(404).json({
-                success: false,
-                message: 'Submission not found'
-            });
+            return res.status(404).json({ success: false, message: 'Submission not found' });
         }
 
-        // Check ownership
         if (req.user.role === 'student' && submission.studentId.toString() !== req.user.userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
+            return res.status(403).json({ success: false, message: 'Access denied' });
         }
 
-        res.json({
-            success: true,
-            submission
-        });
+        res.json({ success: true, submission });
     } catch (error) {
         console.error('Get submission by ID error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch submission',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Failed to fetch submission', error: error.message });
     }
 };
 
@@ -187,12 +222,8 @@ const getStudentSubmissions = async (req, res) => {
         const studentId = req.params.studentId || req.user.userId;
         const { limit = 100, problemId } = req.query;
 
-        // Check ownership
         if (req.user.role === 'student' && studentId !== req.user.userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
+            return res.status(403).json({ success: false, message: 'Access denied' });
         }
 
         let submissions;
@@ -202,18 +233,10 @@ const getStudentSubmissions = async (req, res) => {
             submissions = await Submission.findByStudent(studentId, parseInt(limit));
         }
 
-        res.json({
-            success: true,
-            count: submissions.length,
-            submissions
-        });
+        res.json({ success: true, count: submissions.length, submissions });
     } catch (error) {
         console.error('Get student submissions error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch submissions',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Failed to fetch submissions', error: error.message });
     }
 };
 
@@ -225,29 +248,16 @@ const getRecentSubmissions = async (req, res) => {
         const { limit = 10 } = req.query;
 
         let submissions;
-
         if (role === 'admin' || role === 'instructor') {
-            // Fetch all recent submissions with details
             submissions = await Submission.findAllRecentSubmissions(parseInt(limit));
-        } else {
-            // Fetch only student's submissions
-            if (role === 'student') {
-                submissions = await Submission.findRecentSubmissions(userId, parseInt(limit));
-            }
+        } else if (role === 'student') {
+            submissions = await Submission.findRecentSubmissions(userId, parseInt(limit));
         }
 
-        res.json({
-            success: true,
-            count: submissions.length,
-            submissions
-        });
+        res.json({ success: true, count: submissions.length, submissions });
     } catch (error) {
         console.error('Get recent submissions error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch recent submissions',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Failed to fetch recent submissions', error: error.message });
     }
 };
 
@@ -256,27 +266,15 @@ const getSubmissionStatistics = async (req, res) => {
     try {
         const studentId = req.params.studentId || req.user.userId;
 
-        // Check ownership
         if (req.user.role === 'student' && studentId !== req.user.userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
+            return res.status(403).json({ success: false, message: 'Access denied' });
         }
 
         const stats = await Submission.getStatistics(studentId);
-
-        res.json({
-            success: true,
-            statistics: stats
-        });
+        res.json({ success: true, statistics: stats });
     } catch (error) {
         console.error('Get submission statistics error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch statistics',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Failed to fetch statistics', error: error.message });
     }
 };
 
