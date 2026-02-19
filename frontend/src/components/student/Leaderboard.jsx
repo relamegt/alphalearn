@@ -613,7 +613,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
             {/* Header Section */}
             {isBatchView ? (
-                <div className="bg-transparent sticky top-0 z-30">
+                <div className="bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm sticky top-0 z-30">
                     <div className="w-full mx-auto px-6 h-16 flex items-center justify-between relative">
                         {/* Left: Logo */}
                         <div className="flex items-center gap-2">
@@ -654,7 +654,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                 </div>
             ) : (
                 <div className="bg-transparent sticky top-0 z-30">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="min-w-full px-4 sm:px-6 lg:px-8">
                         <div className="flex flex-col md:flex-row md:items-center justify-between py-4 gap-4">
                             <div>
                                 <h1 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
@@ -672,7 +672,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                 </div>
             )}
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8">
+            <div className="min-w-full px-4 sm:px-6 mt-8">
 
                 {/* Practice Leaderboard Controls */}
                 {activeTab === 'practice' && (
@@ -1440,11 +1440,10 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                             {(() => {
                                                                 const total = (entry.tabSwitchCount || 0) + (entry.fullscreenExits || 0);
                                                                 return (
-                                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${
-                                                                        total === 0 ? 'bg-green-100 text-green-800'
+                                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${total === 0 ? 'bg-green-100 text-green-800'
                                                                         : total < 3 ? 'bg-yellow-100 text-yellow-800'
-                                                                        : 'bg-red-100 text-red-800'
-                                                                    }`}>
+                                                                            : 'bg-red-100 text-red-800'
+                                                                        }`}>
                                                                         {total}
                                                                     </span>
                                                                 );
