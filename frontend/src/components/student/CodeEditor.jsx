@@ -22,7 +22,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Settings,
-    MoreVertical
+    MoreVertical,
+    PanelLeft
 } from 'lucide-react';
 import problemService from '../../services/problemService';
 import useCodeExecution from '../../hooks/useCodeExecution';
@@ -589,25 +590,29 @@ const CodeEditor = () => {
                 {/* ─ Col 1: Sidebar ─ */}
                 <div
                     style={{ width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px` }}
-                    className="relative flex flex-col overflow-hidden shrink-0 border-r border-gray-200 bg-white transition-all duration-300 ease-in-out"
+                    className="relative flex flex-col shrink-0 border-r border-gray-200 bg-white transition-all duration-300 ease-in-out z-20"
                 >
-                    {showSidebar ? (
-                        <ProblemSidebar />
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center py-6 gap-6 bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => setShowSidebar(true)}>
-                            <div className="p-2 rounded-lg bg-white border border-gray-200 shadow-sm text-gray-400">
-                                <List size={20} />
-                            </div>
-                            <div style={{ writingMode: 'vertical-rl' }} className="text-xs font-bold text-gray-500 tracking-widest uppercase select-none flex items-center gap-2">
-                                <span className="rotate-180">Problem List</span>
-                            </div>
+                    <div className="flex-1 overflow-hidden flex flex-col relative h-full">
+                        <div className={`flex-1 flex flex-col overflow-hidden h-full ${showSidebar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none hidden'}`}>
+                            <ProblemSidebar />
                         </div>
-                    )}
 
-                    {/* Toggle Arrow at Middle */}
+                        {!showSidebar && (
+                            <div className="absolute inset-0 flex flex-col items-center py-6 gap-6 bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => setShowSidebar(true)}>
+                                <div className="p-2 rounded-lg bg-white border border-gray-200 shadow-sm text-gray-500 mt-1">
+                                    <PanelLeft size={20} />
+                                </div>
+                                <div style={{ writingMode: 'vertical-rl' }} className="text-xs font-bold text-gray-500 tracking-widest uppercase select-none flex items-center gap-2">
+                                    <span className="rotate-180">Problem List</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Toggle Arrow at Top */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
-                        className="absolute -right-3 top-1/2 -translate-y-1/2 z-50 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-md text-gray-500 hover:text-primary-600 hover:border-primary-200 transition-all hover:scale-110"
+                        className="absolute -right-3 top-6 z-50 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-md text-gray-500 hover:text-primary-600 hover:border-primary-200 transition-all hover:scale-110"
                         title={showSidebar ? "Collapse Sidebar" : "Expand Sidebar"}
                     >
                         {showSidebar ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
