@@ -122,47 +122,80 @@ const Dashboard = () => {
                     />
 
                     {/* Optional: Submission Heatmap + Recent Activity */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4">Submission Activity</h3>
-                        <HeatmapChart data={userSubmissionsHeatMapData} />
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <HeatmapChart
+                            data={userSubmissionsHeatMapData}
+                            streakDays={progress?.streakDays || 0}
+                            maxStreakDays={progress?.maxStreakDays || 0}
+                        />
                     </div>
 
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4">Recent Submissions</h3>
+                    {/* Recent Submissions */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="text-lg font-bold text-gray-800">Recent Submissions</h3>
+                        </div>
+
                         <div className="overflow-x-auto">
                             {(!recentSubmissions || recentSubmissions.length === 0) ? (
-                                <div className="text-center py-8 text-gray-400">
-                                    No recent submissions
+                                <div className="text-center py-12">
+                                    <div className="bg-gray-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                                        <span className="text-2xl">📝</span>
+                                    </div>
+                                    <p className="text-gray-500 font-medium">No submissions yet</p>
+                                    <p className="text-xs text-gray-400 mt-1">Start solving problems to see your history</p>
                                 </div>
                             ) : (
-                                <table className="min-w-full text-sm text-left text-gray-500">
-                                    <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100">
                                         <tr>
-                                            <th className="px-4 py-2">Problem</th>
-                                            <th className="px-4 py-2">Verdict</th>
-                                            <th className="px-4 py-2">Language</th>
-                                            <th className="px-4 py-2">Time</th>
+                                            <th className="px-6 py-3 font-semibold">Problem</th>
+                                            <th className="px-6 py-3 font-semibold">Status</th>
+                                            <th className="px-6 py-3 font-semibold">Language</th>
+                                            <th className="px-6 py-3 font-semibold text-right">Date</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        {recentSubmissions.slice(0, 5).map((submission, idx) => (
-                                            <tr key={idx} className="bg-white border-b hover:bg-gray-50">
-                                                <td className="px-4 py-2 font-medium text-gray-900">
-                                                    {submission.problemTitle}
-                                                </td>
-                                                <td className="px-4 py-2">
-                                                    <span className={`px-2 py-1 rounded text-xs font-semibold
-                                                        ${submission.verdict === 'Accepted' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
-                                                    `}>
-                                                        {submission.verdict}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-2 capitalize">{submission.language}</td>
-                                                <td className="px-4 py-2">
-                                                    {new Date(submission.submittedAt).toLocaleDateString()}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                    <tbody className="divide-y divide-gray-100">
+                                        {recentSubmissions.slice(0, 5).map((submission, idx) => {
+                                            const isAccepted = submission.verdict === 'Accepted';
+                                            return (
+                                                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <div className="font-medium text-gray-900 line-clamp-1" title={submission.problemTitle}>
+                                                            {submission.problemTitle}
+                                                        </div>
+                                                        <div className="text-xs text-gray-400 mt-0.5">
+                                                            {submission.totalTestCases > 0 ?
+                                                                `${submission.testCasesPassed}/${submission.totalTestCases} Test Cases` :
+                                                                'Custom Test'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border
+                                                            ${isAccepted
+                                                                ? 'bg-green-50 text-green-700 border-green-200'
+                                                                : 'bg-red-50 text-red-700 border-red-200'}
+                                                        `}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${isAccepted ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                            {submission.verdict}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-600 text-xs font-medium capitalize">
+                                                            {submission.language}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right text-gray-500 font-mono text-xs">
+                                                        {new Date(submission.submittedAt).toLocaleDateString(undefined, {
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        })}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             )}

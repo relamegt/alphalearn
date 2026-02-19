@@ -24,6 +24,7 @@ class Progress {
                 { section: 'Advanced Topics', solved: 0, total: 0 }
             ],
             streakDays: 0,
+            maxStreakDays: 0,
             lastActiveDate: new Date(),
             totalTimeSpent: 0 // in minutes
         };
@@ -135,6 +136,7 @@ class Progress {
             {
                 $set: {
                     streakDays: newStreak,
+                    maxStreakDays: Math.max(newStreak, progress.maxStreakDays || 0),
                     lastActiveDate: new Date()
                 }
             }
@@ -172,6 +174,7 @@ class Progress {
             totalProblems,
             sectionProgress: progress.sectionProgress,
             streakDays: progress.streakDays,
+            maxStreakDays: progress.maxStreakDays || 0,
             totalTimeSpent: progress.totalTimeSpent,
             lastActiveDate: progress.lastActiveDate
         };

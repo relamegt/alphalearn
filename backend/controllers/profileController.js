@@ -18,7 +18,7 @@ const getDashboardData = async (req, res) => {
         const verdictData = await Submission.getVerdictData(studentId);
 
         // Get recent submissions
-        const recentSubmissions = await Submission.findRecentSubmissions(studentId, 10);
+        const recentSubmissions = await Submission.findRecentSubmissions(studentId, 5);
 
         // Get language stats
         const languageStats = await Submission.getLanguageStats(studentId);
@@ -36,11 +36,11 @@ const getDashboardData = async (req, res) => {
                 userVerdictData: verdictData,
                 recentSubmissions: recentSubmissions.map(s => ({
                     submittedAt: s.submittedAt,
-                    problemTitle: 'Problem Title',
-                    problemSlug: 'problem-slug',
+                    problemTitle: s.problemTitle,
                     verdict: s.verdict,
                     language: s.language,
-                    contestSlug: 'alphalearn-practice'
+                    testCasesPassed: s.testCasesPassed,
+                    totalTestCases: s.totalTestCases
                 })),
                 languageAcceptedSubmissions: languageStats,
                 progress,
@@ -322,7 +322,7 @@ const getAllStudentsForInstructor = async (req, res) => {
             const batchIds = [instructor.batchId, ...(instructor.assignedBatches || [])].filter(id => id);
             // Deduplicate
             const uniqueBatchIds = [...new Set(batchIds.map(id => id.toString()))];
-            
+
             students = await User.getStudentsByBatches(uniqueBatchIds);
         } else if (req.user.role === 'admin') {
             // Admins can see all students
@@ -385,7 +385,7 @@ const resetStudentProfile = async (req, res) => {
                 const instructorBatches = [requester.batchId, ...(requester.assignedBatches || [])]
                     .filter(id => id)
                     .map(id => id.toString());
-                
+
                 const studentBatchId = student.batchId ? student.batchId.toString() : null;
 
                 if (student.role !== 'student' || !studentBatchId || !instructorBatches.includes(studentBatchId)) {

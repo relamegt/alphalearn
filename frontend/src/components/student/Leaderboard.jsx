@@ -654,7 +654,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                 </div>
             ) : (
                 <div className="bg-transparent sticky top-0 z-30">
-                    <div className="min-w-full px-4 sm:px-6 lg:px-8">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="flex flex-col md:flex-row md:items-center justify-between py-4 gap-4">
                             <div>
                                 <h1 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
@@ -672,7 +672,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                 </div>
             )}
 
-            <div className="min-w-full px-4 sm:px-6 mt-8">
+            <div className={`${isBatchView ? 'min-w-full' : 'max-w-7xl mx-auto'} px-4 sm:px-6 mt-8`}>
 
                 {/* Practice Leaderboard Controls */}
                 {activeTab === 'practice' && (

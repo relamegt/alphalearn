@@ -45,13 +45,27 @@ class Submission {
             .toArray();
     }
 
-    // Find recent submissions (last N submissions)
+    // Find recent submissions (last N submissions) with problem details
     static async findRecentSubmissions(studentId, limit = 10) {
-        return await collections.submissions
+        const submissions = await collections.submissions
             .find({ studentId: new ObjectId(studentId) })
             .sort({ submittedAt: -1 })
             .limit(limit)
             .toArray();
+
+        // Populate problem titles manually
+        const Problem = require('./Problem');
+
+        const populatedSubmissions = await Promise.all(submissions.map(async (sub) => {
+            const problem = await Problem.findById(sub.problemId);
+            return {
+                ...sub,
+                problemTitle: problem ? problem.title : 'Unknown Problem',
+                problemDifficulty: problem ? problem.difficulty : 'Medium'
+            };
+        }));
+
+        return populatedSubmissions;
     }
 
     // Find all recent submissions (global) with details
