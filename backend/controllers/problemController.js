@@ -207,6 +207,33 @@ const getDifficultyWiseCount = async (req, res) => {
     }
 };
 
+// Set solution code for a problem (admin)
+const setSolutionCode = async (req, res) => {
+    try {
+        const { problemId } = req.params;
+        const { language, code } = req.body;
+
+        if (!language || !code) {
+            return res.status(400).json({ success: false, message: 'language and code are required' });
+        }
+
+        const allowedLanguages = ['c', 'cpp', 'java', 'python', 'javascript'];
+        if (!allowedLanguages.includes(language)) {
+            return res.status(400).json({ success: false, message: `Language must be one of: ${allowedLanguages.join(', ')}` });
+        }
+
+        await Problem.setSolutionCode(problemId, language, code);
+
+        res.json({
+            success: true,
+            message: `Solution code set for ${language} on problem ${problemId}`
+        });
+    } catch (error) {
+        console.error('Set solution code error:', error);
+        res.status(500).json({ success: false, message: 'Failed to set solution code', error: error.message });
+    }
+};
+
 module.exports = {
     createProblem,
     bulkCreateProblems,
@@ -214,5 +241,6 @@ module.exports = {
     getProblemById,
     updateProblem,
     deleteProblem,
-    getDifficultyWiseCount
+    getDifficultyWiseCount,
+    setSolutionCode
 };

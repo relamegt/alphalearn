@@ -5,12 +5,13 @@ const Leaderboard = require('../models/Leaderboard');
 const User = require('../models/User');
 const { executeWithTestCases, validateCode } = require('../services/judge0Service');
 
-// Run code (sample test cases only)
+// Run code (sample test cases only, or custom input)
 const runCode = async (req, res) => {
     console.log('\n📥 [API] POST /student/code/run');
     try {
         const { problemId, code, language, customInput } = req.body;
-        console.log(`   Problem: ${problemId}, Lang: ${language}, CustomInput: ${!!customInput}`);
+        const isCustom = customInput !== undefined && customInput !== null && customInput !== '';
+        console.log(`   Problem: ${problemId}, Lang: ${language}, CustomInput: ${isCustom}`);
 
         // Validate code
         const validation = validateCode(code, language);
@@ -29,35 +30,93 @@ const runCode = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Problem not found' });
         }
 
-        // Determine test cases (Custom or Sample)
-        let testCases;
-        if (customInput !== undefined && customInput !== null) {
-            testCases = [{ input: customInput, output: null, isHidden: false }];
+        let results = [];
+        let finalVerdict = 'Accepted';
+        let totalPassed = 0;
+
+        if (isCustom) {
+            // ── Custom input mode ──────────────────────────────────────────
+            // Run user code
+            const userTestCase = [{ input: customInput, output: undefined, isHidden: false }];
+            const userResult = await executeWithTestCases(language, code, userTestCase, problem.timeLimit);
+            const userOutput = userResult.results[0]?.actualOutput ?? '';
+            const userVerdict = userResult.results[0]?.verdict ?? userResult.verdict;
+            const userError = userResult.results[0]?.error ?? userResult.error;
+
+            // Try to get expected output from solution code
+            let expectedOutput = null;
+            const solutionCode = problem.solutionCode?.[language] ||
+                // Fallback: try any available language solution
+                Object.values(problem.solutionCode || {}).find(c => c);
+            const solutionLang = problem.solutionCode?.[language]
+                ? language
+                : Object.keys(problem.solutionCode || {}).find(k => problem.solutionCode[k]);
+
+            if (solutionCode && solutionLang) {
+                try {
+                    const solResult = await executeWithTestCases(
+                        solutionLang, solutionCode,
+                        [{ input: customInput, output: undefined, isHidden: false }],
+                        problem.timeLimit
+                    );
+                    expectedOutput = solResult.results[0]?.actualOutput ?? null;
+                    console.log(`   📋 Solution code ran for expected output`);
+                } catch (solErr) {
+                    console.warn('   ⚠️ Solution code execution failed:', solErr.message);
+                }
+            }
+
+            // Build result
+            const passed = expectedOutput !== null
+                ? (userOutput?.trim() === expectedOutput?.trim())
+                : (userVerdict === 'Accepted' || userVerdict === 'No output');
+
+            results = [{
+                input: customInput,
+                expectedOutput: expectedOutput ?? '(No reference solution available)',
+                actualOutput: userOutput,
+                passed,
+                verdict: expectedOutput !== null
+                    ? (passed ? 'Accepted' : 'Wrong Answer')
+                    : userVerdict,
+                error: userError,
+                isHidden: false,
+                isCustom: true,
+                hasSolution: !!expectedOutput
+            }];
+            totalPassed = passed ? 1 : 0;
+            finalVerdict = results[0].verdict;
+
         } else {
-            testCases = await Problem.getSampleTestCases(problemId);
-        }
-
-        // Execute code
-        const result = await executeWithTestCases(language, code, testCases, problem.timeLimit);
-
-        console.log(`   ✅ Execution Complete: ${result.verdict}`);
-
-        res.json({
-            success: true,
-            message: 'Code executed successfully',
-            verdict: result.verdict,
-            testCasesPassed: result.testCasesPassed,
-            totalTestCases: result.totalTestCases,
-            results: result.results.map(r => ({
+            // ── Sample test cases mode ─────────────────────────────────────
+            const testCases = await Problem.getSampleTestCases(problemId);
+            const result = await executeWithTestCases(language, code, testCases, problem.timeLimit);
+            results = result.results.map(r => ({
                 input: r.input,
                 expectedOutput: r.expectedOutput,
                 actualOutput: r.actualOutput,
                 passed: r.passed,
                 verdict: r.verdict,
                 error: r.error,
-                isHidden: false // run mode - never hidden
-            })),
-            error: result.error
+                isHidden: false,
+                isCustom: false,
+                hasSolution: true
+            }));
+            totalPassed = result.testCasesPassed;
+            finalVerdict = result.verdict;
+        }
+
+        console.log(`   ✅ Run Complete: ${finalVerdict} (${totalPassed}/${results.length})`);
+
+        res.json({
+            success: true,
+            message: 'Code executed successfully',
+            verdict: finalVerdict,
+            testCasesPassed: totalPassed,
+            totalTestCases: results.length,
+            results,
+            error: results[0]?.error || null,
+            isCustomInput: isCustom
         });
     } catch (error) {
         console.error('   ❌ Controller Error:', error);
@@ -116,20 +175,17 @@ const submitCode = async (req, res) => {
 
         // Award coins only on Accepted verdict
         if (result.verdict === 'Accepted') {
-            // Check if problem was ALREADY solved before this submission
-            // We check for any prior accepted submission from before now
-            const previouslySolved = await Submission.isProblemSolved(studentId, problemId);
-            // Note: isProblemSolved will now return true since we just created the submission
-            // So we need to check if there were >1 accepted submissions (the one we just created + any prior)
-            // A more robust approach: we pass isFirstSolve based on whether progress already has it
+            // Check if problem was ALREADY in progress before this submission
+            // Progress.updateProblemsSolved is called AFTER this block, so if the
+            // problemId is already in progress.problemsSolved it was solved before
             const progress = await Progress.findByStudent(studentId);
             const alreadyInProgress = progress?.problemsSolved?.some(
                 id => id.toString() === problemId.toString()
-            );
+            ) || false;
             isFirstSolve = !alreadyInProgress;
 
             if (isFirstSolve) {
-                // Award coins atomically (thread-safe)
+                // Award coins atomically (thread-safe $inc)
                 coinsEarned = problem.points || 0;
                 await User.addCoins(studentId, coinsEarned);
                 console.log(`   💰 Coins Awarded: +${coinsEarned} to student ${studentId}`);
@@ -138,17 +194,20 @@ const submitCode = async (req, res) => {
             }
 
             // Always update progress and leaderboard on accepted
-            await Promise.all([
-                Progress.updateProblemsSolved(studentId, problemId),
-                Progress.recalculateSectionProgress(studentId),
-                Progress.updateStreak(studentId),
-                Leaderboard.recalculateScores(studentId)
-            ]);
+            try {
+                await Progress.updateProblemsSolved(studentId, problemId);
+                await Promise.all([
+                    Progress.recalculateSectionProgress(studentId),
+                    Progress.updateStreak(studentId),
+                    Leaderboard.recalculateScores(studentId)
+                ]);
+            } catch (progressErr) {
+                console.error('   ⚠️ Progress/Leaderboard update error (non-fatal):', progressErr.message);
+            }
         }
 
         // Get updated coin total for the user
-        const updatedUser = await User.findById(studentId);
-        totalCoins = updatedUser?.alphacoins || 0;
+        totalCoins = await User.getCoins(studentId);
 
         // Map results, masking hidden test cases
         const mappedResults = result.results.map(r => ({

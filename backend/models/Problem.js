@@ -20,11 +20,14 @@ class Problem {
                 solution: null,
                 complexity: null
             },
+            // Admin-provided reference solution per language (used for custom test case expected output)
+            solutionCode: problemData.solutionCode || {},
             isContestProblem: problemData.isContestProblem || false,
             contestId: problemData.contestId ? new ObjectId(problemData.contestId) : null,
             createdBy: new ObjectId(problemData.createdBy),
             createdAt: new Date()
         };
+
 
         const result = await collections.problems.insertOne(problem);
         return { ...problem, _id: result.insertedId };
@@ -172,6 +175,20 @@ class Problem {
     static async getAllTestCases(problemId) {
         const problem = await Problem.findById(problemId);
         return problem ? problem.testCases : [];
+    }
+
+    // Set admin solution code (per language) for custom test case expected output
+    static async setSolutionCode(problemId, language, code) {
+        return await collections.problems.updateOne(
+            { _id: new ObjectId(problemId) },
+            { $set: { [`solutionCode.${language}`]: code } }
+        );
+    }
+
+    // Get the solution code for a specific language
+    static async getSolutionCode(problemId, language) {
+        const problem = await Problem.findById(problemId);
+        return problem?.solutionCode?.[language] || null;
     }
 }
 

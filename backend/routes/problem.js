@@ -23,6 +23,7 @@ router.get('/:problemId', validateObjectId('problemId'), problemController.getPr
 router.post('/', adminOnly, validateProblemCreation, problemController.createProblem);
 router.post('/bulk', adminOnly, upload.single('file'), fileUploadLimiter, validateFileUpload, problemController.bulkCreateProblems);
 router.put('/:problemId', adminOnly, validateObjectId('problemId'), problemController.updateProblem);
+router.put('/:problemId/solution-code', adminOnly, validateObjectId('problemId'), problemController.setSolutionCode);
 router.delete('/:problemId', adminOnly, validateObjectId('problemId'), problemController.deleteProblem);
 
 module.exports = router;

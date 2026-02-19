@@ -128,13 +128,30 @@ body.secure-mode {
 
 /* Global Animations */
 @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-    20%, 40%, 60%, 80% { transform: translateX(4px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-4px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(4px);
+    }
 }
 
 .animate-shake {
-    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+    animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
 }
 
 @keyframes fade-in {
@@ -142,6 +159,7 @@ body.secure-mode {
         opacity: 0;
         transform: scale(0.98) translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -174,4 +192,10 @@ body.secure-mode {
 
 .scrollbar-hide::-webkit-scrollbar {
     display: none;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }

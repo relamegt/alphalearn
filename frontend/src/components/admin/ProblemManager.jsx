@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import problemService from '../../services/problemService';
 import toast from 'react-hot-toast';
 import CustomDropdown from '../../components/shared/CustomDropdown';
+import Editor from '@monaco-editor/react';
 import {
     Plus,
     Upload,
@@ -12,6 +13,7 @@ import {
     Trash2,
     X,
     Code,
+    Code2,
     CheckCircle,
     AlertTriangle,
     FileText,
@@ -41,6 +43,11 @@ const ProblemManager = () => {
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingProblem, setEditingProblem] = useState(null);
+    const [showSolutionModal, setShowSolutionModal] = useState(false);
+    const [solutionProblem, setSolutionProblem] = useState(null);
+    const [solutionLang, setSolutionLang] = useState('cpp');
+    const [solutionCode, setSolutionCodeVal] = useState('');
+    const [savingSolution, setSavingSolution] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -154,6 +161,37 @@ const ProblemManager = () => {
             toast.error(error.message || 'Failed to delete problem');
         }
     };
+
+    const openSolutionModal = async (problem) => {
+        setSolutionProblem(problem);
+        setSolutionLang('cpp');
+        setSolutionCodeVal('');
+        // Try to load existing solution code for this problem
+        try {
+            const data = await problemService.getProblemById(problem.id || problem._id);
+            const existing = data.problem?.solutionCode?.['cpp'] || '';
+            setSolutionCodeVal(existing);
+        } catch { }
+        setShowSolutionModal(true);
+    };
+
+    const handleSaveSolution = async () => {
+        if (!solutionCode.trim()) {
+            toast.error('Solution code cannot be empty');
+            return;
+        }
+        setSavingSolution(true);
+        try {
+            await problemService.setSolutionCode(solutionProblem.id || solutionProblem._id, solutionLang, solutionCode);
+            toast.success(`Reference solution saved for ${solutionLang.toUpperCase()}!`);
+            setShowSolutionModal(false);
+        } catch (err) {
+            toast.error(err.message || 'Failed to save solution');
+        } finally {
+            setSavingSolution(false);
+        }
+    };
+
 
     const openEditModal = async (problem) => {
         try {
@@ -372,6 +410,13 @@ const ProblemManager = () => {
                                         </td>
                                         <td className="px-6 py-4 text-right relative">
                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => openSolutionModal(problem)}
+                                                    className="p-2 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                                                    title="Set Reference Solution"
+                                                >
+                                                    <Code2 size={16} />
+                                                </button>
                                                 <button onClick={() => openEditModal(problem)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
                                                     <Edit2 size={16} />
                                                 </button>
@@ -638,6 +683,175 @@ const ProblemManager = () => {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Solution Code Modal — full fixed overlay, bypasses any container clipping */}
+            {showSolutionModal && (
+                <div
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 9999,
+                        background: 'rgba(15,15,25,0.72)',
+                        backdropFilter: 'blur(6px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '24px'
+                    }}
+                    onClick={() => setShowSolutionModal(false)}
+                >
+                    <div
+                        style={{
+                            background: '#fff', borderRadius: '20px',
+                            width: '100%', maxWidth: '900px',
+                            maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+                            boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
+                            overflow: 'hidden',
+                            border: '1px solid rgba(255,255,255,0.08)'
+                        }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* ── Header ── */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #f0f0f5', background: 'linear-gradient(135deg,#f8f7ff 0%,#fff 100%)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                <div style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(124,58,237,0.3)' }}>
+                                    <Code2 size={20} color="#fff" />
+                                </div>
+                                <div>
+                                    <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a2e', margin: 0 }}>Reference Solution</h2>
+                                    <p style={{ fontSize: '12px', color: '#7c3aed', margin: '2px 0 0', fontWeight: 500, background: '#f3f0ff', padding: '2px 8px', borderRadius: '20px', display: 'inline-block' }}>
+                                        {solutionProblem?.title}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowSolutionModal(false)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '10px', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                            >
+                                <X size={22} />
+                            </button>
+                        </div>
+
+                        {/* ── Info banner ── */}
+                        <div style={{ padding: '10px 24px', background: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <AlertTriangle size={14} color="#d97706" />
+                            <span style={{ fontSize: '12px', color: '#92400e', fontWeight: 500 }}>
+                                When a student runs their code with custom input, the backend also executes this reference solution to generate the expected output.
+                            </span>
+                        </div>
+
+                        {/* ── Language tabs (IDE-style) ── */}
+                        <div style={{ display: 'flex', alignItems: 'center', background: '#1e1e2e', padding: '0 16px', borderBottom: '1px solid #2d2d3f', gap: '2px', minHeight: '44px' }}>
+                            {[
+                                { id: 'c', label: 'C', monacoLang: 'c' },
+                                { id: 'cpp', label: 'C++', monacoLang: 'cpp' },
+                                { id: 'java', label: 'Java', monacoLang: 'java' },
+                                { id: 'python', label: 'Python', monacoLang: 'python' },
+                                { id: 'javascript', label: 'JavaScript', monacoLang: 'javascript' },
+                            ].map(({ id, label, monacoLang }) => {
+                                const isActive = solutionLang === id;
+                                return (
+                                    <button
+                                        key={id}
+                                        onClick={async () => {
+                                            setSolutionLang(id);
+                                            try {
+                                                const data = await problemService.getProblemById(solutionProblem.id || solutionProblem._id);
+                                                setSolutionCodeVal(data.problem?.solutionCode?.[id] || '');
+                                            } catch { }
+                                        }}
+                                        style={{
+                                            background: isActive ? '#fff' : 'transparent',
+                                            border: 'none',
+                                            borderRadius: '8px 8px 0 0',
+                                            padding: '8px 16px',
+                                            fontSize: '12px',
+                                            fontWeight: isActive ? 700 : 500,
+                                            color: isActive ? '#7c3aed' : '#9ca3af',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s',
+                                            position: 'relative',
+                                            letterSpacing: '0.01em',
+                                        }}
+                                    >
+                                        {label}
+                                        {isActive && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: '#7c3aed', borderRadius: '2px 2px 0 0' }} />}
+                                    </button>
+                                );
+                            })}
+                            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '11px', color: '#6b7280', background: '#2d2d3f', padding: '3px 10px', borderRadius: '20px' }}>
+                                    {solutionCode?.trim() ? `${solutionCode.split('\n').length} lines` : 'empty'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* ── Monaco Editor ── */}
+                        <div style={{ height: '380px', flexShrink: 0 }}>
+                            <Editor
+                                height="380px"
+                                language={
+                                    solutionLang === 'cpp' ? 'cpp' :
+                                        solutionLang === 'c' ? 'c' :
+                                            solutionLang === 'java' ? 'java' :
+                                                solutionLang === 'python' ? 'python' :
+                                                    'javascript'
+                                }
+                                value={solutionCode}
+                                onChange={val => setSolutionCodeVal(val || '')}
+                                theme="vs-dark"
+                                options={{
+                                    minimap: { enabled: false },
+                                    fontSize: 13,
+                                    fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                                    fontLigatures: true,
+                                    lineNumbers: 'on',
+                                    scrollBeyondLastLine: false,
+                                    automaticLayout: true,
+                                    padding: { top: 12, bottom: 12 },
+                                    renderLineHighlight: 'gutter',
+                                    cursorBlinking: 'smooth',
+                                }}
+                            />
+                        </div>
+
+                        {/* ── Footer ── */}
+                        <div style={{ padding: '16px 24px', borderTop: '1px solid #e5e7eb', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                            <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>
+                                💡 This solution is executed server-side and never shown to students. Only the output is compared.
+                            </p>
+                            <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
+                                <button
+                                    onClick={() => setShowSolutionModal(false)}
+                                    style={{ padding: '9px 18px', borderRadius: '10px', border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e5e7eb'; }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveSolution}
+                                    disabled={savingSolution}
+                                    style={{
+                                        padding: '9px 20px', borderRadius: '10px', border: 'none',
+                                        background: savingSolution ? '#a78bfa' : 'linear-gradient(135deg,#7c3aed,#6d28d9)',
+                                        color: '#fff', fontSize: '13px', fontWeight: 700,
+                                        cursor: savingSolution ? 'not-allowed' : 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        boxShadow: '0 4px 14px rgba(124,58,237,0.35)',
+                                        transition: 'all 0.15s'
+                                    }}
+                                    onMouseEnter={e => { if (!savingSolution) { e.currentTarget.style.boxShadow = '0 6px 20px rgba(124,58,237,0.5)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                                    onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(124,58,237,0.35)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                                >
+                                    {savingSolution ? (
+                                        <><span style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} /> Saving...</>
+                                    ) : (
+                                        <><CheckCircle size={15} /> Save {solutionLang === 'cpp' ? 'C++' : solutionLang === 'javascript' ? 'JS' : solutionLang.toUpperCase()} Solution</>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

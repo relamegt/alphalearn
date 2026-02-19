@@ -49,6 +49,7 @@ class User {
                 },
                 education: userData.education || null,
                 skills: userData.skills || [],
+                alphacoins: 0,
                 createdAt: new Date(),
                 lastLogin: null
             };
@@ -199,9 +200,10 @@ class User {
 
     // Atomically add coins to user (thread-safe increment)
     static async addCoins(userId, amount) {
+        if (!amount || amount <= 0) return;
         return await collections.users.updateOne(
             { _id: new ObjectId(userId) },
-            { $inc: { alphacoins: amount } }
+            { $inc: { alphacoins: amount }, $set: { lastCoinUpdate: new Date() } }
         );
     }
 

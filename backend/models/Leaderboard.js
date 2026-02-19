@@ -2,13 +2,17 @@ const { ObjectId } = require('bson');
 const { collections } = require('../config/astra');
 
 class Leaderboard {
-  // Create or update leaderboard entry
+  // Create or update leaderboard entry (requires batchId)
   static async upsert(leaderboardData) {
+    return await Leaderboard.upsertByStudent(leaderboardData);
+  }
+
+  // Upsert leaderboard entry — batchId may be null
+  static async upsertByStudent(leaderboardData) {
     const entry = {
-      batchId: new ObjectId(leaderboardData.batchId),
       studentId: new ObjectId(leaderboardData.studentId),
-      rollNumber: leaderboardData.rollNumber,
-      username: leaderboardData.username,
+      rollNumber: leaderboardData.rollNumber || 'N/A',
+      username: leaderboardData.username || 'Unknown',
       alphaCoins: leaderboardData.alphaCoins || 0,
       externalScores: {
         hackerrank: leaderboardData.externalScores?.hackerrank || 0,
@@ -18,11 +22,20 @@ class Leaderboard {
         interviewbit: leaderboardData.externalScores?.interviewbit || 0,
         spoj: leaderboardData.externalScores?.spoj || 0
       },
-      overallScore: 0, // Calculated below
+      overallScore: 0,
       rank: 0,
       globalRank: 0,
       lastUpdated: new Date()
     };
+
+    // Only set batchId if provided and valid
+    if (leaderboardData.batchId) {
+      try {
+        entry.batchId = new ObjectId(leaderboardData.batchId);
+      } catch {
+        // invalid batchId — skip
+      }
+    }
 
     // Calculate overall score
     entry.overallScore =
@@ -183,9 +196,9 @@ class Leaderboard {
         if (batchContests && batchContests.length > 0) {
           const batchContestIds = new Set(batchContests.map(c => c._id.toString()));
           const contestSubmissions = await ContestSubmission.findByStudent(studentId);
-          
+
           const relevantSubmissions = contestSubmissions.filter(cs => batchContestIds.has(cs.contestId.toString()));
-          
+
           const bestScores = {};
           relevantSubmissions.forEach(sub => {
             const cid = sub.contestId.toString();
@@ -194,7 +207,7 @@ class Leaderboard {
               bestScores[cid] = sub.score;
             }
           });
-          
+
           contestScore = Object.values(bestScores).reduce((sum, s) => sum + s, 0);
         }
       } catch (err) {
@@ -203,6 +216,16 @@ class Leaderboard {
     }
 
     const alphaCoins = practiceScore + contestScore;
+
+    // Sync User.alphacoins with the calculated value (source of truth for display)
+    try {
+      await collections.users.updateOne(
+        { _id: new ObjectId(studentId) },
+        { $set: { alphacoins: alphaCoins } }
+      );
+    } catch (syncErr) {
+      console.error('Failed to sync user alphacoins:', syncErr.message);
+    }
 
     // Get external scores
     const externalProfiles = await ExternalProfile.findByStudent(studentId);
@@ -220,14 +243,24 @@ class Leaderboard {
       externalScores[profile.platform] = score;
     }
 
-    return await Leaderboard.upsert({
-      batchId: user.batchId,
+    // Build leaderboard entry — batchId may be null for unbatched students
+    const leaderboardData = {
       studentId: studentId,
       rollNumber: user.education?.rollNumber || 'N/A',
       username: user.email.split('@')[0],
       alphaCoins,
       externalScores
-    });
+    };
+
+    // Only set batchId if user has one
+    if (user.batchId) {
+      leaderboardData.batchId = user.batchId;
+    } else {
+      // Use a placeholder ObjectId for unbatched students
+      leaderboardData.batchId = null;
+    }
+
+    return await Leaderboard.upsertByStudent(leaderboardData);
   }
 
   // Delete leaderboard entry by student

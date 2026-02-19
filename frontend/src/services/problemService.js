@@ -108,6 +108,16 @@ const problemService = {
             throw error.response?.data || { message: 'Failed to delete problem' };
         }
     },
+
+    // Set Reference Solution Code (Admin) → PUT /api/problem/:problemId/solution-code
+    setSolutionCode: async (problemId, language, code) => {
+        try {
+            const response = await apiClient.put(`/problem/${problemId}/solution-code`, { language, code });
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to save solution code' };
+        }
+    },
 };
 
 export default problemService;

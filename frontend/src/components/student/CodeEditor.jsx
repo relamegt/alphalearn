@@ -810,12 +810,13 @@ const CodeEditor = () => {
                                                                     {/* LeetCode-style: X / Y testcases passed */}
                                                                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                                                                         <span className={`text-sm font-medium ${vc.text}`}>
-                                                                            {displayResult.testCasesPassed} / {displayResult.totalTestCases} testcases passed
+                                                                            {displayResult.isCustomInput
+                                                                                ? 'Custom Input'
+                                                                                : `${displayResult.testCasesPassed} / ${displayResult.totalTestCases} testcases passed`
+                                                                            }
                                                                         </span>
-                                                                        {displayResult.isSubmitMode && (
-                                                                            <span className="text-xs text-gray-500">
-                                                                                {displayResult.isCustomInput ? 'Custom Input' : 'All Test Cases'}
-                                                                            </span>
+                                                                        {displayResult.isSubmitMode && !displayResult.isCustomInput && (
+                                                                            <span className="text-xs text-gray-500">All Test Cases</span>
                                                                         )}
                                                                     </div>
                                                                 </div>
@@ -898,7 +899,7 @@ const CodeEditor = () => {
                                                                             {visibleResults[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
                                                                         </div>
                                                                     </div>
-                                                                    {/* Only show expected output for non-custom submissions */}
+                                                                    {/* Show expected output for normal test cases in grid */}
                                                                     {(!displayResult.isCustomInput) && (
                                                                         <div>
                                                                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
@@ -908,6 +909,28 @@ const CodeEditor = () => {
                                                                         </div>
                                                                     )}
                                                                 </div>
+
+                                                                {/* Custom input: expected output from reference solution */}
+                                                                {displayResult.isCustomInput && (visibleResults[activeResultCase].expectedOutput && visibleResults[activeResultCase].expectedOutput !== '(No reference solution available)' ? (
+                                                                    <div>
+                                                                        <div className="flex items-center gap-2 mb-1.5">
+                                                                            <p className="text-[10px] font-bold text-gray-400 uppercase">Expected Output</p>
+                                                                            <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-medium">Reference Solution</span>
+                                                                        </div>
+                                                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
+                                                                            {visibleResults[activeResultCase].expectedOutput}
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                                                                        <AlertTriangle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                                                                        <div>
+                                                                            <p className="text-xs font-semibold text-amber-700">No reference solution</p>
+                                                                            <p className="text-[11px] text-amber-600 mt-0.5">Ask your admin to add a reference solution to see expected output for custom inputs.</p>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+
 
                                                                 {/* Your Output */}
                                                                 <div>
