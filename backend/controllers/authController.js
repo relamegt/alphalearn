@@ -76,7 +76,7 @@ const login = async (req, res) => {
         const accessToken = jwt.sign(
             { userId: user._id.toString(), email: user.email, role: user.role, tokenVersion },
             process.env.JWT_ACCESS_SECRET,
-            { expiresIn: '15m' }
+            { expiresIn: '24h' }
         );
 
         const refreshToken = jwt.sign(
@@ -261,7 +261,7 @@ const refreshToken = async (req, res) => {
                 tokenVersion: user.tokenVersion // Keep existing version
             },
             process.env.JWT_ACCESS_SECRET,
-            { expiresIn: '15m' }
+            { expiresIn: '24h' }
         );
 
         // Reuse refresh token (it's valid until expiry or version bump)

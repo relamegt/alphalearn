@@ -38,6 +38,12 @@ class Problem {
         return await collections.problems.findOne({ _id: new ObjectId(problemId) });
     }
 
+    // Find problems by IDs
+    static async findByIds(problemIds) {
+        const objectIds = problemIds.map(id => new ObjectId(id));
+        return await collections.problems.find({ _id: { $in: objectIds } }).toArray();
+    }
+
     // Find all problems (practice problems only)
     static async findAll() {
         return await collections.problems.find({ isContestProblem: false }).sort({ section: 1, difficulty: 1 }).toArray();

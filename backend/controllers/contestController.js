@@ -630,7 +630,13 @@ const getContestLeaderboard = async (req, res) => {
         const { contestId } = req.params;
 
         const leaderboard = await ContestSubmission.getLeaderboard(contestId);
-        const contest = await Contest.findById(contestId).populate('problems', 'title _id');
+        const contest = await Contest.findById(contestId);
+
+        // Populate problem titles manually (not Mongoose — custom Astra DB class)
+        if (contest && contest.problems) {
+            const problems = await Problem.findByIds(contest.problems);
+            contest.problems = problems.map(p => ({ _id: p._id, title: p.title }));
+        }
 
         res.json({
             success: true,

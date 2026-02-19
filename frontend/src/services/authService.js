@@ -19,7 +19,7 @@ const authService = {
 
             if (response.data.success) {
                 // Store tokens
-                Cookies.set('accessToken', response.data.tokens.accessToken, { expires: 1 / 96 }); // 15 min
+                Cookies.set('accessToken', response.data.tokens.accessToken, { expires: 1 }); // 24 hours
                 Cookies.set('refreshToken', response.data.tokens.refreshToken, { expires: 7 }); // 7 days
                 localStorage.setItem('user', JSON.stringify(response.data.user));
 
@@ -61,7 +61,7 @@ const authService = {
             const response = await apiClient.post('/auth/refresh-token', { refreshToken });
 
             if (response.data.success) {
-                Cookies.set('accessToken', response.data.tokens.accessToken, { expires: 1 / 96 });
+                Cookies.set('accessToken', response.data.tokens.accessToken, { expires: 1 });
                 Cookies.set('refreshToken', response.data.tokens.refreshToken, { expires: 7 });
             }
 
@@ -105,7 +105,19 @@ const authService = {
     // Get current user
     getCurrentUser: async () => {
         try {
-            const accessToken = Cookies.get('accessToken');
+            let accessToken = Cookies.get('accessToken');
+
+            // Proactive refresh if access token missing but refresh token exists
+            if (!accessToken && Cookies.get('refreshToken')) {
+                try {
+                    await authService.refreshToken();
+                    accessToken = Cookies.get('accessToken');
+                } catch (refreshError) {
+                    // If refresh fails, continue and let the API call fail naturally (or interceptor handle it)
+                    console.warn('Proactive refresh failed:', refreshError);
+                }
+            }
+
             const response = await apiClient.get('/auth/me', {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -198,7 +210,7 @@ const authService = {
 
     // Check if user is authenticated
     isAuthenticated: () => {
-        return !!Cookies.get('accessToken');
+        return !!Cookies.get('accessToken') || !!Cookies.get('refreshToken');
     },
 
     // Get stored user

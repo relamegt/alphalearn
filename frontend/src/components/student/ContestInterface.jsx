@@ -13,6 +13,7 @@ import {
     AlertTriangle,
     ChevronDown,
     Maximize2,
+    Trophy,
     Minimize2,
     Loader2,
     Code2,
@@ -1174,7 +1175,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                 <th className="p-4 font-bold cursor-pointer hover:bg-gray-50 sticky left-20 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-48" onClick={() => handleSort('username')}>
                                                     Student {sortConfig.key === 'username' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
-                                                
+
                                                 {/* Problem Columns */}
                                                 {contest?.problems?.map((prob, i) => (
                                                     <th key={prob._id} className="p-4 font-bold text-center whitespace-nowrap min-w-[120px]">
@@ -1216,7 +1217,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                         const pData = entry.problems?.[prob._id];
                                                         const status = pData?.status || 'Not Attempted';
                                                         let cellClass = "bg-gray-50 text-gray-400";
-                                                        
+
                                                         if (status === 'Accepted') {
                                                             cellClass = "bg-green-50 text-green-700 font-medium";
                                                         } else if (status === 'Wrong Answer') {

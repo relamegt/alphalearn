@@ -143,17 +143,14 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         }
     }, [selectedInternalContest]);
 
-    // Auto-refresh internal leaderboard every 10 seconds
+    // Auto-refresh internal leaderboard every 10 seconds (only for live contests)
     useEffect(() => {
         let intervalId;
-        if (activeTab === 'internal' && selectedInternalContest) {
-            // Check if contest is finished
-            const isFinished = contestInfo && new Date() > new Date(contestInfo.endTime);
-            if (!isFinished) {
-                intervalId = setInterval(() => {
-                    fetchInternalContestLeaderboard(true);
-                }, 10000);
-            }
+        const isFinished = contestInfo && new Date() > new Date(contestInfo.endTime);
+        if (activeTab === 'internal' && selectedInternalContest && !isFinished) {
+            intervalId = setInterval(() => {
+                fetchInternalContestLeaderboard(true);
+            }, 10000);
         }
         return () => {
             if (intervalId) clearInterval(intervalId);
@@ -442,32 +439,38 @@ const Leaderboard = ({ batchId, isBatchView }) => {
     const downloadInternalCSV = () => {
         if (!sortedInternalData.length) return;
 
-        // Dynamic problem headers
-        const problemHeaders = contestInfo?.problems?.map((p, i) => `P${i + 1} (${p.title})`) || [];
-        const headers = ['Rank', 'Roll No', 'Username', 'Branch', ...problemHeaders, 'Time (min)', 'Solved', 'Tab Switches', 'Fullscreen Exits', 'Total Violations', 'Status', 'Score'];
+        // Dynamic problem headers (name + status + time per problem)
+        const problemHeaders = contestInfo?.problems?.flatMap((p, i) => [
+            `P${i + 1}: ${p.title} - Status`,
+            `P${i + 1}: ${p.title} - Sub Time`
+        ]) || [];
+        const headers = ['Rank', 'Roll No', 'Full Name', 'Username', 'Branch', ...problemHeaders, 'Total Time (min)', 'Solved', 'Tab Switches', 'FS Exits', 'Total Violations', 'Status', 'Score'];
 
         const rows = sortedInternalData.map(entry => {
-            // Problem statuses
-            const problemStatuses = contestInfo?.problems?.map(p => {
-                const pStatus = entry.problems?.[p._id]?.status;
-                return pStatus || 'Not Attempted';
+            const problemCells = contestInfo?.problems?.flatMap(p => {
+                const pData = entry.problems?.[p._id];
+                const status = pData?.status || 'Not Attempted';
+                const subTime = pData?.submittedAt
+                    ? new Date(pData.submittedAt).toLocaleString()
+                    : '-';
+                return [status, subTime];
             }) || [];
 
-            // Fix solved count formatting
-            const solvedCount = `${entry.problemsSolved}/${contestInfo?.totalProblems || 0}`;
+            const solvedCount = `${entry.problemsSolved}/${contestInfo?.totalProblems || contestInfo?.problems?.length || 0}`;
             const solvedCell = `="${solvedCount}"`;
 
             return [
                 entry.rank,
                 entry.rollNumber,
+                entry.fullName,
                 entry.username,
                 entry.branch,
-                ...problemStatuses,
+                ...problemCells,
                 entry.time,
                 solvedCell,
-                entry.violations?.tabSwitches || 0,
-                entry.violations?.fullscreenExits || 0,
-                entry.violations?.total || 0,
+                entry.tabSwitchCount || 0,
+                entry.fullscreenExits || 0,
+                (entry.tabSwitchCount || 0) + (entry.fullscreenExits || 0),
                 entry.isCompleted ? 'Finished' : 'In Progress',
                 entry.score
             ];
@@ -1279,9 +1282,15 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                             >
                                                 Download Report
                                             </button>
-                                            <span className="text-sm text-green-600 font-medium">
-                                                ⟳ Auto-refreshing every 10s
-                                            </span>
+                                            {contestInfo && new Date() <= new Date(contestInfo.endTime) ? (
+                                                <span className="text-sm text-green-600 font-medium">
+                                                    ⟳ Live — Auto-refreshing every 10s
+                                                </span>
+                                            ) : (
+                                                <span className="text-sm text-gray-400 font-medium">
+                                                    ✓ Contest Ended
+                                                </span>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -1300,37 +1309,40 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                         <table className="min-w-max w-full divide-y divide-gray-200 border-collapse">
                                             <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
                                                 <tr>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleInternalSort('rank')}>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[60px]" onClick={() => handleInternalSort('rank')}>
                                                         Rank {internalSortConfig.key === 'rank' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                     </th>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[60px] bg-gray-50 z-20 w-32 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleInternalSort('rollNumber')}>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[60px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[110px]" onClick={() => handleInternalSort('rollNumber')}>
                                                         Roll No {internalSortConfig.key === 'rollNumber' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                     </th>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[190px] bg-gray-50 z-20 w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleInternalSort('username')}>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 min-w-[140px]" onClick={() => handleInternalSort('fullName')}>
+                                                        Full Name {internalSortConfig.key === 'fullName' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                    </th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 min-w-[120px]" onClick={() => handleInternalSort('username')}>
                                                         Username {internalSortConfig.key === 'username' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                     </th>
                                                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleInternalSort('branch')}>
                                                         Branch {internalSortConfig.key === 'branch' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                     </th>
 
-                                                    {/* Dynamic Problem Columns */}
+                                                    {/* Dynamic Problem Columns: problem title as header */}
                                                     {contestInfo?.problems?.map((prob, i) => (
-                                                        <th key={prob._id} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap min-w-[100px]">
-                                                            P{i + 1}
+                                                        <th key={prob._id} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap min-w-[160px] border-l border-gray-200">
+                                                            P{i + 1}: {prob.title}
                                                         </th>
                                                     ))}
 
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleInternalSort('time')}>
+                                                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleInternalSort('time')}>
                                                         Time (min) {internalSortConfig.key === 'time' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                     </th>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleInternalSort('problemsSolved')}>
+                                                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleInternalSort('problemsSolved')}>
                                                         Solved {internalSortConfig.key === 'problemsSolved' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                     </th>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Tab Switches</th>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Exits</th>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Violations</th>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Status</th>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky right-0 bg-gray-50 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleInternalSort('score')}>
+                                                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Tab Switches</th>
+                                                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap">FS Exits</th>
+                                                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Violations</th>
+                                                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Status</th>
+                                                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky right-0 bg-gray-50 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[70px]" onClick={() => handleInternalSort('score')}>
                                                         Score {internalSortConfig.key === 'score' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                     </th>
                                                 </tr>
@@ -1357,60 +1369,86 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                 )}
                                                             </div>
                                                         </td>
-                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-600 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
-                                                        <td className="px-3 py-3 whitespace-nowrap sticky left-[190px] bg-inherit z-10 border-r border-gray-100 w-40 truncate" title={entry.username}>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-medium text-gray-900">{entry.username}</span>
-                                                            </div>
-                                                        </td>
+                                                        {/* Roll No - sticky */}
+                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
+                                                        {/* Full Name */}
+                                                        <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] truncate" title={entry.fullName}>{entry.fullName}</td>
+                                                        {/* Username */}
+                                                        <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={entry.username}>{entry.username}</td>
+                                                        {/* Branch */}
                                                         <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
 
-                                                        {/* Problem Status Cells */}
+                                                        {/* Per-Problem Cells: status badge + tries + submission time */}
                                                         {contestInfo?.problems?.map(prob => {
                                                             const pData = entry.problems?.[prob._id];
                                                             const status = pData?.status || 'Not Attempted';
-                                                            let cellClass = "bg-gray-50 text-gray-400";
+                                                            const subTime = pData?.submittedAt
+                                                                ? new Date(pData.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                                                : null;
+
+                                                            let bgClass = 'bg-gray-50 border-gray-200';
+                                                            let textClass = 'text-gray-400';
+                                                            let statusText = 'Not Tried';
+                                                            let statusIcon = '—';
 
                                                             if (status === 'Accepted') {
-                                                                cellClass = "bg-green-50 text-green-700 font-medium";
+                                                                bgClass = 'bg-green-50 border-green-200';
+                                                                textClass = 'text-green-700';
+                                                                statusText = 'Accepted';
+                                                                statusIcon = '✓';
                                                             } else if (status === 'Wrong Answer') {
-                                                                cellClass = "bg-red-50 text-red-700";
+                                                                bgClass = 'bg-red-50 border-red-200';
+                                                                textClass = 'text-red-600';
+                                                                statusText = 'Wrong Ans';
+                                                                statusIcon = '✕';
                                                             }
 
                                                             return (
-                                                                <td key={prob._id} className="px-3 py-3 text-center border-r border-gray-50">
-                                                                    <div className={`px-2 py-1 rounded text-xs inline-block min-w-[60px] ${cellClass}`}>
-                                                                        {status === 'Not Attempted' ? 'Not Tried' : status}
+                                                                <td key={prob._id} className="px-2 py-2 text-center border-l border-gray-100 min-w-[160px]">
+                                                                    <div className={`rounded border inline-flex flex-col items-center gap-0.5 px-3 py-1.5 min-w-[130px] ${bgClass}`}>
+                                                                        <span className={`text-xs font-bold ${textClass}`}>
+                                                                            {statusIcon} {statusText}
+                                                                        </span>
+                                                                        {pData?.tries > 0 && (
+                                                                            <span className="text-xs text-gray-400">
+                                                                                {pData.tries} {pData.tries === 1 ? 'try' : 'tries'}
+                                                                                {subTime ? ` · ${subTime}` : ''}
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                 </td>
                                                             );
                                                         })}
 
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center">{entry.time}</td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center font-bold text-gray-700">
-                                                            {entry.problemsSolved}/{contestInfo?.totalProblems || 0}
-                                                        </td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                            <span className={entry.violations?.tabSwitches > 0 ? 'text-red-600 font-medium w-full block' : 'w-full block'}>
-                                                                {entry.violations?.tabSwitches || 0}
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{entry.time}m</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-center">
+                                                            <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
+                                                                {entry.problemsSolved}/{contestInfo?.totalProblems || contestInfo?.problems?.length || 0}
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                            <span className={entry.violations?.fullscreenExits > 0 ? 'text-red-600 font-medium w-full block' : 'w-full block'}>
-                                                                {entry.violations?.fullscreenExits || 0}
+                                                            <span className={entry.tabSwitchCount > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                {entry.tabSwitchCount || 0}
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                            <span
-                                                                className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${(entry.violations?.total || 0) === 0
-                                                                    ? 'bg-green-100 text-green-800'
-                                                                    : (entry.violations?.total || 0) < 3
-                                                                        ? 'bg-yellow-100 text-yellow-800'
+                                                            <span className={entry.fullscreenExits > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                {entry.fullscreenExits || 0}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                            {(() => {
+                                                                const total = (entry.tabSwitchCount || 0) + (entry.fullscreenExits || 0);
+                                                                return (
+                                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${
+                                                                        total === 0 ? 'bg-green-100 text-green-800'
+                                                                        : total < 3 ? 'bg-yellow-100 text-yellow-800'
                                                                         : 'bg-red-100 text-red-800'
-                                                                    }`}
-                                                            >
-                                                                {entry.violations?.total || 0}
-                                                            </span>
+                                                                    }`}>
+                                                                        {total}
+                                                                    </span>
+                                                                );
+                                                            })()}
                                                         </td>
                                                         <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
                                                             {entry.isCompleted ? (

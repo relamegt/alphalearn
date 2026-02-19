@@ -202,11 +202,18 @@ class ContestSubmission {
 
     static async getLeaderboard(contestId) {
         const User = require('./User');
-        const Contest = require('./Contest'); // Require here to avoid circular dependency issues if any
+        const Problem = require('./Problem');
+        const Contest = require('./Contest');
 
-        const contest = await Contest.findById(contestId);
         const submissions = await this.findByContest(contestId);
         const participantIds = [...new Set(submissions.map(s => s.studentId.toString()))];
+
+        // Fetch all contest problems once (reliable source of problem IDs + titles)
+        const contest = await Contest.findById(contestId);
+        let contestProblems = [];
+        if (contest && contest.problems) {
+             contestProblems = await Problem.findByIds(contest.problems);
+        }
 
         const leaderboardData = await Promise.all(
             participantIds.map(async (studentId) => {
@@ -214,38 +221,54 @@ class ContestSubmission {
                 const scoreData = await this.calculateScore(studentId, contestId);
                 const violations = await this.getProctoringViolations(studentId, contestId);
 
-                // Use findByStudentAndContest to get relevant submissions excluding markers
-                const studentSubmissions = submissions.filter(s => s.studentId.toString() === studentId.toString() && !s.isFinalContestSubmission && !s.isViolationLog);
+                // Get actual problem submissions (exclude markers and violation logs)
+                const studentSubmissions = submissions.filter(
+                    s => s.studentId.toString() === studentId.toString() &&
+                        !s.isFinalContestSubmission && !s.isViolationLog
+                );
 
                 // Determine completion status
                 const isCompleted = await this.hasSubmittedContest(studentId, contestId);
 
-                // Calculate per-problem status
+                // Build per-problem status using reliable problem IDs from Problem collection
                 const problemsStatus = {};
-                if (contest && contest.problems) {
-                    contest.problems.forEach(problemId => {
-                        const pIdStr = problemId.toString();
-                        const pSubs = studentSubmissions.filter(s => s.problemId && s.problemId.toString() === pIdStr);
+                for (const prob of contestProblems) {
+                    const pIdStr = prob._id.toString();
+                    const pSubs = studentSubmissions.filter(
+                        s => s.problemId && s.problemId.toString() === pIdStr
+                    );
 
-                        let status = 'Not Attempted';
-                        let tries = pSubs.length;
+                    let status = 'Not Attempted';
+                    let tries = pSubs.length;
+                    let submittedAt = null;
 
-                        if (tries > 0) {
-                            if (pSubs.some(s => s.verdict === 'Accepted')) {
-                                status = 'Accepted';
-                            } else {
-                                status = 'Wrong Answer';
-                            }
+                    if (tries > 0) {
+                        const accepted = pSubs.filter(s => s.verdict === 'Accepted');
+                        if (accepted.length > 0) {
+                            status = 'Accepted';
+                            accepted.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
+                            submittedAt = accepted[0].submittedAt;
+                        } else {
+                            status = 'Wrong Answer';
+                            pSubs.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+                            submittedAt = pSubs[0].submittedAt;
                         }
+                    }
 
-                        problemsStatus[pIdStr] = { status, tries };
-                    });
+                    problemsStatus[pIdStr] = { status, tries, submittedAt };
                 }
+
+                // Compose full name from root-level firstName/lastName fields
+                const firstName = (user?.firstName || '').trim();
+                const lastName = (user?.lastName || '').trim();
+                const fullName = [firstName, lastName].filter(Boolean).join(' ') || user?.email?.split('@')[0] || 'N/A';
 
                 return {
                     studentId: new ObjectId(studentId),
                     rollNumber: user?.education?.rollNumber || 'N/A',
+                    fullName,
                     username: user?.email?.split('@')[0] || 'Unknown',
+                    branch: user?.education?.branch || 'N/A',
                     score: scoreData.score,
                     time: scoreData.time,
                     problemsSolved: scoreData.problemsSolved,
