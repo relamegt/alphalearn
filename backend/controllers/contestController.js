@@ -297,9 +297,10 @@ const submitContestCode = async (req, res) => {
             pasteAttempts = 0,
             fullscreenExits = 0,
             isAutoSubmit = false,
-            isPractice = false // New flag for practice mode
+            isPractice = false
         } = req.body;
         const studentId = req.user.userId;
+        const isPracticeMode = isPractice === true || isPractice === 'true';
 
         // 1. Basic Validation
         if (!code || !code.trim()) {
@@ -321,38 +322,41 @@ const submitContestCode = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Contest not found' });
         }
 
-        // 2. Handle Practice Mode (No DB Save, No Checks)
-        if (isPractice) {
-            // Ensure contest is over (optional constraint, user asked for after finish)
-            // But let's allow it if explicitly requested as practice
-
-            // Execute code
+        if (isPracticeMode) {
+            // Practice Mode: Completely Ephemeral
             const allTestCases = await Problem.getAllTestCases(problemId);
             const result = await executeWithTestCases(language, code, allTestCases, problem.timeLimit);
 
             return res.json({
                 success: true,
-                message: result.verdict === 'Accepted' ? 'Correct Answer!' : 'Wrong Answer',
+                message: result.verdict === 'Accepted' ? 'Practice submission passed!' : 'Practice submission completed',
+                isPractice: true,
                 submission: {
+                    _id: 'temporary-practice-id', // Use _id for compatibility
                     verdict: result.verdict,
                     testCasesPassed: result.testCasesPassed,
                     totalTestCases: result.totalTestCases,
                     submittedAt: new Date(),
-                    isPractice: true
+                    tabSwitchCount: 0,
+                    tabSwitchDuration: 0,
+                    pasteAttempts: 0,
+                    fullscreenExits: 0
                 },
                 results: result.results.map(r => ({
-                    input: r.isHidden ? 'Hidden' : r.input,
-                    expectedOutput: r.isHidden ? 'Hidden' : r.expectedOutput,
-                    actualOutput: r.isHidden ? (r.passed ? 'Hidden' : 'Wrong Answer') : r.actualOutput,
+                    input: r.input,
+                    expectedOutput: r.expectedOutput,
+                    actualOutput: r.actualOutput,
+                    error: r.error,
                     passed: r.passed,
-                    isHidden: r.isHidden,
-                    verdict: r.verdict,
-                    error: r.error
+                    isHidden: r.isHidden, // Keep hidden test cases hidden in practice mode
+                    actualOutput: r.isHidden ? (r.passed ? 'Hidden' : 'Hidden') : r.actualOutput, // Double check to not leak actual output
+                    expectedOutput: r.isHidden ? 'Hidden' : r.expectedOutput,
+                    input: r.isHidden ? 'Hidden' : r.input
                 }))
             });
         }
 
-        // 3. Normal Contest Submission Flow
+        // 3b. Normal Contest Submission Flow
         // Check if contest is submitted (completed)
         const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
         if (hasSubmitted) {
@@ -382,7 +386,7 @@ const submitContestCode = async (req, res) => {
         }
 
         // Check if max violations exceeded (for manual submissions)
-        const totalViolations = tabSwitchCount + pasteAttempts + fullscreenExits;
+        const totalViolations = tabSwitchCount + fullscreenExits;
         if (contest.proctoringEnabled && !isAutoSubmit && totalViolations >= contest.maxViolations) {
             notifyViolation(contestId, studentId, {
                 type: 'MAX_VIOLATIONS_REACHED',
@@ -475,12 +479,13 @@ const submitContestCode = async (req, res) => {
 const runContestCode = async (req, res) => {
     try {
         const { contestId } = req.params;
-        const { problemId, code, language } = req.body;
+        const { problemId, code, language, isPractice = false } = req.body;
         const studentId = req.user.userId;
+        const isPracticeMode = isPractice === true || isPractice === 'true';
 
         // Check if contest is submitted
         const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
-        if (hasSubmitted) {
+        if (hasSubmitted && !isPracticeMode) {
             return res.status(400).json({
                 success: false,
                 message: 'Contest already submitted. Cannot run code.'
@@ -488,8 +493,9 @@ const runContestCode = async (req, res) => {
         }
 
         // Check if problem already solved
+        // Check if problem already solved
         const isProblemSolved = await ContestSubmission.isProblemSolved(studentId, contestId, problemId);
-        if (isProblemSolved) {
+        if (isProblemSolved && !isPracticeMode) {
             return res.status(400).json({
                 success: false,
                 message: 'Problem already solved. Cannot run code.'
@@ -531,8 +537,11 @@ const runContestCode = async (req, res) => {
             });
         }
 
-        // Get ONLY sample (non-hidden) test cases
-        const testCases = await Problem.getSampleTestCases(problemId);
+        // Get test cases (All for practice, Sample for contest)
+        // For 'Run', strictly ONLY expose non-hidden (sample) test cases.
+        // We never run against hidden cases for 'Run' action.
+        let testCases = await Problem.getAllTestCases(problemId);
+        testCases = testCases.filter(tc => !tc.isHidden);
 
         if (testCases.length === 0) {
             return res.status(400).json({
@@ -553,7 +562,8 @@ const runContestCode = async (req, res) => {
                 actualOutput: r.actualOutput,
                 passed: r.passed,
                 verdict: r.verdict,
-                error: r.error
+                error: r.error,
+                isHidden: r.isHidden
             }))
         });
     } catch (error) {
@@ -584,7 +594,7 @@ const finishContest = async (req, res) => {
         // Calculate final score
         const scoreData = await ContestSubmission.calculateScore(studentId, contestId);
         const violations = await ContestSubmission.getProctoringViolations(studentId, contestId);
-        const totalViolations = violations.totalTabSwitches + violations.totalPasteAttempts + violations.totalFullscreenExits;
+        const totalViolations = violations.totalTabSwitches + violations.totalFullscreenExits;
 
         // Mark contest as completed
         await ContestSubmission.markContestCompleted(studentId, contestId, scoreData.score, totalViolations);
@@ -716,6 +726,22 @@ const getProctoringViolations = async (req, res) => {
     }
 };
 
+// Log a violation
+const logViolation = async (req, res) => {
+    try {
+        const { contestId } = req.params;
+        const studentId = req.user.userId;
+        const violations = req.body;
+
+        await ContestSubmission.logViolation(studentId, contestId, violations);
+
+        res.json({ success: true, message: 'Violation logged' });
+    } catch (error) {
+        console.error('Log violation error:', error);
+        res.status(500).json({ success: false, message: 'Failed to log violation' });
+    }
+};
+
 module.exports = {
     createContest,
     getContestsByBatch,
@@ -728,5 +754,6 @@ module.exports = {
     getContestLeaderboard,
     getStudentContestSubmissions,
     getContestStatistics,
-    getProctoringViolations
+    getProctoringViolations,
+    logViolation // Export it
 };

@@ -64,6 +64,22 @@ class ContestSubmission {
         });
     }
 
+    // --- NEW: Log a violation without a code submission ---
+    static async logViolation(studentId, contestId, violations) {
+        return await this.create({
+            studentId,
+            contestId,
+            verdict: 'VIOLATION_LOG',
+            isFinalContestSubmission: false,
+            isViolationLog: true, // New flag to distinguish logs
+            code: '',
+            tabSwitchCount: violations.tabSwitchCount || 0,
+            tabSwitchDuration: violations.tabSwitchDuration || 0,
+            pasteAttempts: violations.pasteAttempts || 0,
+            fullscreenExits: violations.fullscreenExits || 0
+        });
+    }
+
     // --- NEW: Added for getContestStatistics ---
     static async getProblemStatistics(contestId) {
         const submissions = await this.findByContest(contestId);
@@ -194,6 +210,7 @@ class ContestSubmission {
                 const user = await User.findById(studentId);
                 const scoreData = await this.calculateScore(studentId, contestId);
                 const violations = await this.getProctoringViolations(studentId, contestId);
+                const isCompleted = await this.hasSubmittedContest(studentId, 'contestId' in submissions[0] ? submissions[0].contestId : contestId);
 
                 return {
                     studentId: new ObjectId(studentId),
@@ -205,7 +222,8 @@ class ContestSubmission {
                     tabSwitchCount: violations.totalTabSwitches,
                     tabSwitchDuration: violations.totalTabSwitchDuration,
                     pasteAttempts: violations.totalPasteAttempts,
-                    fullscreenExits: violations.totalFullscreenExits
+                    fullscreenExits: violations.totalFullscreenExits,
+                    isCompleted
                 };
             })
         );

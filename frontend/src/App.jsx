@@ -269,7 +269,7 @@ function App() {
                         <Route
                             path="/student/contest/:contestId"
                             element={
-                                <ProtectedRoute allowedRoles={['student']}>
+                                <ProtectedRoute allowedRoles={['student']} hideNavbar={true}>
                                     <ExtensionCheck>
                                         <ContestInterface />
                                     </ExtensionCheck>
@@ -279,7 +279,7 @@ function App() {
                         <Route
                             path="/student/contest/:contestId/practice"
                             element={
-                                <ProtectedRoute allowedRoles={['student']}>
+                                <ProtectedRoute allowedRoles={['student']} hideNavbar={true}>
                                     <ExtensionCheck>
                                         <ContestInterface isPractice={true} />
                                     </ExtensionCheck>

@@ -1,7 +1,8 @@
-// frontend/src/hooks/useProctoring.js (Complete Fixed Version)
 import { useState, useEffect, useRef, useCallback } from 'react';
+import contestService from '../services/contestService';
+import toast from 'react-hot-toast';
 
-const useProctoring = (contestId, isActive, onMaxViolations) => {
+const useProctoring = (contestId, studentId, isActive, onMaxViolations) => {
     const [violations, setViolations] = useState({
         tabSwitchCount: 0,
         tabSwitchDuration: 0,
@@ -15,6 +16,29 @@ const useProctoring = (contestId, isActive, onMaxViolations) => {
 
     const tabSwitchTimeRef = useRef(null);
     const fullscreenRequestedRef = useRef(false);
+
+    // Fetch initial violations
+    useEffect(() => {
+        if (!contestId || !studentId) return;
+        const fetchViolations = async () => {
+            try {
+                const data = await contestService.getProctoringViolations(contestId, studentId);
+                // Map backend response to local state
+                // Backend returns: totalTabSwitches, totalFullscreenExits, etc.
+                if (data.violations) {
+                    setViolations({
+                        tabSwitchCount: data.violations.totalTabSwitches || 0,
+                        tabSwitchDuration: data.violations.totalTabSwitchDuration || 0,
+                        pasteAttempts: data.violations.totalPasteAttempts || 0,
+                        fullscreenExits: data.violations.totalFullscreenExits || 0
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to sync violations:", error);
+            }
+        };
+        fetchViolations();
+    }, [contestId, studentId]);
 
     // Track tab visibility
     useEffect(() => {
@@ -31,13 +55,22 @@ const useProctoring = (contestId, isActive, onMaxViolations) => {
                     tabSwitchCount: prev.tabSwitchCount + 1,
                     tabSwitchDuration: prev.tabSwitchDuration + duration
                 }));
+
+                // Log immediately to backend
+                if (contestId && studentId) {
+                    contestService.logViolation(contestId, {
+                        tabSwitchCount: 1,
+                        tabSwitchDuration: duration
+                    });
+                }
+
                 tabSwitchTimeRef.current = null;
             }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [isActive]);
+    }, [isActive, contestId, studentId]);
 
     // Track fullscreen
     useEffect(() => {
@@ -53,6 +86,12 @@ const useProctoring = (contestId, isActive, onMaxViolations) => {
                     ...prev,
                     fullscreenExits: prev.fullscreenExits + 1
                 }));
+                // Log immediately
+                if (contestId && studentId) {
+                    contestService.logViolation(contestId, {
+                        fullscreenExits: 1
+                    });
+                }
                 showViolation('Fullscreen Exit Detected', 'You exited fullscreen mode');
             }
         };
@@ -61,27 +100,24 @@ const useProctoring = (contestId, isActive, onMaxViolations) => {
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, [isActive]);
 
-    // Track paste attempts
+    // Track paste attempts (Blocked, warning only, NO VIOLATION COUNT)
     useEffect(() => {
         if (!isActive) return;
 
         const handlePaste = (e) => {
-            setViolations(prev => ({
-                ...prev,
-                pasteAttempts: prev.pasteAttempts + 1
-            }));
-            showViolation('Paste Detected', 'Pasting code is not allowed');
+            e.preventDefault(); // Block paste
+            toast('Paste is disabled in contests!', { icon: '⚠️' });
+            // Do NOT increment violation count
         };
 
         document.addEventListener('paste', handlePaste);
         return () => document.removeEventListener('paste', handlePaste);
     }, [isActive]);
 
-    // Check for max violations
+    // Check for max violations (Exclude paste attempts)
     useEffect(() => {
         const totalViolations =
             violations.tabSwitchCount +
-            violations.pasteAttempts +
             violations.fullscreenExits;
 
         if (totalViolations >= 5 && isActive) {
@@ -150,8 +186,8 @@ const useProctoring = (contestId, isActive, onMaxViolations) => {
     const getViolationSummary = () => {
         const total =
             violations.tabSwitchCount +
-            violations.pasteAttempts +
             violations.fullscreenExits;
+        // Exclude pasteAttempts from total
 
         return {
             ...violations,

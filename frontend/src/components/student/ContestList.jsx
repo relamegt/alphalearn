@@ -137,9 +137,12 @@ const ContestCard = ({ contest, status }) => {
 
             <div className="p-6 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-4 gap-4">
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                    <Link
+                        to={isLive ? (!isSubmitted ? `/student/contest/${contest._id}` : `/student/contest/${contest._id}/leaderboard`) : `/student/contest/${contest._id}/practice`}
+                        className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight hover:text-indigo-600 transition-colors"
+                    >
                         {contest.title}
-                    </h3>
+                    </Link>
                     {isSubmitted && (
                         <span className="flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                             <CheckCircle size={12} className="mr-1" /> Submitted
@@ -179,9 +182,9 @@ const ContestCard = ({ contest, status }) => {
                     !isSubmitted ? (
                         <Link
                             to={`/student/contest/${contest._id}`}
-                            className="flex-1 btn-primary justify-center shadow-lg shadow-green-100 bg-green-600 hover:bg-green-700 border-transparent text-white py-2.5"
+                            className="flex-1 flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all py-3 gap-2 text-sm transform hover:-translate-y-0.5"
                         >
-                            Enter Contest <ArrowRight size={16} className="ml-2" />
+                            Enter Contest <ArrowRight size={16} />
                         </Link>
                     ) : (
                         <Link

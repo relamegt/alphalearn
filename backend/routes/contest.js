@@ -18,11 +18,12 @@ router.post('/', instructorOrAdmin, validateContestCreation, contestController.c
 router.put('/:contestId', instructorOrAdmin, validateObjectId('contestId'), contestController.updateContest);
 router.delete('/:contestId', instructorOrAdmin, validateObjectId('contestId'), contestController.deleteContest);
 router.get('/:contestId/statistics', instructorOrAdmin, validateObjectId('contestId'), contestController.getContestStatistics);
-router.get('/:contestId/violations/:studentId', instructorOrAdmin, validateObjectId('contestId'), validateObjectId('studentId'), contestController.getProctoringViolations);
+router.get('/:contestId/violations/:studentId', validateObjectId('contestId'), validateObjectId('studentId'), contestController.getProctoringViolations);
 
 // Student contest participation
 router.post('/:contestId/run', studentOnly, codeExecutionLimiter, contestController.runContestCode);
 router.post('/:contestId/submit', studentOnly, codeExecutionLimiter, validateSubmission, contestController.submitContestCode);
+router.post('/:contestId/violation', studentOnly, validateObjectId('contestId'), contestController.logViolation); // NEW
 router.post('/:contestId/finish', studentOnly, validateObjectId('contestId'), contestController.finishContest); // NEW
 router.get('/:contestId/submissions', studentOnly, validateObjectId('contestId'), contestController.getStudentContestSubmissions);
 router.get('/:contestId/leaderboard', validateObjectId('contestId'), contestController.getContestLeaderboard);

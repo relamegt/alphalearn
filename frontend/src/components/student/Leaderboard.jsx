@@ -1230,9 +1230,6 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-600 font-mono">{entry.rollNumber}</td>
                                                         <td className="px-3 py-3 whitespace-nowrap">
                                                             <div className="flex items-center gap-2">
-                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${['bg-red-500', 'bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-yellow-500'][((entry.username?.length || 0) % 5)]}`}>
-                                                                    {entry.username?.substring(0, 2).toUpperCase()}
-                                                                </div>
                                                                 <span className="font-medium text-gray-900">{entry.username}</span>
                                                             </div>
                                                         </td>

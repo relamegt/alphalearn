@@ -100,6 +100,16 @@ const contestService = {
         }
     },
 
+    // Log Violation → POST /contest/:contestId/violation
+    logViolation: async (contestId, violationData) => {
+        try {
+            await apiClient.post(`/contest/${contestId}/violation`, violationData);
+        } catch (error) {
+            console.error('Failed to log violation:', error);
+            // Silent error - don't disrupt user
+        }
+    },
+
     // ============================================
     // ADMIN/INSTRUCTOR ROUTES
     // ============================================
