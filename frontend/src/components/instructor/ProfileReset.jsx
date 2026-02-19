@@ -1,17 +1,33 @@
 import { useState, useEffect, useMemo } from 'react';
 import profileService from '../../services/profileService';
+import adminService from '../../services/adminService';
 import toast from 'react-hot-toast';
 
 const ProfileReset = () => {
     const [students, setStudents] = useState([]);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [batches, setBatches] = useState([]);
+    const [selectedBatchId, setSelectedBatchId] = useState('');
     const [loading, setLoading] = useState(false);
     const [fetchingStudents, setFetchingStudents] = useState(true);
 
     useEffect(() => {
         fetchAllStudents();
+        fetchBatches();
     }, []);
+
+    const fetchBatches = async () => {
+        try {
+            const data = await adminService.getAllBatches();
+            setBatches(data.batches || []);
+            if (data.batches?.length === 1) {
+                setSelectedBatchId(data.batches[0]._id);
+            }
+        } catch (error) {
+            console.error('Failed to fetch batches', error);
+        }
+    };
 
     const fetchAllStudents = async () => {
         setFetchingStudents(true);
@@ -27,13 +43,20 @@ const ProfileReset = () => {
 
     // CLIENT-SIDE SEARCH with useMemo
     const filteredStudents = useMemo(() => {
+        let result = students;
+
+        // Filter by batch
+        if (selectedBatchId) {
+            result = result.filter(s => s.batchId === selectedBatchId);
+        }
+
         if (!searchQuery.trim()) {
-            return students;
+            return result;
         }
 
         const searchLower = searchQuery.toLowerCase().trim();
 
-        return students.filter((student) => {
+        return result.filter((student) => {
             const email = (student.email || '').toLowerCase();
             const firstName = (student.firstName || '').toLowerCase();
             const lastName = (student.lastName || '').toLowerCase();
@@ -50,7 +73,7 @@ const ProfileReset = () => {
                 branch.includes(searchLower)
             );
         });
-    }, [students, searchQuery]);
+    }, [students, searchQuery, selectedBatchId]);
 
     const handleSelectStudent = (student) => {
         setSelectedStudent(student);
@@ -124,6 +147,30 @@ const ProfileReset = () => {
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
                             Select Student
                         </h3>
+
+                        {/* Batch Filter */}
+                        {batches.length > 0 && (
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Filter by Batch
+                                </label>
+                                <select
+                                    value={selectedBatchId}
+                                    onChange={(e) => {
+                                        setSelectedBatchId(e.target.value);
+                                        setSelectedStudent(null);
+                                    }}
+                                    className="input-field"
+                                >
+                                    <option value="">All Batches</option>
+                                    {batches.map(batch => (
+                                        <option key={batch._id} value={batch._id}>
+                                            {batch.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         {/* Search Bar */}
                         <div className="mb-4">
@@ -211,8 +258,8 @@ const ProfileReset = () => {
                                         key={student.id}
                                         onClick={() => handleSelectStudent(student)}
                                         className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedStudent?.id === student.id
-                                                ? 'border-primary-600 bg-primary-50 shadow-md'
-                                                : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                                            ? 'border-primary-600 bg-primary-50 shadow-md'
+                                            : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
                                             }`}
                                     >
                                         <div className="flex justify-between items-start">
@@ -322,8 +369,8 @@ const ProfileReset = () => {
                                             </p>
                                             <span
                                                 className={`inline-block mt-1 px-3 py-1 text-sm font-semibold rounded-full ${selectedStudent.isActive
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-red-100 text-red-800'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-red-100 text-red-800'
                                                     }`}
                                             >
                                                 {selectedStudent.isActive ? '✓ Active' : '✗ Inactive'}

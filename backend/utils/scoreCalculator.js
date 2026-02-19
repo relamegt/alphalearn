@@ -51,7 +51,7 @@ const calculateInterviewBitScore = (stats) => {
 };
 
 // SPOJ Score: (SP*500 + SPS*20)
-const calculateSPOJScore = (stats) => {
+/* const calculateSPOJScore = (stats) => {
     const rank = stats.rank || 0;
     const problemsSolved = stats.problemsSolved || 0;
 
@@ -59,7 +59,7 @@ const calculateSPOJScore = (stats) => {
     const problemScore = problemsSolved * 20;
 
     return Math.round(rankScore + problemScore);
-};
+}; */
 
 // Main function to calculate score based on platform
 const calculatePlatformScore = (platform, stats) => {
@@ -74,30 +74,30 @@ const calculatePlatformScore = (platform, stats) => {
             return calculateHackerRankScore(stats);
         case 'interviewbit':
             return calculateInterviewBitScore(stats);
-        case 'spoj':
-            return calculateSPOJScore(stats);
+        /* case 'spoj':
+            return calculateSPOJScore(stats); */
         default:
             return 0;
     }
 };
 
-// Calculate overall score (excludes AlphaLearn Primary - internal contests)
-const calculateOverallScore = (alphaLearnBasicScore, externalScores) => {
+// Calculate overall score
+const calculateOverallScore = (alphaCoins, externalScores) => {
     const leetcodeScore = externalScores.leetcode || 0;
     const codechefScore = externalScores.codechef || 0;
     const codeforcesScore = externalScores.codeforces || 0;
     const hackerrankScore = externalScores.hackerrank || 0;
     const interviewbitScore = externalScores.interviewbit || 0;
-    const spojScore = externalScores.spoj || 0;
+    // const spojScore = externalScores.spoj || 0;
 
     return (
-        alphaLearnBasicScore +
+        alphaCoins +
         leetcodeScore +
         codechefScore +
         codeforcesScore +
         hackerrankScore +
-        interviewbitScore +
-        spojScore
+        interviewbitScore
+        // + spojScore
     );
 };
 
@@ -107,7 +107,7 @@ module.exports = {
     calculateCodeforcesScore,
     calculateHackerRankScore,
     calculateInterviewBitScore,
-    calculateSPOJScore,
+    // calculateSPOJScore,
     calculatePlatformScore,
     calculateOverallScore
 };

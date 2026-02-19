@@ -9,8 +9,7 @@ class Leaderboard {
       studentId: new ObjectId(leaderboardData.studentId),
       rollNumber: leaderboardData.rollNumber,
       username: leaderboardData.username,
-      alphaLearnBasicScore: leaderboardData.alphaLearnBasicScore || 0,
-      alphaLearnPrimaryScore: leaderboardData.alphaLearnPrimaryScore || 0, // Internal contests - NOT in overall
+      alphaCoins: leaderboardData.alphaCoins || 0,
       externalScores: {
         hackerrank: leaderboardData.externalScores?.hackerrank || 0,
         leetcode: leaderboardData.externalScores?.leetcode || 0,
@@ -19,15 +18,15 @@ class Leaderboard {
         interviewbit: leaderboardData.externalScores?.interviewbit || 0,
         spoj: leaderboardData.externalScores?.spoj || 0
       },
-      overallScore: 0, // Calculated below (excludes alphaLearnPrimaryScore)
+      overallScore: 0, // Calculated below
       rank: 0,
       globalRank: 0,
       lastUpdated: new Date()
     };
 
-    // Calculate overall score (excludes alphaLearnPrimaryScore)
+    // Calculate overall score
     entry.overallScore =
-      entry.alphaLearnBasicScore +
+      entry.alphaCoins +
       entry.externalScores.hackerrank +
       entry.externalScores.leetcode +
       entry.externalScores.codechef +
@@ -101,8 +100,8 @@ class Leaderboard {
     return leaderboard;
   }
 
-  // Update AlphaLearn Basic Score (practice problems)
-  static async updateAlphaLearnBasicScore(studentId, score) {
+  // Update Alpha Coins (in-platform problems)
+  static async updateAlphaCoins(studentId, score) {
     const entry = await Leaderboard.findByStudent(studentId);
     if (!entry) return;
 
@@ -119,21 +118,8 @@ class Leaderboard {
       { studentId: new ObjectId(studentId) },
       {
         $set: {
-          alphaLearnBasicScore: score,
+          alphaCoins: score,
           overallScore: newOverallScore,
-          lastUpdated: new Date()
-        }
-      }
-    );
-  }
-
-  // Update AlphaLearn Primary Score (internal contests - NOT in overall)
-  static async updateAlphaLearnPrimaryScore(studentId, score) {
-    return await collections.leaderboard.updateOne(
-      { studentId: new ObjectId(studentId) },
-      {
-        $set: {
-          alphaLearnPrimaryScore: score,
           lastUpdated: new Date()
         }
       }
@@ -148,7 +134,7 @@ class Leaderboard {
     entry.externalScores[platform] = score;
 
     const newOverallScore =
-      (entry.alphaLearnBasicScore || 0) +
+      (entry.alphaCoins || 0) +
       (entry.externalScores.hackerrank || 0) +
       (entry.externalScores.leetcode || 0) +
       (entry.externalScores.codechef || 0) +
@@ -173,13 +159,50 @@ class Leaderboard {
     const Submission = require('./Submission');
     const ExternalProfile = require('./ExternalProfile');
     const scoreCalculator = require('../utils/scoreCalculator');
+    // Add missing requirements for Contest Score
+    const ContestSubmission = require('./ContestSubmission');
+    const Contest = require('./Contest');
+    const User = require('./User'); // Moved up
 
-    // Calculate AlphaLearn Basic Score
+    // Get User for Batch ID
+    const user = await User.findById(studentId);
+    if (!user) return null;
+
+    // 1. Calculate Practice Score (AlphaLearn Basic)
     const solvedCounts = await Submission.getSolvedCountByDifficulty(studentId);
-    const alphaLearnBasicScore =
+    const practiceScore =
       (solvedCounts.easy * 20) +
       (solvedCounts.medium * 50) +
       (solvedCounts.hard * 100);
+
+    // 2. Calculate Internal Contest Score
+    let contestScore = 0;
+    if (user.batchId) {
+      try {
+        const batchContests = await Contest.findByBatchId(user.batchId);
+        if (batchContests && batchContests.length > 0) {
+          const batchContestIds = new Set(batchContests.map(c => c._id.toString()));
+          const contestSubmissions = await ContestSubmission.findByStudent(studentId);
+          
+          const relevantSubmissions = contestSubmissions.filter(cs => batchContestIds.has(cs.contestId.toString()));
+          
+          const bestScores = {};
+          relevantSubmissions.forEach(sub => {
+            const cid = sub.contestId.toString();
+            // Use max score per contest
+            if (bestScores[cid] === undefined || sub.score > bestScores[cid]) {
+              bestScores[cid] = sub.score;
+            }
+          });
+          
+          contestScore = Object.values(bestScores).reduce((sum, s) => sum + s, 0);
+        }
+      } catch (err) {
+        console.error('Error calculating contest score:', err);
+      }
+    }
+
+    const alphaCoins = practiceScore + contestScore;
 
     // Get external scores
     const externalProfiles = await ExternalProfile.findByStudent(studentId);
@@ -197,17 +220,12 @@ class Leaderboard {
       externalScores[profile.platform] = score;
     }
 
-    // Update leaderboard
-    const User = require('./User');
-    const user = await User.findById(studentId);
-
     return await Leaderboard.upsert({
       batchId: user.batchId,
       studentId: studentId,
       rollNumber: user.education?.rollNumber || 'N/A',
       username: user.email.split('@')[0],
-      alphaLearnBasicScore,
-      alphaLearnPrimaryScore: 0, // Separate calculation for contests
+      alphaCoins,
       externalScores
     });
   }
@@ -231,18 +249,32 @@ class Leaderboard {
       .toArray();
   }
 
-  // Get student rank in batch
+  // Get student rank in batch and globally
   static async getStudentRank(studentId) {
     const entry = await Leaderboard.findByStudent(studentId);
     if (!entry) return null;
 
-    const batchLeaderboard = await Leaderboard.findByBatch(entry.batchId);
-    const rank = batchLeaderboard.findIndex(e => e.studentId.toString() === studentId.toString()) + 1;
+    // Batch Rank
+    const batchLeaderboard = await collections.leaderboard
+      .find({ batchId: entry.batchId })
+      .sort({ overallScore: -1 })
+      .toArray();
+
+    const batchRank = batchLeaderboard.findIndex(e => e.studentId.toString() === studentId.toString()) + 1;
+
+    // Global Rank
+    // limit to 10000 for performance (approximate rank if > 10000)
+    const globalRank = await collections.leaderboard.countDocuments(
+      { overallScore: { $gt: entry.overallScore } },
+      10000
+    ) + 1;
 
     return {
-      rank,
+      batchRank,
+      globalRank,
       totalStudents: batchLeaderboard.length,
-      score: entry.overallScore
+      score: entry.overallScore,
+      details: entry // return full entry for breakdown
     };
   }
 }

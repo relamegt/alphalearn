@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
 // Create batch
 const createBatch = async (req, res) => {
     try {
-        const { name, startDate, endDate, description, education, streams } = req.body;
+        const { name, startDate, endDate, description, education, branches } = req.body;
         const adminId = req.user.userId;
 
         const batch = await Batch.create({
@@ -19,7 +19,7 @@ const createBatch = async (req, res) => {
             endDate,
             description,
             education,
-            streams,
+            branches,
             createdBy: adminId
         });
 
@@ -41,7 +41,24 @@ const createBatch = async (req, res) => {
 // Get all batches
 const getAllBatches = async (req, res) => {
     try {
-        const batches = await Batch.findAll();
+        let batches;
+
+        if (req.user.role === 'instructor') {
+            const user = await User.findById(req.user.userId);
+            const batchIds = [user.batchId, ...(user.assignedBatches || [])]
+                .filter(id => id); // Filter nulls
+
+            // Remove duplicates
+            const uniqueBatchIds = [...new Set(batchIds.map(id => id.toString()))];
+
+            if (uniqueBatchIds.length > 0) {
+                batches = await Batch.findByIds(uniqueBatchIds);
+            } else {
+                batches = [];
+            }
+        } else {
+            batches = await Batch.findAll();
+        }
 
         res.json({
             success: true,
@@ -124,7 +141,7 @@ const getBatchStatistics = async (req, res) => {
     }
 };
 
-// Get batch by ID (for students to access batch data like streams)
+// Get batch by ID (for students to access batch data like branches)
 const getBatchById = async (req, res) => {
     try {
         const { batchId } = req.params;
@@ -171,6 +188,20 @@ const addUserToBatch = async (req, res) => {
         // Check if user already exists
         const existingUser = await User.findByEmail(email);
         if (existingUser) {
+            if (role === 'instructor' && existingUser.role === 'instructor') {
+                await User.addBatchToInstructor(existingUser._id, batchId);
+                return res.status(200).json({
+                    success: true,
+                    message: 'Instructor successfully assigned to this batch',
+                    user: {
+                        id: existingUser._id,
+                        email: existingUser.email,
+                        role: existingUser.role,
+                        batchId: batchId
+                    }
+                });
+            }
+
             return res.status(400).json({
                 success: false,
                 message: 'User with this email already exists'
@@ -196,7 +227,7 @@ const addUserToBatch = async (req, res) => {
             educationData = {
                 institution: batch.education.institution,
                 degree: batch.education.degree,
-                stream: null, // Student will fill this during profile completion
+                branch: null, // Student will fill this during profile completion
                 rollNumber: null,
                 startYear: batch.education?.startYear || new Date(batch.startDate).getFullYear(),
                 endYear: batch.education?.endYear || new Date(batch.endDate).getFullYear()
@@ -324,7 +355,7 @@ const bulkAddUsersToBatch = async (req, res) => {
                     educationData = {
                         institution: batch.education.institution,
                         degree: batch.education.degree,
-                        stream: null, // Student will fill this during profile completion
+                        branch: null, // Student will fill this during profile completion
                         rollNumber: null,
                         startYear: batch.education?.startYear || new Date(batch.startDate).getFullYear(),
                         endYear: batch.education?.endYear || new Date(batch.endDate).getFullYear()
@@ -420,6 +451,8 @@ const getBatchUsers = async (req, res) => {
                 firstName: u.firstName,
                 lastName: u.lastName,
                 role: u.role,
+                rollNumber: u.education?.rollNumber || 'N/A',
+                branch: u.education?.branch || 'N/A',
                 isActive: u.isActive,
                 profileCompleted: u.profileCompleted || false,
                 isFirstLogin: u.isFirstLogin || false
@@ -514,6 +547,8 @@ const getAllUsers = async (req, res) => {
                 firstName: u.firstName,
                 lastName: u.lastName,
                 role: u.role,
+                rollNumber: u.education?.rollNumber || 'N/A',
+                branch: u.education?.branch || 'N/A',
                 batchId: u.batchId,
                 isActive: u.isActive,
                 profileCompleted: u.profileCompleted || false,
@@ -543,25 +578,29 @@ const removeUserFromBatch = async (req, res) => {
             });
         }
 
-        if (user.batchId?.toString() !== batchId) {
-            return res.status(400).json({
-                success: false,
-                message: 'User does not belong to this batch'
+        // Check role and act accordingly
+        if (user.role === 'instructor') {
+            // Instructors: Remove from batch (unassign)
+            await User.removeBatchFromInstructor(userId, batchId);
+
+            res.json({
+                success: true,
+                message: 'Instructor successfully removed from batch (account preserved)'
+            });
+        } else {
+            // Students: Delete user and ALL their data
+            await User.delete(userId);
+
+            // Update batch count
+            if (user.role === 'student') {
+                await Batch.decrementStudentCount(batchId);
+            }
+
+            res.json({
+                success: true,
+                message: 'Student and all associated data deleted successfully'
             });
         }
-
-        // Delete user and ALL their data
-        await User.delete(userId);
-
-        // Update batch count
-        if (user.role === 'student') {
-            await Batch.decrementStudentCount(batchId);
-        }
-
-        res.json({
-            success: true,
-            message: 'User and all associated data deleted successfully'
-        });
     } catch (error) {
         console.error('Remove user from batch error:', error);
         res.status(500).json({
@@ -606,8 +645,6 @@ const deleteBatch = async (req, res) => {
 // Get system analytics (includes permanent user count)
 const getSystemAnalytics = async (req, res) => {
     try {
-        const UserStats = require('../models/UserStats');
-
         // Current active users
         const allUsers = await require('../config/astra').collections.users.find({}).toArray();
         const activeUsers = allUsers.length;
@@ -625,12 +662,13 @@ const getSystemAnalytics = async (req, res) => {
         const totalContests = allContests.length;
 
         // Get permanent total users count (for homepage popularity)
-        const totalUsersEverCreated = await UserStats.getTotalUsersCount();
+        const totalUsersEverCreated = await User.getTotalUsersCount();
 
         res.json({
             success: true,
             analytics: {
                 users: {
+                    total: activeUsers,                      // Added for dashboard compatibility
                     totalEverCreated: totalUsersEverCreated, // For homepage
                     currentActive: activeUsers,              // Current active users
                     students: totalStudents,
@@ -641,7 +679,14 @@ const getSystemAnalytics = async (req, res) => {
                     total: totalBatches,
                     active: activeBatches
                 },
-                problems: totalProblems,
+                problems: {
+                    total: totalProblems,
+                    byDifficulty: await Problem.getDifficultyWiseCount().then(counts => ({
+                        Easy: counts.easy,
+                        Medium: counts.medium,
+                        Hard: counts.hard
+                    }))
+                },
                 contests: totalContests
             }
         });

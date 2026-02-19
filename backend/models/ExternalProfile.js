@@ -154,6 +154,14 @@ class ExternalProfile {
         );
     }
 
+    // Generic update
+    static async update(profileId, updateData) {
+        return await collections.externalProfiles.updateOne(
+            { _id: new ObjectId(profileId) },
+            { $set: updateData }
+        );
+    }
+
     // Get batch-wide external stats (for leaderboard)
     static async getBatchExternalStats(batchId) {
         const User = require('./User');

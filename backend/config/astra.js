@@ -54,7 +54,7 @@ const initializeCollections = async () => {
             'contests',
             'contestSubmissions',
             'leaderboard',
-            'userStats'
+            'sections'
         ];
 
         console.log('🔄 Initializing collections...');

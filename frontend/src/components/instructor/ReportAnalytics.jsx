@@ -422,97 +422,91 @@ const ReportAnalytics = () => {
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <tr className="divide-x divide-gray-200 border-b border-gray-200">
+                                            <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-16">
                                                 Rank
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Roll Number
+                                            <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                                Roll No
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                                                 Name
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                                                 Branch
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                                                 Username
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Hackerrank
+                                            <th className="px-3 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-gray-50">
+                                                HackerRank (Total)
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                AL Basic
+                                            <th className="px-3 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                                Alpha Coins
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                AL Primary
+                                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                                Primary
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-3 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
                                                 LeetCode
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-3 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
                                                 InterviewBit
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-3 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
                                                 CodeChef
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-3 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
                                                 Codeforces
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                SPOJ
-                                            </th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <th className="px-3 py-2 text-center text-xs font-bold text-gray-900 uppercase tracking-wider border-l-2 border-gray-200">
                                                 Overall Score
                                             </th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {filteredBatchData.map((student, idx) => (
-                                            <tr key={idx} className="hover:bg-gray-50">
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                    {student.rank ?? idx + 1}
+                                            <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm font-bold text-gray-700">
+                                                    #{student.rank ?? idx + 1}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 font-mono">
                                                     {student.rollNumber}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                                                     {student.name}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                    <span className="px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-100">
                                                         {student.branch}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-xs">
                                                     {student.username}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                    {student.hackerrank}
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center font-medium bg-gray-50/50">
+                                                    {student.hackerrank || 0}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                    {student.alphaLearnBasic}
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
+                                                    {student.alphaLearnBasic || 0}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                    {student.alphaLearnPrimary}
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-400 text-center">
+                                                    {student.alphaLearnPrimary || 0}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                    {student.leetcode}
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
+                                                    {student.leetcode || 0}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                    {student.interviewbit}
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
+                                                    {student.interviewbit || 0}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                    {student.codechef}
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
+                                                    {student.codechef || 0}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                    {student.codeforces}
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
+                                                    {student.codeforces || 0}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                    {student.spoj}
-                                                </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-primary-600">
-                                                    {student.overallScore}
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm font-bold text-primary-600 text-center border-l-2 border-gray-100 bg-gray-50/30">
+                                                    {student.overallScore || 0}
                                                 </td>
                                             </tr>
                                         ))}

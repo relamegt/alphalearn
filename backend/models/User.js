@@ -1,7 +1,6 @@
 const { ObjectId } = require('bson');
 const bcrypt = require('bcryptjs');
 const { collections } = require('../config/astra');
-const UserStats = require('./UserStats');
 
 class User {
     // Create new user (with stats tracking)
@@ -17,6 +16,7 @@ class User {
                 lastName: userData.lastName || null,
                 role: userData.role,
                 batchId: userData.batchId ? new ObjectId(userData.batchId) : null,
+                assignedBatches: userData.batchId ? [new ObjectId(userData.batchId)] : [],
                 isActive: true,
                 isFirstLogin: true,
                 profileCompleted: false,
@@ -55,13 +55,23 @@ class User {
 
             await collections.users.insertOne(user);
 
-            // Increment total users count for homepage stats
-            await UserStats.incrementTotalUsers();
-
             return user;
         } catch (error) {
             console.error('Create user error:', error);
             throw error;
+        }
+    }
+
+    // Get total users count (for homepage stats)
+    static async getTotalUsersCount() {
+        try {
+            // Count all users in the collection
+            // This replaces the separate UserStats collection
+            const count = await collections.users.countDocuments({}, { upperBound: 100000 });
+            return count;
+        } catch (error) {
+            console.error('Get total users count error:', error);
+            return 0;
         }
     }
 
@@ -203,6 +213,47 @@ class User {
         );
     }
 
+    // Add batch to instructor
+    static async addBatchToInstructor(userId, batchId) {
+        const userObjectId = new ObjectId(userId);
+        const batchObjectId = new ObjectId(batchId);
+
+        return await collections.users.updateOne(
+            { _id: userObjectId },
+            {
+                $addToSet: { assignedBatches: batchObjectId },
+                $set: { batchId: batchObjectId } // Update current batchId to latest
+            }
+        );
+    }
+
+    // Remove batch from instructor
+    static async removeBatchFromInstructor(userId, batchId) {
+        const userObjectId = new ObjectId(userId);
+        const batchObjectId = new ObjectId(batchId);
+
+        // Remove from assignedBatches
+        await collections.users.updateOne(
+            { _id: userObjectId },
+            { $pull: { assignedBatches: batchObjectId } }
+        );
+
+        // Check if current batchId is the one being removed
+        // If so, update batchId to another assigned batch or null
+        const user = await collections.users.findOne({ _id: userObjectId });
+        if (user && user.batchId && user.batchId.toString() === batchObjectId.toString()) {
+            const remainingBatches = user.assignedBatches || [];
+            const newBatchId = remainingBatches.length > 0 ? remainingBatches[remainingBatches.length - 1] : null;
+
+            await collections.users.updateOne(
+                { _id: userObjectId },
+                { $set: { batchId: newBatchId } }
+            );
+        }
+
+        return { success: true };
+    }
+
     // Mark first login as completed
     static async markFirstLoginComplete(userId) {
         try {
@@ -238,9 +289,13 @@ class User {
     // Get instructors by batch
     static async getInstructorsByBatch(batchId) {
         try {
+            const batchObjectId = new ObjectId(batchId);
             const instructors = await collections.users.find({
-                batchId: new ObjectId(batchId),
-                role: 'instructor'
+                role: 'instructor',
+                $or: [
+                    { batchId: batchObjectId },
+                    { assignedBatches: batchObjectId }
+                ]
             }).toArray();
             return instructors;
         } catch (error) {
@@ -255,6 +310,20 @@ class User {
             batchId: new ObjectId(batchId),
             role: 'student'
         }).toArray();
+    }
+
+    // Get all students in multiple batches
+    static async getStudentsByBatches(batchIds) {
+        try {
+            const objectIds = batchIds.map(id => new ObjectId(id));
+            return await collections.users.find({
+                batchId: { $in: objectIds },
+                role: 'student'
+            }).toArray();
+        } catch (error) {
+            console.error('Get students by batches error:', error);
+            throw error;
+        }
     }
 
     // Count students in a batch
@@ -314,7 +383,7 @@ class User {
                     education: userData.role === 'student' ? {
                         institution: userData.institution || null,
                         degree: userData.degree || null,
-                        stream: userData.stream || null,
+                        branch: userData.branch || null,
                         rollNumber: userData.rollNumber || null,
                         startYear: userData.startYear || null,
                         endYear: userData.endYear || null
@@ -327,11 +396,6 @@ class User {
         );
 
         const result = await collections.users.insertMany(users);
-
-        // Increment total users count for each user created
-        for (let i = 0; i < users.length; i++) {
-            await UserStats.incrementTotalUsers();
-        }
 
         return result;
     }
@@ -469,8 +533,8 @@ class User {
     // Reset student profile - Only AlphaLearn practice data (preserves contests)
     static async resetStudentProfile(studentId) {
         const student = await User.findById(studentId);
-        if (!student || student.role !== 'student') {
-            throw new Error('Invalid student ID');
+        if (!student) {
+            throw new Error('User not found');
         }
 
         // Delete ONLY AlphaLearn practice submissions (NOT contest submissions)

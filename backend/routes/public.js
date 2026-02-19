@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const UserStats = require('../models/UserStats');
+const User = require('../models/User');
 
 // Get public stats for homepage (no auth required)
 router.get('/stats', async (req, res) => {
     try {
-        const totalUsers = await UserStats.getTotalUsersCount();
+        const totalUsers = await User.getTotalUsersCount();
 
         res.json({
             success: true,

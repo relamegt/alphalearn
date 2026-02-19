@@ -16,7 +16,6 @@ router.use(verifyToken);
 
 // Public problem routes (all authenticated users)
 router.get('/', problemController.getAllProblems);
-router.get('/sections/count', problemController.getSectionWiseCount);
 router.get('/difficulty/count', problemController.getDifficultyWiseCount);
 router.get('/:problemId', validateObjectId('problemId'), problemController.getProblemById);
 

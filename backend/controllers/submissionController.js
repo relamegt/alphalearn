@@ -2,16 +2,19 @@ const Submission = require('../models/Submission');
 const Problem = require('../models/Problem');
 const Progress = require('../models/Progress');
 const Leaderboard = require('../models/Leaderboard');
-const { executeWithTestCases, validateCode } = require('../services/pistonService');
+const { executeWithTestCases, validateCode } = require('../services/judge0Service');
 
 // Run code (sample test cases only)
 const runCode = async (req, res) => {
+    console.log('\n📥 [API] POST /student/code/run');
     try {
-        const { problemId, code, language } = req.body;
+        const { problemId, code, language, customInput } = req.body;
+        console.log(`   Problem: ${problemId}, Lang: ${language}, CustomInput: ${!!customInput}`);
 
         // Validate code
         const validation = validateCode(code, language);
         if (!validation.valid) {
+            console.log('   ❌ Validation Failed:', validation.errors);
             return res.status(400).json({
                 success: false,
                 message: 'Code validation failed',
@@ -22,17 +25,27 @@ const runCode = async (req, res) => {
         // Get problem
         const problem = await Problem.findById(problemId);
         if (!problem) {
+            console.log('   ❌ Problem not found');
             return res.status(404).json({
                 success: false,
                 message: 'Problem not found'
             });
         }
 
-        // Get sample test cases only
-        const sampleTestCases = await Problem.getSampleTestCases(problemId);
+        // Determine test cases (Custom or Sample)
+        let testCases;
+        if (customInput !== undefined && customInput !== null) {
+            // If custom input is provided, run only that
+            testCases = [{ input: customInput, output: null, isHidden: false }];
+        } else {
+            // Otherwise run sample test cases
+            testCases = await Problem.getSampleTestCases(problemId);
+        }
 
         // Execute code
-        const result = await executeWithTestCases(language, code, sampleTestCases, problem.timeLimit);
+        const result = await executeWithTestCases(language, code, testCases, problem.timeLimit);
+
+        console.log(`   ✅ Execution Complete: ${result.verdict}`);
 
         res.json({
             success: true,
@@ -40,10 +53,11 @@ const runCode = async (req, res) => {
             verdict: result.verdict,
             testCasesPassed: result.testCasesPassed,
             totalTestCases: result.totalTestCases,
-            results: result.results
+            results: result.results,
+            error: result.error
         });
     } catch (error) {
-        console.error('Run code error:', error);
+        console.error('   ❌ Controller Error:', error);
         res.status(500).json({
             success: false,
             message: 'Code execution failed',
@@ -119,7 +133,8 @@ const submitCode = async (req, res) => {
                 expectedOutput: r.isHidden ? 'Hidden' : r.expectedOutput,
                 actualOutput: r.isHidden ? (r.passed ? 'Hidden' : 'Wrong Answer') : r.actualOutput,
                 passed: r.passed
-            }))
+            })),
+            error: result.error
         });
     } catch (error) {
         console.error('Submit code error:', error);
@@ -170,7 +185,7 @@ const getSubmissionById = async (req, res) => {
 const getStudentSubmissions = async (req, res) => {
     try {
         const studentId = req.params.studentId || req.user.userId;
-        const { limit = 100 } = req.query;
+        const { limit = 100, problemId } = req.query;
 
         // Check ownership
         if (req.user.role === 'student' && studentId !== req.user.userId) {
@@ -180,7 +195,12 @@ const getStudentSubmissions = async (req, res) => {
             });
         }
 
-        const submissions = await Submission.findByStudent(studentId, parseInt(limit));
+        let submissions;
+        if (problemId) {
+            submissions = await Submission.findByStudentAndProblem(studentId, problemId);
+        } else {
+            submissions = await Submission.findByStudent(studentId, parseInt(limit));
+        }
 
         res.json({
             success: true,
@@ -200,10 +220,21 @@ const getStudentSubmissions = async (req, res) => {
 // Get recent submissions
 const getRecentSubmissions = async (req, res) => {
     try {
-        const studentId = req.user.userId;
+        const userId = req.user.userId;
+        const role = req.user.role;
         const { limit = 10 } = req.query;
 
-        const submissions = await Submission.findRecentSubmissions(studentId, parseInt(limit));
+        let submissions;
+
+        if (role === 'admin' || role === 'instructor') {
+            // Fetch all recent submissions with details
+            submissions = await Submission.findAllRecentSubmissions(parseInt(limit));
+        } else {
+            // Fetch only student's submissions
+            if (role === 'student') {
+                submissions = await Submission.findRecentSubmissions(userId, parseInt(limit));
+            }
+        }
 
         res.json({
             success: true,

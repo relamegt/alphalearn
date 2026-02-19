@@ -504,6 +504,7 @@ const fetchInterviewBitStats = async (username) => {
 // ============================================
 // SPOJ - Robust scrape from https://www.spoj.com/users/{username}/
 // ============================================
+/* 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const looksLikeCloudflareBlock = (text = "") => {
@@ -580,6 +581,7 @@ const fetchSPOJStats = async (username) => {
         await browser.close();
     }
 };
+*/
 
 
 // ============================================
@@ -609,9 +611,9 @@ const fetchExternalProfileStats = async (platform, username) => {
             case 'interviewbit':
                 stats = await fetchInterviewBitStats(username);
                 break;
-            case 'spoj':
+            /* case 'spoj':
                 stats = await fetchSPOJStats(username);
-                break;
+                break; */
             default:
                 throw new Error(`Unsupported platform: ${platform}`);
         }
@@ -812,7 +814,7 @@ module.exports = {
     // Export individual fetchers for testing
     fetchLeetCodeStats,
     fetchInterviewBitStats,
-    fetchSPOJStats,
+    // fetchSPOJStats,
     fetchCodeChefStats,
     fetchCodeforcesStats,
     fetchHackerRankStats

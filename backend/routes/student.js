@@ -25,6 +25,7 @@ router.get('/dashboard', profileController.getDashboardData);
 
 // Profile management (allowed without profile completion)
 router.put('/profile', validateProfileUpdate, profileController.updateProfile);
+router.post('/profile/reset', profileController.resetStudentProfile);
 
 // External profiles
 router.post('/external-profiles', validateExternalProfile, profileController.linkExternalProfile);

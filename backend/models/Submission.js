@@ -54,6 +54,43 @@ class Submission {
             .toArray();
     }
 
+    // Find all recent submissions (global) with details
+    static async findAllRecentSubmissions(limit = 10) {
+        return await collections.submissions.aggregate([
+            { $sort: { submittedAt: -1 } },
+            { $limit: limit },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'studentId',
+                    foreignField: '_id',
+                    as: 'user'
+                }
+            },
+            { $unwind: '$user' },
+            {
+                $lookup: {
+                    from: 'problems',
+                    localField: 'problemId',
+                    foreignField: '_id',
+                    as: 'problem'
+                }
+            },
+            { $unwind: '$problem' },
+            {
+                $project: {
+                    _id: 1,
+                    code: 1,
+                    language: 1,
+                    verdict: 1,
+                    submittedAt: 1,
+                    user: { username: 1, email: 1 },
+                    problem: { title: 1 }
+                }
+            }
+        ]).toArray();
+    }
+
     // Get submission heatmap data (365 days)
     static async getHeatmapData(studentId) {
         const oneYearAgo = new Date();

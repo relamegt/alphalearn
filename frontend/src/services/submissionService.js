@@ -22,13 +22,13 @@ apiClient.interceptors.request.use((config) => {
 
 const submissionService = {
     // Run Code (Sample Test Cases) → POST /student/code/run
-    runCode: async (problemId, code, language) => {
+    runCode: async (problemId, code, language, customInput) => {
         try {
-            const response = await apiClient.post('/student/code/run', {
-                problemId,
-                code,
-                language,
-            });
+            const payload = { problemId, code, language };
+            if (customInput !== undefined && customInput !== null) {
+                payload.customInput = customInput;
+            }
+            const response = await apiClient.post('/student/code/run', payload);
             return response.data;
         } catch (error) {
             throw error.response?.data || { message: 'Code execution failed' };
@@ -62,10 +62,22 @@ const submissionService = {
     // Get Student Submissions → GET /student/submissions
     getStudentSubmissions: async (studentId = null, limit = 100) => {
         try {
-            const response = await apiClient.get('/student/submissions', { params: { limit } });
+            const url = studentId ? `/student/submissions/${studentId}` : '/student/submissions';
+            const response = await apiClient.get(url, { params: { limit } });
             return response.data;
         } catch (error) {
             throw error.response?.data || { message: 'Failed to fetch submissions' };
+        }
+    },
+
+    // Get submissions for a specific problem
+    getProblemSubmissions: async (problemId, studentId = null) => {
+        try {
+            const url = studentId ? `/student/submissions/${studentId}` : '/student/submissions';
+            const response = await apiClient.get(url, { params: { problemId } });
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to fetch problem submissions' };
         }
     },
 

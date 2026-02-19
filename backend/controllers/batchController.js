@@ -27,7 +27,7 @@ const getBatchById = async (req, res) => {
             _id: batch._id,
             name: batch.name,
             education: batch.education,
-            streams: batch.streams || [],
+            branches: batch.branches || [],
             startDate: batch.startDate,
             endDate: batch.endDate,
             description: batch.description

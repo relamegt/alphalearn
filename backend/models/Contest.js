@@ -61,6 +61,16 @@ class Contest {
         }).sort({ endTime: -1 }).toArray();
     }
 
+    // Find multiple contests with query
+    static async find(query = {}, projection = {}) {
+        try {
+            return await collections.contests.find(query, { projection }).toArray();
+        } catch (error) {
+            console.error('Find contests error:', error);
+            throw error;
+        }
+    }
+
     // Update contest
     static async update(contestId, updateData) {
         if (updateData.problems) {

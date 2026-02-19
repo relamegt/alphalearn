@@ -104,7 +104,7 @@ const parseUserCSV = async (buffer) => {
             rollNumber: row.rollNumber || null,
             institution: row.institution || null,
             degree: row.degree || null,
-            stream: row.stream || null,
+            branch: row.branch || null,
             startYear: row.startYear ? parseInt(row.startYear) : null,
             endYear: row.endYear ? parseInt(row.endYear) : null
         }));
@@ -126,11 +126,6 @@ const parseUserCSV = async (buffer) => {
 // Validate problem CSV/JSON format
 const validateProblemData = (data) => {
     const errors = [];
-    const validSections = [
-        'Introduction', 'Arrays', 'Strings', 'Math', 'Sorting', 'Searching',
-        'Recursion', 'Backtracking', 'Dynamic Programming', 'Graphs', 'Trees',
-        'Heaps', 'Advanced Topics'
-    ];
     const validDifficulties = ['Easy', 'Medium', 'Hard'];
 
     data.forEach((row, index) => {
@@ -138,12 +133,6 @@ const validateProblemData = (data) => {
 
         if (!row.title) {
             errors.push(`Row ${rowNum}: Title is required`);
-        }
-
-        if (!row.section) {
-            errors.push(`Row ${rowNum}: Section is required`);
-        } else if (!validSections.includes(row.section)) {
-            errors.push(`Row ${rowNum}: Invalid section. Must be one of: ${validSections.join(', ')}`);
         }
 
         if (!row.difficulty) {
@@ -209,13 +198,19 @@ const generateCSV = (data, headers) => {
         return '';
     }
 
+    // Determine if headers are strings or objects
+    const isObjectHeaders = headers.length > 0 && typeof headers[0] === 'object';
+
     // Generate header row
-    const headerRow = headers.join(',');
+    const headerRow = isObjectHeaders
+        ? headers.map(h => h.label).join(',')
+        : headers.join(',');
 
     // Generate data rows
     const dataRows = data.map(row => {
         return headers.map(header => {
-            const value = row[header];
+            const key = isObjectHeaders ? header.key : header;
+            const value = row[key];
 
             // Handle nested objects
             if (typeof value === 'object' && value !== null) {
@@ -227,7 +222,7 @@ const generateCSV = (data, headers) => {
                 return `"${value.replace(/"/g, '""')}"`;
             }
 
-            return value || '';
+            return value !== undefined && value !== null ? value : '';
         }).join(',');
     });
 

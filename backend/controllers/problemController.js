@@ -64,14 +64,10 @@ const bulkCreateProblems = async (req, res) => {
 // Get all problems
 const getAllProblems = async (req, res) => {
     try {
-        const { section, difficulty } = req.query;
+        const { difficulty } = req.query;
 
         let problems;
-        if (section && difficulty) {
-            problems = await Problem.findBySectionAndDifficulty(section, difficulty);
-        } else if (section) {
-            problems = await Problem.findBySection(section);
-        } else if (difficulty) {
+        if (difficulty) {
             problems = await Problem.findByDifficulty(difficulty);
         } else {
             problems = await Problem.findAll();
@@ -91,7 +87,6 @@ const getAllProblems = async (req, res) => {
             problems: problems.map(p => ({
                 id: p._id,
                 title: p.title,
-                section: p.section,
                 difficulty: p.difficulty,
                 points: p.points,
                 createdAt: p.createdAt,
@@ -193,25 +188,6 @@ const deleteProblem = async (req, res) => {
     }
 };
 
-// Get section-wise problem count
-const getSectionWiseCount = async (req, res) => {
-    try {
-        const counts = await Problem.getSectionWiseCount();
-
-        res.json({
-            success: true,
-            sectionCounts: counts
-        });
-    } catch (error) {
-        console.error('Get section-wise count error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch section counts',
-            error: error.message
-        });
-    }
-};
-
 // Get difficulty-wise problem count
 const getDifficultyWiseCount = async (req, res) => {
     try {
@@ -238,6 +214,5 @@ module.exports = {
     getProblemById,
     updateProblem,
     deleteProblem,
-    getSectionWiseCount,
     getDifficultyWiseCount
 };

@@ -29,7 +29,6 @@ const problemService = {
     getAllProblems: async (filters = {}) => {
         try {
             const params = {};
-            if (filters.section) params.section = filters.section;
             if (filters.difficulty) params.difficulty = filters.difficulty;
 
             const response = await apiClient.get('/problem', { params });
@@ -46,16 +45,6 @@ const problemService = {
             return response.data;
         } catch (error) {
             throw error.response?.data || { message: 'Failed to fetch problem' };
-        }
-    },
-
-    // Get Section-wise Count → GET /api/problem/sections/count
-    getSectionWiseCount: async () => {
-        try {
-            const response = await apiClient.get('/problem/sections/count');
-            return response.data;
-        } catch (error) {
-            throw error.response?.data || { message: 'Failed to fetch section counts' };
         }
     },
 

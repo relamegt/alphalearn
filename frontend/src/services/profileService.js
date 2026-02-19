@@ -97,6 +97,15 @@ const profileService = {
             throw error.response?.data || { message: 'Failed to reset student profile' };
         }
     },
+
+    resetMyProfile: async () => {
+        try {
+            const response = await apiClient.post('/student/profile/reset');
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to reset profile' };
+        }
+    },
 };
 
 export default profileService;

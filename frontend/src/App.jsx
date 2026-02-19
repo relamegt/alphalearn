@@ -13,15 +13,18 @@ import SecurityWrapper from './components/shared/SecurityWrapper';
 import ExtensionCheck from './components/shared/ExtensionCheck';
 
 // Admin Components
+import AdminDashboard from './components/admin/AdminDashboard';
 import BatchManager from './components/admin/BatchManager';
 import UserManagement from './components/admin/UserManagement';
 import ProblemManager from './components/admin/ProblemManager';
-import ContestCreator from './components/admin/ContestCreator';
+import SectionManager from './components/admin/SectionManager';
+import ContestManager from './components/admin/ContestManager';
 
 
 // Instructor Components
 import ProfileReset from './components/instructor/ProfileReset';
-import ReportAnalytics from './components/instructor/ReportAnalytics';
+import ReportGenerator from './components/admin/ReportGenerator';
+import InstructorDashboard from './components/instructor/InstructorDashboard';
 
 // Student Components
 import Dashboard from './components/student/Dashboard';
@@ -29,11 +32,16 @@ import ProblemList from './components/student/ProblemList';
 import ContestList from './components/student/ContestList';
 import CodeEditor from './components/student/CodeEditor';
 import Leaderboard from './components/student/Leaderboard';
-import ProfileManager from './components/student/ProfileManager';
+// Settings Components
+import PersonalDetails from './components/student/settings/PersonalDetails';
+import ProfessionalDetails from './components/student/settings/ProfessionalDetails';
+import CodingProfiles from './components/student/settings/CodingProfiles';
+import SecuritySettings from './components/student/settings/SecuritySettings';
 import ContestInterface from './components/student/ContestInterface';
 
+
 // Protected Route Component
-const ProtectedRoute = ({ children, allowedRoles }) => {
+const ProtectedRoute = ({ children, allowedRoles, hideNavbar = false }) => {
     const { user, loading } = useAuth();
 
     if (loading) {
@@ -54,7 +62,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
     return (
         <>
-            <Navbar />
+            {!hideNavbar && <Navbar />}
             <div className="min-h-screen bg-gray-50">{children}</div>
         </>
     );
@@ -136,7 +144,7 @@ function App() {
                             path="/admin/dashboard"
                             element={
                                 <ProtectedRoute allowedRoles={['admin']}>
-                                    <BatchManager />
+                                    <AdminDashboard />
                                 </ProtectedRoute>
                             }
                         />
@@ -168,15 +176,23 @@ function App() {
                             path="/admin/contests"
                             element={
                                 <ProtectedRoute allowedRoles={['admin']}>
-                                    <ContestCreator />
+                                    <ContestManager />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/admin/sections"
+                            element={
+                                <ProtectedRoute allowedRoles={['admin']}>
+                                    <SectionManager />
                                 </ProtectedRoute>
                             }
                         />
                         <Route
                             path="/admin/reports"
                             element={
-                                <ProtectedRoute allowedRoles={['admin']}>
-                                    <ReportAnalytics />
+                                <ProtectedRoute allowedRoles={['admin', 'instructor']}>
+                                    <ReportGenerator />
                                 </ProtectedRoute>
                             }
                         />
@@ -186,7 +202,7 @@ function App() {
                             path="/instructor/dashboard"
                             element={
                                 <ProtectedRoute allowedRoles={['instructor']}>
-                                    <ReportAnalytics />
+                                    <InstructorDashboard />
                                 </ProtectedRoute>
                             }
                         />
@@ -194,7 +210,7 @@ function App() {
                             path="/instructor/contests"
                             element={
                                 <ProtectedRoute allowedRoles={['instructor']}>
-                                    <ContestCreator />
+                                    <ContestManager />
                                 </ProtectedRoute>
                             }
                         />
@@ -202,7 +218,7 @@ function App() {
                             path="/instructor/reports"
                             element={
                                 <ProtectedRoute allowedRoles={['instructor']}>
-                                    <ReportAnalytics />
+                                    <ReportGenerator />
                                 </ProtectedRoute>
                             }
                         />
@@ -227,7 +243,7 @@ function App() {
                         <Route
                             path="/student/problems"
                             element={
-                                <ProtectedRoute allowedRoles={['student']}>
+                                <ProtectedRoute allowedRoles={['student', 'instructor']}>
                                     <ProblemList />
                                 </ProtectedRoute>
                             }
@@ -235,7 +251,7 @@ function App() {
                         <Route
                             path="/student/problem/:problemId"
                             element={
-                                <ProtectedRoute allowedRoles={['student']}>
+                                <ProtectedRoute allowedRoles={['student', 'instructor']}>
                                     <ExtensionCheck>
                                         <CodeEditor />
                                     </ExtensionCheck>
@@ -263,24 +279,61 @@ function App() {
                         <Route
                             path="/student/contest/:contestId/leaderboard"
                             element={
-                                <ProtectedRoute allowedRoles={['student']}>
+                                <ProtectedRoute allowedRoles={['student', 'instructor']}>
                                     <Leaderboard />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student/batch-leaderboard"
+                            element={
+                                <ProtectedRoute allowedRoles={['student', 'instructor']} hideNavbar={true}>
+                                    <Leaderboard isBatchView={true} />
                                 </ProtectedRoute>
                             }
                         />
                         <Route
                             path="/student/leaderboard"
                             element={
-                                <ProtectedRoute allowedRoles={['student']}>
+                                <ProtectedRoute allowedRoles={['student', 'instructor']}>
                                     <Leaderboard />
                                 </ProtectedRoute>
                             }
                         />
+                        {/* Settings Routes */}
                         <Route
                             path="/student/profile"
+                            element={<Navigate to="/student/settings/personal" replace />}
+                        />
+                        <Route
+                            path="/student/settings/personal"
                             element={
                                 <ProtectedRoute allowedRoles={['student']}>
-                                    <ProfileManager />
+                                    <PersonalDetails />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student/settings/professional"
+                            element={
+                                <ProtectedRoute allowedRoles={['student']}>
+                                    <ProfessionalDetails />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student/settings/coding"
+                            element={
+                                <ProtectedRoute allowedRoles={['student']}>
+                                    <CodingProfiles />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student/settings/security"
+                            element={
+                                <ProtectedRoute allowedRoles={['student']}>
+                                    <SecuritySettings />
                                 </ProtectedRoute>
                             }
                         />
@@ -315,8 +368,8 @@ function App() {
                         />
                     </Routes>
                 </SecurityWrapper>
-            </AuthProvider>
-        </BrowserRouter>
+            </AuthProvider >
+        </BrowserRouter >
     );
 }
 

@@ -60,11 +60,6 @@ const validateBatchCreation = [
 // Problem validation rules
 const validateProblemCreation = [
     body('title').trim().notEmpty().withMessage('Problem title is required'),
-    body('section').isIn([
-        'Introduction', 'Arrays', 'Strings', 'Math', 'Sorting', 'Searching',
-        'Recursion', 'Backtracking', 'Dynamic Programming', 'Graphs', 'Trees',
-        'Heaps', 'Advanced Topics'
-    ]).withMessage('Invalid section'),
     body('difficulty').isIn(['Easy', 'Medium', 'Hard']).withMessage('Invalid difficulty'),
     body('description').trim().notEmpty().withMessage('Problem description is required'),
     body('testCases').isArray({ min: 1 }).withMessage('At least one test case is required'),
@@ -91,7 +86,7 @@ const validateContestCreation = [
 
 // External profile validation rules
 const validateExternalProfile = [
-    body('platform').isIn(['leetcode', 'codechef', 'codeforces', 'hackerrank', 'interviewbit', 'spoj']).withMessage('Invalid platform'),
+    body('platform').isIn(['leetcode', 'codechef', 'codeforces', 'hackerrank', 'interviewbit']).withMessage('Invalid platform'),
     body('username').trim().notEmpty().withMessage('Username is required'),
     handleValidationErrors
 ];
@@ -119,7 +114,6 @@ const validatePagination = [
 ];
 
 const validateFilterQuery = [
-    query('section').optional().trim(),
     query('difficulty').optional().isIn(['Easy', 'Medium', 'Hard']).withMessage('Invalid difficulty'),
     query('timeline').optional().isIn(['week', 'month', 'year', 'all']).withMessage('Invalid timeline'),
     handleValidationErrors

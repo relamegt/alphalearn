@@ -27,45 +27,45 @@ async function testProfiles() {
     // ================================
     // 1️⃣ LEETCODE
     // ================================
-    // console.log('🔥 1️⃣ Testing LeetCode...');
-    // try {
-    //     const stats = await fetchLeetCodeStats(testData.leetcode);
-    //     console.log(`✅ LeetCode [${testData.leetcode}] - Problems: ${stats.problemsSolved}, Rating: ${stats.rating}, Rank: ${stats.rank}`);
-    //     results.push({ platform: 'leetcode', success: true, problems: stats.problemsSolved, rating: stats.rating });
-    // } catch (error) {
-    //     console.error('❌ LeetCode Error:', error.message);
-    //     results.push({ platform: 'leetcode', success: false, error: error.message });
-    // }
+    console.log('🔥 1️⃣ Testing LeetCode...');
+    try {
+        const stats = await fetchLeetCodeStats(testData.leetcode);
+        console.log(`✅ LeetCode [${testData.leetcode}] - Problems: ${stats.problemsSolved}, Rating: ${stats.rating}, Rank: ${stats.rank}`);
+        results.push({ platform: 'leetcode', success: true, problems: stats.problemsSolved, rating: stats.rating });
+    } catch (error) {
+        console.error('❌ LeetCode Error:', error.message);
+        results.push({ platform: 'leetcode', success: false, error: error.message });
+    }
 
     console.log('\n' + '='.repeat(50) + '\n');
 
     // ================================
     // 2️⃣ CODECHEF
     // ================================
-    // console.log('🍳 2️⃣ Testing CodeChef...');
-    // try {
-    //     const stats = await fetchCodeChefStats(testData.codechef);
-    //     console.log(`✅ CodeChef [${testData.codechef}] - Problems: ${stats.problemsSolved}, Rating: ${stats.rating}, Rank: ${stats.rank}`);
-    //     results.push({ platform: 'codechef', success: true, problems: stats.problemsSolved, rating: stats.rating });
-    // } catch (error) {
-    //     console.error('❌ CodeChef Error:', error.message);
-    //     results.push({ platform: 'codechef', success: false, error: error.message });
-    // }
+    console.log('🍳 2️⃣ Testing CodeChef...');
+    try {
+        const stats = await fetchCodeChefStats(testData.codechef);
+        console.log(`✅ CodeChef [${testData.codechef}] - Problems: ${stats.problemsSolved}, Rating: ${stats.rating}, Rank: ${stats.rank}`);
+        results.push({ platform: 'codechef', success: true, problems: stats.problemsSolved, rating: stats.rating });
+    } catch (error) {
+        console.error('❌ CodeChef Error:', error.message);
+        results.push({ platform: 'codechef', success: false, error: error.message });
+    }
 
     console.log('\n' + '='.repeat(50) + '\n');
 
     // ================================
     // 3️⃣ CODEFORCES
     // ================================
-    // console.log('⚡ 3️⃣ Testing Codeforces...');
-    // try {
-    //     const stats = await fetchCodeforcesStats(testData.codeforces);
-    //     console.log(`✅ Codeforces [${testData.codeforces}] - Problems: ${stats.problemsSolved}, Rating: ${stats.rating}, Rank: ${stats.rank}`);
-    //     results.push({ platform: 'codeforces', success: true, problems: stats.problemsSolved, rating: stats.rating });
-    // } catch (error) {
-    //     console.error('❌ Codeforces Error:', error.message);
-    //     results.push({ platform: 'codeforces', success: false, error: error.message });
-    // }
+    console.log('⚡ 3️⃣ Testing Codeforces...');
+    try {
+        const stats = await fetchCodeforcesStats(testData.codeforces);
+        console.log(`✅ Codeforces [${testData.codeforces}] - Problems: ${stats.problemsSolved}, Rating: ${stats.rating}, Rank: ${stats.rank}`);
+        results.push({ platform: 'codeforces', success: true, problems: stats.problemsSolved, rating: stats.rating });
+    } catch (error) {
+        console.error('❌ Codeforces Error:', error.message);
+        results.push({ platform: 'codeforces', success: false, error: error.message });
+    }
 
     console.log('\n' + '='.repeat(50) + '\n');
 
@@ -102,15 +102,15 @@ async function testProfiles() {
     // ================================
     // 6️⃣ SPOJ (NEW)
     // ================================
-    console.log('🏆 6️⃣ Testing SPOJ...');
-    try {
-        const stats = await fetchSPOJStats(testData.spoj);
-        console.log(`✅ SPOJ [${testData.spoj}] - Problems: ${stats.problemsSolved}, Rating: ${stats.rating}, Rank: ${stats.rank}`);
-        results.push({ platform: 'spoj', success: true, problems: stats.problemsSolved, rating: stats.rating });
-    } catch (error) {
-        console.error('❌ SPOJ Error:', error.message);
-        results.push({ platform: 'spoj', success: false, error: error.message });
-    }
+    // console.log('🏆 6️⃣ Testing SPOJ...');
+    // try {
+    //     const stats = await fetchSPOJStats(testData.spoj);
+    //     console.log(`✅ SPOJ [${testData.spoj}] - Problems: ${stats.problemsSolved}, Rating: ${stats.rating}, Rank: ${stats.rank}`);
+    //     results.push({ platform: 'spoj', success: true, problems: stats.problemsSolved, rating: stats.rating });
+    // } catch (error) {
+    //     console.error('❌ SPOJ Error:', error.message);
+    //     results.push({ platform: 'spoj', success: false, error: error.message });
+    // }
 
     // ================================
     // 📊 SUMMARY

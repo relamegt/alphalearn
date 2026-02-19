@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import leaderboardService from '../../services/leaderboardService';
 import contestService from '../../services/contestService';
 import toast from 'react-hot-toast';
+import { Calendar, Zap, Trophy } from 'lucide-react';
 
 const PLATFORMS = [
     { value: 'leetcode', label: 'LeetCode' },
@@ -11,19 +12,75 @@ const PLATFORMS = [
     { value: 'codeforces', label: 'Codeforces' },
     { value: 'hackerrank', label: 'HackerRank' },
     { value: 'interviewbit', label: 'InterviewBit' },
-    { value: 'spoj', label: 'SPOJ' },
+    // { value: 'spoj', label: 'SPOJ' },
 ];
 
-const Leaderboard = () => {
+const Leaderboard = ({ batchId, isBatchView }) => {
     const { contestId } = useParams();
+    const [searchParams] = useSearchParams();
+    const viewType = searchParams.get('type');
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState(contestId ? 'internal' : 'practice');
+    const targetBatchId = batchId || user?.batchId;
+
+    // Options menu state for Batch View
+    const [showOptions, setShowOptions] = useState(false);
+    const [batchName, setBatchName] = useState('');
+    const optionsRef = useRef(null);
+    const kebabBtnRef = useRef(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (
+                optionsRef.current && !optionsRef.current.contains(e.target) &&
+                kebabBtnRef.current && !kebabBtnRef.current.contains(e.target)
+            ) {
+                setShowOptions(false);
+            }
+        };
+        if (showOptions) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showOptions]);
+
+    const handleToggleOptions = () => {
+        if (!showOptions && kebabBtnRef.current) {
+            const rect = kebabBtnRef.current.getBoundingClientRect();
+            setDropdownPos({
+                top: rect.bottom + 8,
+                right: window.innerWidth - rect.right,
+            });
+        }
+        setShowOptions(prev => !prev);
+    };
+
+    const [activeTab, setActiveTab] = useState(() => {
+        if (contestId) return 'internal';
+        if (viewType === 'contest') return 'external';
+        return 'practice';
+    });
+
+    useEffect(() => {
+        if (viewType === 'contest') {
+            setActiveTab('external');
+        } else if (contestId) {
+            setActiveTab('internal');
+        } else if (!contestId && viewType !== 'contest') {
+            // If we are just visiting /student/leaderboard, default to practice
+            setActiveTab('practice');
+        }
+    }, [viewType, contestId]);
+
+    const [viewMode, setViewMode] = useState('summary'); // 'summary' | 'detailed'
 
     // RAW DATA (fetched ONCE from backend or cache)
     const [rawPracticeData, setRawPracticeData] = useState([]);
     const [rawAllExternalData, setRawAllExternalData] = useState(null);
     const [rawInternalData, setRawInternalData] = useState([]);
     const [contestInfo, setContestInfo] = useState(null);
+    const [internalContestsMeta, setInternalContestsMeta] = useState([]); // List of internal contests for columns
 
     // Loading states
     const [practiceLoading, setPracticeLoading] = useState(false);
@@ -50,25 +107,35 @@ const Leaderboard = () => {
     const [internalContests, setInternalContests] = useState([]);
     const [selectedInternalContest, setSelectedInternalContest] = useState(contestId || null);
 
+    // Reset loaded flags when batchId changes to force refetch
+    useEffect(() => {
+        setPracticeDataLoaded(false);
+        setExternalDataLoaded(false);
+        setRawPracticeData([]);
+        setRawAllExternalData(null);
+        setRawInternalData([]);
+        setInternalContestsMeta([]);
+    }, [targetBatchId]);
+
     // ========== FETCH DATA ONCE ==========
     useEffect(() => {
-        if (user?.batchId && !practiceDataLoaded) {
+        if (targetBatchId && !practiceDataLoaded) {
             fetchPracticeLeaderboard();
         }
-    }, [user, practiceDataLoaded]);
+    }, [targetBatchId, practiceDataLoaded]);
 
     useEffect(() => {
-        if (user?.batchId) {
+        if (targetBatchId) {
             fetchInternalContests();
         }
-    }, [user]);
+    }, [targetBatchId]);
 
     // Fetch external data when tab is opened
     useEffect(() => {
-        if (activeTab === 'external' && user?.batchId && !externalDataLoaded) {
+        if (activeTab === 'external' && targetBatchId && !externalDataLoaded) {
             fetchAllExternalData();
         }
-    }, [activeTab, user, externalDataLoaded]);
+    }, [activeTab, targetBatchId, externalDataLoaded]);
 
     useEffect(() => {
         if (selectedInternalContest) {
@@ -90,10 +157,13 @@ const Leaderboard = () => {
     }, [activeTab, selectedInternalContest]);
 
     const fetchPracticeLeaderboard = async (forceRefresh = false) => {
+        if (!targetBatchId) return;
         setPracticeLoading(true);
         try {
-            const data = await leaderboardService.getBatchLeaderboard(user.batchId, forceRefresh);
+            const data = await leaderboardService.getBatchLeaderboard(targetBatchId, forceRefresh);
             setRawPracticeData(data.leaderboard || []);
+            if (data.batchName) setBatchName(data.batchName);
+            setInternalContestsMeta(data.contests || []); // Capture contest metadata
             setPracticeDataLoaded(true);
         } catch (error) {
             toast.error('Failed to fetch leaderboard');
@@ -106,9 +176,10 @@ const Leaderboard = () => {
 
     // Fetch ALL platforms data in ONE call with caching
     const fetchAllExternalData = async (forceRefresh = false) => {
+        if (!targetBatchId) return;
         setExternalLoading(true);
         try {
-            const data = await leaderboardService.getAllExternalData(user.batchId, forceRefresh);
+            const data = await leaderboardService.getAllExternalData(targetBatchId, forceRefresh);
             setRawAllExternalData(data.platforms || {});
             setExternalDataLoaded(true);
 
@@ -150,8 +221,9 @@ const Leaderboard = () => {
     };
 
     const fetchInternalContests = async () => {
+        if (!targetBatchId) return;
         try {
-            const data = await contestService.getContestsByBatch(user.batchId);
+            const data = await contestService.getContestsByBatch(targetBatchId);
             setInternalContests(data.contests || []);
             if (data.contests && data.contests.length > 0) {
                 if (!contestId) {
@@ -169,41 +241,125 @@ const Leaderboard = () => {
 
     // ========== CLIENT-SIDE FILTERING ==========
 
+    // Filter state
+    const [activeFilter, setActiveFilter] = useState(null); // 'branch' | 'section' | 'timeline'
+
+    // Sorting state
+    const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
+
+    const handleFilterClick = (filterName) => {
+        setActiveFilter(activeFilter === filterName ? null : filterName);
+    };
+
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    // Helper to get value for sorting
+    const getValueByPath = (obj, path) => {
+        if (!path) return null;
+        if (typeof path === 'function') return path(obj);
+        return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+    };
+
+    const FilterIcon = ({ active }) => (
+        <svg className={`w-4 h-4 ml-1 cursor-pointer ${active ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+    );
+
+    // Computed available branches from data
+    const availableBranches = useMemo(() => {
+        const branches = new Set(rawPracticeData.map(d => d.branch));
+        return Array.from(branches).filter(Boolean).sort();
+    }, [rawPracticeData]);
+
     // Filter practice leaderboard
     const filteredPracticeLeaderboard = useMemo(() => {
         if (!Array.isArray(rawPracticeData)) return [];
 
-        let filtered = [...rawPracticeData];
+        // 1. Assign Global Rank (assuming rawPracticeData is sorted by score from backend)
+        let processed = rawPracticeData.map((entry, index) => ({
+            ...entry,
+            globalRank: index + 1
+        }));
 
+        // 2. Apply Filters
         if (filters.branch) {
-            filtered = filtered.filter(entry => entry.branch === filters.branch);
+            processed = processed.filter(entry => entry.branch === filters.branch);
         }
 
         if (filters.section) {
-            filtered = filtered.filter(entry => entry.section === filters.section);
+            processed = processed.filter(entry => entry.section === filters.section);
         }
 
         if (filters.timeline) {
             const now = new Date();
-            filtered = filtered.filter(entry => {
+            processed = processed.filter(entry => {
                 const lastUpdated = new Date(entry.lastUpdated);
                 if (filters.timeline === 'week') {
-                    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 1000);
                     return lastUpdated >= weekAgo;
                 } else if (filters.timeline === 'month') {
-                    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 1000);
                     return lastUpdated >= monthAgo;
                 }
                 return true;
             });
         }
 
-        // Re-rank after filtering
-        return filtered.map((entry, index) => ({
+        // 3. Assign Filtered Rank (Branch/Section Rank)
+        // Sort by score desc to assign rank, then restore or keep sorted
+        // We need a stable score comparison. overallScore is the main metric.
+        // We create a temporary sorted version to determine ranks.
+        const scoreSorted = [...processed].sort((a, b) => (b.overallScore || 0) - (a.overallScore || 0));
+
+        // Map rank back to the items
+        // Since scoreSorted contents are references, we can't just mutate. 
+        // Better: Create a map of ID/RollNo -> Rank? Or just map the sorted list?
+        // Actually, we can just map the scoreSorted list to new objects with 'rank'.
+        // But wait, the user might want to sort by 'Name'. 
+        // If we only have scoreSorted, we can't sort by Name easily without losing the rank info if we don't stamp it.
+
+        // Let's stamp 'rank' on the objects.
+        const ranked = scoreSorted.map((entry, index) => ({
             ...entry,
             rank: index + 1
         }));
-    }, [rawPracticeData, filters]);
+
+        // 4. Apply User Sort
+        if (sortConfig.key) {
+            ranked.sort((a, b) => {
+                let aValue = getValueByPath(a, sortConfig.key);
+                let bValue = getValueByPath(b, sortConfig.key);
+
+                // Check if numeric
+                const aNum = parseFloat(aValue);
+                const bNum = parseFloat(bValue);
+
+                if (!isNaN(aNum) && !isNaN(bNum) && typeof aValue !== 'string') {
+                    if (aNum < bNum) return sortConfig.direction === 'asc' ? -1 : 1;
+                    if (aNum > bNum) return sortConfig.direction === 'asc' ? 1 : -1;
+                    return 0;
+                }
+
+                // String sorting
+                const aStr = String(aValue || '').toLowerCase();
+                const bStr = String(bValue || '').toLowerCase();
+
+                if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        return ranked;
+    }, [rawPracticeData, filters, sortConfig]);
 
     // Get external leaderboard for selected platform and contest (CLIENT-SIDE)
     const externalLeaderboard = useMemo(() => {
@@ -275,279 +431,816 @@ const Leaderboard = () => {
     }
 
     return (
-        <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-900">Leaderboards</h1>
-                <div className="flex items-center space-x-2">
-                    <span className="text-sm text-green-600 font-medium">
-                        📦 Cached until logout
-                    </span>
-                    <span className="text-sm text-gray-400">•</span>
-                    <span className="text-sm text-blue-600 font-medium">
-                        🔄 Instant filtering
-                    </span>
-                </div>
-            </div>
+        <div className="min-h-screen bg-gray-50/50 pb-12">
 
-            {/* Tabs */}
-            <div className="flex space-x-4 border-b border-gray-200 mb-6">
-                <button
-                    onClick={() => setActiveTab('practice')}
-                    className={`px-6 py-3 font-medium transition ${activeTab === 'practice'
-                            ? 'border-b-2 border-primary-600 text-primary-600'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
+            {/* Fixed Dropdown Portal — renders outside sticky header stacking context */}
+            {isBatchView && showOptions && (
+                <div
+                    ref={optionsRef}
+                    className="fixed w-64 bg-white rounded-xl border border-gray-100 overflow-hidden z-[9999]"
+                    style={{
+                        top: dropdownPos.top,
+                        right: dropdownPos.right,
+                        boxShadow: '0 20px 60px -10px rgba(0,0,0,0.25), 0 4px 20px -4px rgba(0,0,0,0.12)',
+                    }}
                 >
-                    AlphaLearn Practice {practiceDataLoaded && '✓'}
-                </button>
-                <button
-                    onClick={() => setActiveTab('external')}
-                    className={`px-6 py-3 font-medium transition ${activeTab === 'external'
-                            ? 'border-b-2 border-primary-600 text-primary-600'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                >
-                    External Contests {externalDataLoaded && '✓'}
-                </button>
-                <button
-                    onClick={() => setActiveTab('internal')}
-                    className={`px-6 py-3 font-medium transition ${activeTab === 'internal'
-                            ? 'border-b-2 border-primary-600 text-primary-600'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                >
-                    Internal Contests
-                </button>
-            </div>
+                    {/* Header */}
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Options</p>
+                    </div>
 
-            {/* Practice Leaderboard */}
-            {activeTab === 'practice' && (
-                <div className="space-y-6">
-                    <div className="card">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                                Filters (Applied Instantly)
-                            </h3>
-                            <button
-                                onClick={handleRefreshPractice}
-                                className="btn-secondary flex items-center space-x-2"
-                                disabled={practiceLoading}
-                            >
-                                <svg className={`w-4 h-4 ${practiceLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                                <span>Refresh</span>
-                            </button>
-                        </div>
-                        <div className="grid grid-cols-4 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
-                                <select
-                                    value={filters.section}
-                                    onChange={(e) => setFilters({ ...filters, section: e.target.value })}
-                                    className="input-field"
+                    {/* Timeline Filters */}
+                    <div className="px-3 py-3 border-b border-gray-100">
+                        <p className="text-xs font-semibold text-gray-400 uppercase mb-2 px-1">Timeline</p>
+                        <div className="space-y-0.5">
+                            {[
+                                { value: '', label: 'All Time' },
+                                { value: 'month', label: 'This Month' },
+                                { value: 'week', label: 'This Week' },
+                            ].map(({ value: t, label }) => (
+                                <button
+                                    key={t}
+                                    onClick={() => { setFilters({ ...filters, timeline: t }); setShowOptions(false); }}
+                                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${filters.timeline === t ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
                                 >
-                                    <option value="">All Sections</option>
-                                    <option value="A">Section A</option>
-                                    <option value="B">Section B</option>
-                                    <option value="C">Section C</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Timeline</label>
-                                <select
-                                    value={filters.timeline}
-                                    onChange={(e) => setFilters({ ...filters, timeline: e.target.value })}
-                                    className="input-field"
-                                >
-                                    <option value="">All Time</option>
-                                    <option value="week">This Week</option>
-                                    <option value="month">This Month</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
-                                <select
-                                    value={filters.branch}
-                                    onChange={(e) => setFilters({ ...filters, branch: e.target.value })}
-                                    className="input-field"
-                                >
-                                    <option value="">All Branches</option>
-                                    <option value="CSE">CSE</option>
-                                    <option value="ECE">ECE</option>
-                                    <option value="EEE">EEE</option>
-                                    <option value="MECH">MECH</option>
-                                </select>
-                            </div>
-                            <div className="flex items-end space-x-2">
-                                <button onClick={handleResetFilters} className="btn-secondary flex-1">
-                                    Reset Filters
+                                    <span>{label}</span>
+                                    {filters.timeline === t && (
+                                        <svg className="w-4 h-4 ml-auto text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    )}
                                 </button>
-                            </div>
+                            ))}
                         </div>
                     </div>
 
-                    <div className="card">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                            Practice Leaderboard
-                            {!practiceLoading && ` (${filteredPracticeLeaderboard.length} students)`}
-                        </h2>
-                        {practiceLoading ? (
-                            <LoadingSpinner />
-                        ) : filteredPracticeLeaderboard.length === 0 ? (
-                            <div className="text-center py-12">
-                                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                </svg>
-                                <p className="text-gray-600 text-lg font-medium">No leaderboard data available</p>
-                                <p className="text-gray-500 text-sm mt-2">Start solving problems to appear on the leaderboard!</p>
+                    {/* View Mode Toggle */}
+                    <div className="px-4 py-3 border-b border-gray-100">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-800">Detailed View</p>
+                                <p className="text-xs text-gray-400 mt-0.5">Show platform breakdowns</p>
                             </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Global Rank</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll Number</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Section</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">AlphaLearn Basic</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">LeetCode</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CodeChef</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Codeforces</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Overall Score</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {filteredPracticeLeaderboard.map((entry) => (
-                                            <tr
-                                                key={entry.rollNumber}
-                                                className={entry.rollNumber === user?.education?.rollNumber ? 'bg-blue-50' : ''}
-                                            >
-                                                <td className="px-4 py-3 whitespace-nowrap font-bold">{entry.rank}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-gray-600">{entry.globalRank}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap">{entry.rollNumber}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap font-medium">{entry.username}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap">{entry.branch}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap">{entry.section}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap">{entry.alphaLearnBasicScore}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap">{entry.externalScores?.leetcode || 0}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap">{entry.externalScores?.codechef || 0}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap">{entry.externalScores?.codeforces || 0}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap font-bold text-primary-600">{entry.overallScore}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                            <button
+                                onClick={() => setViewMode(viewMode === 'summary' ? 'detailed' : 'summary')}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${viewMode === 'detailed' ? 'bg-blue-600' : 'bg-gray-200'}`}
+                            >
+                                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${viewMode === 'detailed' ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Refresh */}
+                    <div className="p-2">
+                        <button
+                            onClick={() => { handleRefreshPractice(); setShowOptions(false); }}
+                            className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                            <svg className={`w-4 h-4 text-gray-500 ${practiceLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>{practiceLoading ? 'Refreshing...' : 'Refresh Data'}</span>
+                        </button>
                     </div>
                 </div>
             )}
 
-            {/* External Contest Leaderboard */}
-            {activeTab === 'external' && (
-                <div className="space-y-6">
-                    {externalLoading ? (
-                        <div className="card">
-                            <LoadingSpinner />
-                            <p className="text-center text-gray-600 mt-4">Loading all external contest data...</p>
+            {/* Header Section */}
+            {isBatchView ? (
+                <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-md">
+                    <div className="w-full mx-auto px-6 h-16 flex items-center justify-between relative">
+                        {/* Left: Logo */}
+                        <div className="flex items-center gap-2">
+                            <div className="bg-yellow-400 p-1.5 rounded-full">
+                                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <span className="text-xl font-bold text-gray-800 tracking-tight">AlphaLearn</span>
                         </div>
-                    ) : (
-                        <>
+
+                        {/* Center: Batch Name + current filter indicator */}
+                        <div className="absolute left-1/2 transform -translate-x-1/2 text-center hidden md:block">
+                            <div className="text-lg font-semibold text-gray-800">
+                                {batchName || user?.education?.batch || 'Batch Leaderboard'}
+                            </div>
+                            {filters.timeline && (
+                                <div className="text-xs text-blue-500 font-medium mt-0.5">
+                                    {filters.timeline === 'month' ? 'This Month' : 'This Week'}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right: Options Kebab */}
+                        <div>
+                            <button
+                                ref={kebabBtnRef}
+                                onClick={handleToggleOptions}
+                                className={`p-2 rounded-full transition-colors focus:outline-none ${showOptions ? 'bg-gray-100 text-gray-700' : 'text-gray-500 hover:bg-gray-100'}`}
+                                title="Options"
+                            >
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+                    <div className="w-full mx-auto px-6 sm:px-8">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between py-4 gap-4">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                                    <span className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                                        <Trophy size={20} />
+                                    </span>
+                                    Leaderboard
+                                </h1>
+                                <p className="text-sm text-gray-500 mt-1 ml-11">
+                                    {viewType === 'contest' ? 'External Contests Performance' : 'Batch Performance & Rankings'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="w-full mx-auto px-4 sm:px-6 mt-6">
+
+                {/* Practice Leaderboard Controls */}
+                {activeTab === 'practice' && (
+                    <div className="space-y-6">
+                        {!isBatchView && (
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+
+                                {/* Timeline Filters */}
+                                <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm flex items-center">
+                                    <button
+                                        onClick={() => setFilters({ ...filters, timeline: '' })}
+                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${!filters.timeline ? 'bg-gray-100 text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                                    >
+                                        All Time
+                                    </button>
+                                    <button
+                                        onClick={() => setFilters({ ...filters, timeline: 'month' })}
+                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${filters.timeline === 'month' ? 'bg-gray-100 text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                                    >
+                                        This Month
+                                    </button>
+                                    <button
+                                        onClick={() => setFilters({ ...filters, timeline: 'week' })}
+                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${filters.timeline === 'week' ? 'bg-gray-100 text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                                    >
+                                        This Week
+                                    </button>
+                                </div>
+
+                                {/* View Mode Toggle & Refresh */}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setViewMode(viewMode === 'summary' ? 'detailed' : 'summary')}
+                                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-all ${viewMode === 'detailed' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l4 4a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <span>{viewMode === 'summary' ? 'Detailed View' : 'Summary View'}</span>
+                                    </button>
+
+                                    <button
+                                        onClick={handleRefreshPractice}
+                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg border border-gray-200 bg-white transition-colors"
+                                        title="Refresh Data"
+                                        disabled={practiceLoading}
+                                    >
+                                        <svg className={`w-5 h-5 ${practiceLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+
+                        <div className="card !p-0 overflow-hidden">
+                            {practiceLoading ? (
+                                <LoadingSpinner />
+                            ) : filteredPracticeLeaderboard.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                    </svg>
+                                    <p className="text-gray-600 text-lg font-medium">No leaderboard data available</p>
+                                    <p className="text-gray-500 text-sm mt-2">Start solving problems to appear on the leaderboard!</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                        <thead className="bg-gray-50">
+                                            <tr className="border-b border-gray-200 divide-x divide-gray-200">
+                                                <th
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[90px] min-w-[90px] cursor-pointer hover:bg-gray-100"
+                                                    onClick={() => handleSort('rank')}
+                                                    rowSpan={viewMode === 'detailed' ? 2 : 1}
+                                                >
+                                                    <div className="flex flex-col">
+                                                        <span className="flex items-center gap-1">
+                                                            Rank {sortConfig.key === 'rank' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400 font-normal normal-case">(Global)</span>
+                                                    </div>
+                                                </th>
+                                                <th
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider sticky left-[90px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[130px] min-w-[130px] cursor-pointer hover:bg-gray-100"
+                                                    onClick={() => handleSort('rollNumber')}
+                                                    rowSpan={viewMode === 'detailed' ? 2 : 1}
+                                                >
+                                                    Roll No {sortConfig.key === 'rollNumber' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                                <th
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider sticky left-[220px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[260px] min-w-[260px] cursor-pointer hover:bg-gray-100"
+                                                    onClick={() => handleSort('name')}
+                                                    rowSpan={viewMode === 'detailed' ? 2 : 1}
+                                                >
+                                                    Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                                <th
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider relative group"
+                                                    rowSpan={viewMode === 'detailed' ? 2 : 1}
+                                                >
+                                                    <div className="flex items-center cursor-pointer hover:text-gray-900" onClick={() => handleSort('branch')}>
+                                                        Branch {sortConfig.key === 'branch' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                        <button onClick={(e) => { e.stopPropagation(); handleFilterClick('branch'); }} className="ml-1 focus:outline-none">
+                                                            <FilterIcon active={!!filters.branch} />
+                                                        </button>
+                                                    </div>
+                                                    {/* Dynamic Branch Filter Dropdown */}
+                                                    {activeFilter === 'branch' && (
+                                                        <div className="absolute top-full left-0 mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-2 max-h-60 overflow-y-auto">
+                                                            <div className="space-y-0.5">
+                                                                <button
+                                                                    onClick={() => { setFilters({ ...filters, branch: '' }); setActiveFilter(null); }}
+                                                                    className={`block w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100 ${!filters.branch ? 'font-bold text-blue-600' : 'text-gray-700'}`}
+                                                                >
+                                                                    All Branches
+                                                                </button>
+                                                                {availableBranches.map(branch => (
+                                                                    <button
+                                                                        key={branch}
+                                                                        onClick={() => { setFilters({ ...filters, branch }); setActiveFilter(null); }}
+                                                                        className={`block w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100 ${filters.branch === branch ? 'font-bold text-blue-600' : 'text-gray-700'}`}
+                                                                    >
+                                                                        {branch}
+                                                                    </button>
+                                                                ))}
+                                                                {availableBranches.length === 0 && (
+                                                                    <div className="px-2 py-1.5 text-xs text-gray-400 italic">No available branches</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider hidden lg:table-cell min-w-[120px]" rowSpan={viewMode === 'detailed' ? 2 : 1}>Username</th>
+                                                <th
+                                                    className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 cursor-pointer hover:bg-gray-100 min-w-[180px]"
+                                                    onClick={() => handleSort('alphaLearnBasicScore')}
+                                                    rowSpan={viewMode === 'detailed' ? 2 : 1}
+                                                >
+                                                    <div>Alpha Coins</div>
+                                                    <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight">
+                                                        (Easy*20 + Med*50 + Hard*100 + Contests)
+                                                    </div>
+                                                </th>
+
+                                                {/* Detailed Columns */}
+                                                {viewMode === 'detailed' ? (
+                                                    <>
+                                                        {/* HackerRank - Single Column even in Detailed */}
+                                                        <th
+                                                            className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase bg-gray-50 cursor-pointer hover:bg-gray-100 border-r border-gray-200 min-w-[120px]"
+                                                            rowSpan={2}
+                                                            onClick={() => handleSort('externalScores.hackerrank')}
+                                                        >
+                                                            <div>HackerRank</div>
+                                                            <div className="text-[10px] font-normal text-gray-500 mt-1 normal-case">(DS+Algo)</div>
+                                                        </th>
+
+                                                        {/* LeetCode */}
+                                                        <th
+                                                            className="px-2 py-2 text-center text-xs font-bold text-gray-700 uppercase bg-yellow-50 cursor-pointer hover:bg-yellow-100 border-r border-yellow-100"
+                                                            colSpan="4"
+                                                            onClick={() => handleSort('externalScores.leetcode')}
+                                                        >
+                                                            LeetCode (LC)
+                                                        </th>
+
+                                                        {/* InterviewBit */}
+                                                        <th
+                                                            className="px-2 py-2 text-center text-xs font-bold text-gray-700 uppercase bg-blue-50 cursor-pointer hover:bg-blue-100 border-r border-blue-100"
+                                                            colSpan="3"
+                                                            onClick={() => handleSort('externalScores.interviewbit')}
+                                                        >
+                                                            InterviewBit (IB)
+                                                        </th>
+
+                                                        {/* CodeChef */}
+                                                        <th
+                                                            className="px-2 py-2 text-center text-xs font-bold text-gray-700 uppercase bg-orange-50 cursor-pointer hover:bg-orange-100 border-r border-orange-100"
+                                                            colSpan="4"
+                                                            onClick={() => handleSort('externalScores.codechef')}
+                                                        >
+                                                            CodeChef (CC)
+                                                        </th>
+
+                                                        {/* Codeforces */}
+                                                        <th
+                                                            className="px-2 py-2 text-center text-xs font-bold text-gray-700 uppercase bg-red-50 cursor-pointer hover:bg-red-100 border-r border-red-100"
+                                                            colSpan="4"
+                                                            onClick={() => handleSort('externalScores.codeforces')}
+                                                        >
+                                                            Codeforces (CF)
+                                                        </th>
+                                                    </>
+                                                ) : (
+                                                    // Summary Platform Columns - Full Names as requested
+                                                    <>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[120px] whitespace-nowrap" onClick={() => handleSort('externalScores.hackerrank')}>
+                                                            <div>HackerRank</div>
+                                                            <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight text-wrap max-w-[120px] mx-auto">(DS+Algo)</div>
+                                                        </th>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[180px] whitespace-nowrap" onClick={() => handleSort('externalScores.leetcode')}>
+                                                            <div>LeetCode</div>
+                                                            <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight text-wrap max-w-[170px] mx-auto">(LCPS*10 + (LCR-1300)²/10 + LCNC*50)</div>
+                                                        </th>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[120px] whitespace-nowrap" onClick={() => handleSort('externalScores.interviewbit')}>
+                                                            <div>InterviewBit</div>
+                                                            <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight text-wrap max-w-[110px] mx-auto">(Score / 5)</div>
+                                                        </th>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[180px] whitespace-nowrap" onClick={() => handleSort('externalScores.codechef')}>
+                                                            <div>CodeChef</div>
+                                                            <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight text-wrap max-w-[170px] mx-auto">(CCPS*2 + (CCR-1200)²/10 + CCNC*50)</div>
+                                                        </th>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[180px] whitespace-nowrap" onClick={() => handleSort('externalScores.codeforces')}>
+                                                            <div>Codeforces</div>
+                                                            <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight text-wrap max-w-[170px] mx-auto">(CFPS*2 + (CFR-800)²/10 + CFNC*50)</div>
+                                                        </th>
+                                                    </>
+                                                )}
+
+                                                {/* Internal Contests */}
+                                                {internalContestsMeta.map(contest => (
+                                                    <th
+                                                        key={contest.id}
+                                                        className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap border-l border-gray-100 cursor-pointer hover:bg-gray-100"
+                                                        onClick={() => handleSort(`internalContests.${contest.id}`)}
+                                                        rowSpan={viewMode === 'detailed' ? 2 : 1}
+                                                    >
+                                                        <div className="flex flex-col">
+                                                            <span className="truncate max-w-[100px]" title={contest.title}>{contest.title}</span>
+                                                            {/* Dates removed for compactness as per 'reduce size' request */}
+                                                        </div>
+                                                    </th>
+                                                ))}
+                                                <th
+                                                    className="px-4 py-3 text-center text-xs font-bold text-gray-900 uppercase tracking-wider border-l-2 border-gray-200 bg-gray-50 sticky right-0 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] cursor-pointer hover:bg-gray-100 min-w-[100px]"
+                                                    onClick={() => handleSort('overallScore')}
+                                                    rowSpan={viewMode === 'detailed' ? 2 : 1}
+                                                >
+                                                    <div className="flex flex-col items-center" title="Calculated based on weighted performance across all platforms">
+                                                        <span>Overall</span>
+                                                        <span>Score</span>
+                                                    </div>
+                                                </th>
+                                            </tr>
+
+                                            {/* Sub-headers for Detailed View */}
+                                            {viewMode === 'detailed' && (
+                                                <tr className="bg-gray-50/50 text-[10px] text-gray-600 border-b border-gray-200">
+                                                    {/* No static columns here as they are rowSpanned */}
+
+                                                    {/* LC Sub-cols */}
+                                                    <th className="px-1 py-1 text-center border-l border-gray-100 bg-yellow-50/30">Problems</th>
+                                                    <th className="px-1 py-1 text-center bg-yellow-50/30">Rating</th>
+                                                    <th className="px-1 py-1 text-center bg-yellow-50/30">Contests</th>
+                                                    <th className="px-1 py-1 text-center font-bold bg-yellow-100 border-r border-gray-200 min-w-[200px]">
+                                                        <div>Total</div>
+                                                        <div className="text-[9px] font-normal text-gray-500 mt-0.5 normal-case leading-tight">
+                                                            (LCPS*10 + (LCR-1300)²/10 + LCNC*50)
+                                                        </div>
+                                                    </th>
+
+                                                    {/* IB Sub-cols */}
+                                                    <th className="px-1 py-1 text-center border-l border-gray-100 bg-blue-50/30">Problems</th>
+                                                    <th className="px-1 py-1 text-center bg-blue-50/30">Score</th>
+                                                    <th className="px-1 py-1 text-center font-bold bg-blue-100 border-r border-gray-200 min-w-[100px]">
+                                                        <div>Total</div>
+                                                        <div className="text-[9px] font-normal text-gray-500 mt-0.5 normal-case leading-tight">
+                                                            (Score / 5)
+                                                        </div>
+                                                    </th>
+
+                                                    {/* CC Sub-cols */}
+                                                    <th className="px-1 py-1 text-center border-l border-gray-100 bg-orange-50/30">Problems</th>
+                                                    <th className="px-1 py-1 text-center bg-orange-50/30">Rating</th>
+                                                    <th className="px-1 py-1 text-center bg-orange-50/30">Contests</th>
+                                                    <th className="px-1 py-1 text-center font-bold bg-orange-100 border-r border-gray-200 min-w-[200px]">
+                                                        <div>Total</div>
+                                                        <div className="text-[9px] font-normal text-gray-500 mt-0.5 normal-case leading-tight">
+                                                            (CCPS*2 + (CCR-1200)²/10 + CCNC*50)
+                                                        </div>
+                                                    </th>
+
+                                                    {/* CF Sub-cols */}
+                                                    <th className="px-1 py-1 text-center border-l border-gray-100 bg-red-50/30">Problems</th>
+                                                    <th className="px-1 py-1 text-center bg-red-50/30">Rating</th>
+                                                    <th className="px-1 py-1 text-center bg-red-50/30">Contests</th>
+                                                    <th className="px-1 py-1 text-center font-bold bg-red-100 border-r border-gray-200 min-w-[200px]">
+                                                        <div>Total</div>
+                                                        <div className="text-[9px] font-normal text-gray-500 mt-0.5 normal-case leading-tight">
+                                                            (CFPS*2 + (CFR-800)²/10 + CFNC*50)
+                                                        </div>
+                                                    </th>
+                                                </tr>
+                                            )}
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {filteredPracticeLeaderboard.map((entry) => {
+                                                const isCurrentUser = entry.rollNumber === user?.education?.rollNumber;
+                                                return (
+                                                    <tr
+                                                        key={entry.rollNumber}
+                                                        className={`group transition-colors ${isCurrentUser
+                                                            ? 'bg-purple-100 shadow-md relative z-30'
+                                                            : 'hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        <td className={`px-4 py-3 whitespace-nowrap font-bold sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-center border-b border-gray-100 w-[90px] min-w-[90px] ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
+                                                            }`}>
+                                                            {entry.rank}
+                                                        </td>
+                                                        <td className={`px-4 py-3 whitespace-nowrap sticky left-[90px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-gray-100 w-[130px] min-w-[130px] ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
+                                                            }`}>
+                                                            {entry.rollNumber}
+                                                        </td>
+                                                        <td className={`px-4 py-3 whitespace-nowrap font-medium sticky left-[220px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-gray-100 w-[260px] min-w-[260px] truncate ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
+                                                            }`} title={entry.name}>
+                                                            {entry.name}
+                                                        </td>
+                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100">
+                                                            {entry.branch}
+                                                        </td>
+                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100 hidden lg:table-cell">
+                                                            {entry.username}
+                                                        </td>
+                                                        <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-600 border-r border-gray-200 border-b border-gray-100 text-center">
+                                                            {entry.alphaLearnBasicScore || 0}
+                                                        </td>
+
+
+                                                        {viewMode === 'detailed' ? (
+                                                            <>
+                                                                {/* HR - Single Column */}
+                                                                <td className="px-2 py-2 text-center border-r border-gray-200 border-b border-gray-100 font-medium bg-gray-50 text-gray-700">
+                                                                    {entry.externalScores?.hackerrank || 0}
+                                                                </td>
+
+                                                                {/* LC */}
+                                                                <td className="px-1 py-1 text-center border-l border-gray-200 border-b border-gray-100 bg-yellow-50/30 text-xs">{entry.detailedStats?.leetcode?.problemsSolved || 0}</td>
+                                                                <td className="px-1 py-1 text-center border-b border-gray-100 bg-yellow-50/30 text-xs">{entry.detailedStats?.leetcode?.rating || 0}</td>
+                                                                <td className="px-1 py-1 text-center border-b border-gray-100 bg-yellow-50/30 text-xs">{entry.detailedStats?.leetcode?.totalContests || 0}</td>
+                                                                <td className="px-1 py-1 text-center font-medium bg-yellow-50 text-yellow-800 border-r border-gray-200 border-b border-gray-100">
+                                                                    {entry.externalScores?.leetcode || 0}
+                                                                </td>
+
+                                                                {/* IB */}
+                                                                <td className="px-1 py-1 text-center border-l border-gray-200 border-b border-gray-100 bg-blue-50/30 text-xs">{entry.detailedStats?.interviewbit?.problemsSolved || 0}</td>
+                                                                <td className="px-1 py-1 text-center border-b border-gray-100 bg-blue-50/30 text-xs">{entry.detailedStats?.interviewbit?.rating || 0}</td>
+                                                                <td className="px-1 py-1 text-center font-medium bg-blue-50 text-blue-800 border-r border-gray-200 border-b border-gray-100">
+                                                                    {entry.externalScores?.interviewbit || 0}
+                                                                </td>
+
+                                                                {/* CC */}
+                                                                <td className="px-1 py-1 text-center border-l border-gray-200 border-b border-gray-100 bg-orange-50/30 text-xs">{entry.detailedStats?.codechef?.problemsSolved || 0}</td>
+                                                                <td className="px-1 py-1 text-center border-b border-gray-100 bg-orange-50/30 text-xs">{entry.detailedStats?.codechef?.rating || 0}</td>
+                                                                <td className="px-1 py-1 text-center border-b border-gray-100 bg-orange-50/30 text-xs">{entry.detailedStats?.codechef?.totalContests || 0}</td>
+                                                                <td className="px-1 py-1 text-center font-medium bg-orange-50 text-orange-800 border-r border-gray-200 border-b border-gray-100">
+                                                                    {entry.externalScores?.codechef || 0}
+                                                                </td>
+
+                                                                {/* CF */}
+                                                                <td className="px-1 py-1 text-center border-l border-gray-200 border-b border-gray-100 bg-red-50/30 text-xs">{entry.detailedStats?.codeforces?.problemsSolved || 0}</td>
+                                                                <td className="px-1 py-1 text-center border-b border-gray-100 bg-red-50/30 text-xs">{entry.detailedStats?.codeforces?.rating || 0}</td>
+                                                                <td className="px-1 py-1 text-center border-b border-gray-100 bg-red-50/30 text-xs">{entry.detailedStats?.codeforces?.totalContests || 0}</td>
+                                                                <td className="px-1 py-1 text-center font-medium bg-red-50 text-red-800 border-r border-gray-200 border-b border-gray-100">
+                                                                    {entry.externalScores?.codeforces || 0}
+                                                                </td>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100">{entry.externalScores?.hackerrank || 0}</td>
+                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100">{entry.externalScores?.leetcode || 0}</td>
+                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100">{entry.externalScores?.interviewbit || 0}</td>
+                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100">{entry.externalScores?.codechef || 0}</td>
+                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100">{entry.externalScores?.codeforces || 0}</td>
+                                                            </>
+                                                        )}
+
+                                                        {/* Internal Contests */}
+                                                        {internalContestsMeta.map(contest => (
+                                                            <td key={contest.id} className="px-3 py-2 whitespace-nowrap text-center text-gray-600 border-l border-gray-100 border-b border-gray-100">
+                                                                {entry.internalContests?.[contest.id] !== undefined
+                                                                    ? entry.internalContests[contest.id]
+                                                                    : <span className="text-gray-400 text-xs italic">Not Participated</span>}
+                                                            </td>
+                                                        ))}
+
+                                                        <td className={`px-2 py-1.5 whitespace-nowrap font-bold text-lg text-primary-600 border-l-2 border-gray-200 sticky right-0 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] text-center border-b border-gray-100 ${isCurrentUser ? 'bg-purple-100' : 'bg-gray-50'
+                                                            }`}>
+                                                            {entry.overallScore}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )
+                }
+
+                {/* External Contest Leaderboard */}
+                {
+                    activeTab === 'external' && (
+                        <div className="space-y-6">
+                            {externalLoading ? (
+                                <div className="card">
+                                    <LoadingSpinner />
+                                    <p className="text-center text-gray-600 mt-4">Loading all external contest data...</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="card">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h2 className="text-xl font-semibold text-gray-900">
+                                                Filter External Contests (Client-Side)
+                                            </h2>
+                                            <button
+                                                onClick={handleRefreshExternal}
+                                                className="btn-secondary flex items-center space-x-2"
+                                                disabled={externalLoading}
+                                            >
+                                                <svg className={`w-4 h-4 ${externalLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                                <span>Refresh</span>
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
+                                                <select
+                                                    value={selectedPlatform}
+                                                    onChange={(e) => handlePlatformChange(e.target.value)}
+                                                    className="input-field"
+                                                >
+                                                    {PLATFORMS.map((platform) => (
+                                                        <option key={platform.value} value={platform.value}>
+                                                            {platform.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Contest</label>
+                                                <select
+                                                    value={selectedContest || ''}
+                                                    onChange={(e) => setSelectedContest(e.target.value)}
+                                                    className="input-field"
+                                                    disabled={availableContests.length === 0}
+                                                >
+                                                    {availableContests.length === 0 ? (
+                                                        <option value="">No contests available</option>
+                                                    ) : (
+                                                        availableContests.map((contest) => (
+                                                            <option key={contest.contestName} value={contest.contestName}>
+                                                                {contest.contestName} ({contest.participants} participants)
+                                                            </option>
+                                                        ))
+                                                    )}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="card">
+                                        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                                            {selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)} - {selectedContest || 'Select Contest'}
+                                        </h2>
+                                        {externalLeaderboard.length === 0 ? (
+                                            <div className="text-center py-12">
+                                                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                <p className="text-gray-600 text-lg font-medium">No contest data available</p>
+                                                <p className="text-gray-500 text-sm mt-2">No students have participated in contests on this platform yet.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full divide-y divide-gray-200">
+                                                    <thead className="bg-gray-50">
+                                                        <tr>
+                                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Global Rank</th>
+                                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Roll Number</th>
+                                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
+                                                            {/* <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Section</th> */}
+                                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
+                                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Problems Solved</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="bg-white divide-y divide-gray-200">
+                                                        {externalLeaderboard.map((entry, index) => (
+                                                            <tr key={`${entry.rollNumber}-${index}`}>
+                                                                <td className="px-3 py-2 whitespace-nowrap font-bold">{entry.rank}</td>
+                                                                <td className="px-3 py-2 whitespace-nowrap text-gray-600">{entry.globalRank}</td>
+                                                                <td className="px-3 py-2 whitespace-nowrap">{entry.rollNumber}</td>
+                                                                <td className="px-3 py-2 whitespace-nowrap font-medium">{entry.username}</td>
+                                                                <td className="px-3 py-2 whitespace-nowrap">{entry.branch}</td>
+                                                                {/* <td className="px-3 py-2 whitespace-nowrap">{entry.section}</td> */}
+                                                                <td className="px-3 py-2 whitespace-nowrap">{entry.rating}</td>
+                                                                <td className="px-3 py-2 whitespace-nowrap">{entry.problemsSolved}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )
+                }
+
+                {/* Internal Contest Leaderboard - Same as before with better empty state */}
+                {
+                    activeTab === 'internal' && (
+                        <div className="space-y-6">
+                            <div className="card">
+                                <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Internal Contest</h2>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Contest</label>
+                                <select
+                                    value={selectedInternalContest || ''}
+                                    onChange={(e) => setSelectedInternalContest(e.target.value)}
+                                    className="input-field"
+                                    disabled={internalContests.length === 0}
+                                >
+                                    {internalContests.length === 0 ? (
+                                        <option value="">No contests available</option>
+                                    ) : (
+                                        <>
+                                            <option value="">Select a contest</option>
+                                            {internalContests.map((contest) => (
+                                                <option key={contest._id} value={contest._id}>
+                                                    {contest.title} - {new Date(contest.startTime).toLocaleDateString()}
+                                                </option>
+                                            ))}
+                                        </>
+                                    )}
+                                </select>
+                            </div>
+
+                            {contestInfo && !internalLoading && (
+                                <div className="card bg-blue-50 border-l-4 border-blue-600">
+                                    <h3 className="text-lg font-bold text-gray-900 mb-2">{contestInfo.title}</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-700">
+                                        <div>
+                                            <span className="font-medium">Problems:</span> {contestInfo.totalProblems}
+                                        </div>
+                                        <div>
+                                            <span className="font-medium">Proctoring:</span>{' '}
+                                            {contestInfo.proctoringEnabled ? '🔒 Enabled' : 'Disabled'}
+                                        </div>
+                                        <div>
+                                            <span className="font-medium">Start:</span>{' '}
+                                            {new Date(contestInfo.startTime).toLocaleString()}
+                                        </div>
+                                        <div>
+                                            <span className="font-medium">End:</span>{' '}
+                                            {new Date(contestInfo.endTime).toLocaleString()}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="card">
                                 <div className="flex justify-between items-center mb-4">
                                     <h2 className="text-xl font-semibold text-gray-900">
-                                        Filter External Contests (Client-Side)
+                                        Contest Leaderboard {!internalLoading && rawInternalData.length > 0 && `(${rawInternalData.length} participants)`}
                                     </h2>
-                                    <button
-                                        onClick={handleRefreshExternal}
-                                        className="btn-secondary flex items-center space-x-2"
-                                        disabled={externalLoading}
-                                    >
-                                        <svg className={`w-4 h-4 ${externalLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                        </svg>
-                                        <span>Refresh</span>
-                                    </button>
+                                    {!internalLoading && selectedInternalContest && (
+                                        <span className="text-sm text-green-600 font-medium">
+                                            ⟳ Auto-refreshing every 10s
+                                        </span>
+                                    )}
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
-                                        <select
-                                            value={selectedPlatform}
-                                            onChange={(e) => handlePlatformChange(e.target.value)}
-                                            className="input-field"
-                                        >
-                                            {PLATFORMS.map((platform) => (
-                                                <option key={platform.value} value={platform.value}>
-                                                    {platform.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Contest</label>
-                                        <select
-                                            value={selectedContest || ''}
-                                            onChange={(e) => setSelectedContest(e.target.value)}
-                                            className="input-field"
-                                            disabled={availableContests.length === 0}
-                                        >
-                                            {availableContests.length === 0 ? (
-                                                <option value="">No contests available</option>
-                                            ) : (
-                                                availableContests.map((contest) => (
-                                                    <option key={contest.contestName} value={contest.contestName}>
-                                                        {contest.contestName} ({contest.participants} participants)
-                                                    </option>
-                                                ))
-                                            )}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="card">
-                                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                                    {selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)} - {selectedContest || 'Select Contest'}
-                                </h2>
-                                {externalLeaderboard.length === 0 ? (
+                                {internalLoading ? (
+                                    <LoadingSpinner />
+                                ) : rawInternalData.length === 0 ? (
                                     <div className="text-center py-12">
                                         <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                         </svg>
-                                        <p className="text-gray-600 text-lg font-medium">No contest data available</p>
-                                        <p className="text-gray-500 text-sm mt-2">No students have participated in contests on this platform yet.</p>
+                                        <p className="text-gray-600 text-lg font-medium">No submissions yet</p>
+                                        <p className="text-gray-500 text-sm mt-2">Be the first to participate in this contest!</p>
                                     </div>
                                 ) : (
                                     <div className="overflow-x-auto">
+                                        {/* Internal contest table - same as before */}
                                         <table className="min-w-full divide-y divide-gray-200">
                                             <thead className="bg-gray-50">
                                                 <tr>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Global Rank</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll Number</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Section</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Problems Solved</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Roll No</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
+                                                    {/* <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Section</th> */}
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Time (min)</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Solved</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tab Switches</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fullscreen Exits</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Paste Attempts</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total Violations</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
-                                                {externalLeaderboard.map((entry, index) => (
-                                                    <tr key={`${entry.rollNumber}-${index}`}>
-                                                        <td className="px-4 py-3 whitespace-nowrap font-bold">{entry.rank}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-gray-600">{entry.globalRank}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{entry.rollNumber}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap font-medium">{entry.username}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{entry.branch}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{entry.section}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{entry.rating}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">{entry.problemsSolved}</td>
+                                                {rawInternalData.map((entry, index) => (
+                                                    <tr
+                                                        key={`${entry.studentId}-${index}`}
+                                                        className={
+                                                            entry.rollNumber === user?.education?.rollNumber
+                                                                ? 'bg-blue-50'
+                                                                : ''
+                                                        }
+                                                    >
+                                                        <td className="px-3 py-2 whitespace-nowrap">
+                                                            <span className="font-bold text-lg">{entry.rank}</span>
+                                                        </td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">{entry.rollNumber}</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm font-medium">{entry.username}</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">{entry.branch}</td>
+                                                        {/* <td className="px-3 py-2 whitespace-nowrap text-sm">{entry.section}</td> */}
+                                                        <td className="px-3 py-2 whitespace-nowrap">
+                                                            <span className="font-bold text-lg text-blue-600">{entry.score}</span>
+                                                        </td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">{entry.time}</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                            {entry.problemsSolved}/{contestInfo?.totalProblems || 0}
+                                                        </td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                            <span className={entry.violations?.tabSwitches > 0 ? 'text-red-600 font-medium' : ''}>
+                                                                {entry.violations?.tabSwitches || 0}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                            <span className={entry.violations?.fullscreenExits > 0 ? 'text-red-600 font-medium' : ''}>
+                                                                {entry.violations?.fullscreenExits || 0}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                            <span className={entry.violations?.pasteAttempts > 0 ? 'text-red-600 font-medium' : ''}>
+                                                                {entry.violations?.pasteAttempts || 0}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                            <span
+                                                                className={`px-2 py-1 rounded-full text-xs font-bold ${(entry.violations?.total || 0) === 0
+                                                                    ? 'bg-green-100 text-green-800'
+                                                                    : (entry.violations?.total || 0) < 3
+                                                                        ? 'bg-yellow-100 text-yellow-800'
+                                                                        : 'bg-red-100 text-red-800'
+                                                                    }`}
+                                                            >
+                                                                {entry.violations?.total || 0}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                            {entry.isCompleted ? (
+                                                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                                                    ✓ Submitted
+                                                                </span>
+                                                            ) : (
+                                                                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                                                                    In Progress
+                                                                </span>
+                                                            )}
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -555,174 +1248,10 @@ const Leaderboard = () => {
                                     </div>
                                 )}
                             </div>
-                        </>
-                    )}
-                </div>
-            )}
-
-            {/* Internal Contest Leaderboard - Same as before with better empty state */}
-            {activeTab === 'internal' && (
-                <div className="space-y-6">
-                    <div className="card">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Internal Contest</h2>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Contest</label>
-                        <select
-                            value={selectedInternalContest || ''}
-                            onChange={(e) => setSelectedInternalContest(e.target.value)}
-                            className="input-field"
-                            disabled={internalContests.length === 0}
-                        >
-                            {internalContests.length === 0 ? (
-                                <option value="">No contests available</option>
-                            ) : (
-                                <>
-                                    <option value="">Select a contest</option>
-                                    {internalContests.map((contest) => (
-                                        <option key={contest._id} value={contest._id}>
-                                            {contest.title} - {new Date(contest.startTime).toLocaleDateString()}
-                                        </option>
-                                    ))}
-                                </>
-                            )}
-                        </select>
-                    </div>
-
-                    {contestInfo && !internalLoading && (
-                        <div className="card bg-blue-50 border-l-4 border-blue-600">
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">{contestInfo.title}</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-700">
-                                <div>
-                                    <span className="font-medium">Problems:</span> {contestInfo.totalProblems}
-                                </div>
-                                <div>
-                                    <span className="font-medium">Proctoring:</span>{' '}
-                                    {contestInfo.proctoringEnabled ? '🔒 Enabled' : 'Disabled'}
-                                </div>
-                                <div>
-                                    <span className="font-medium">Start:</span>{' '}
-                                    {new Date(contestInfo.startTime).toLocaleString()}
-                                </div>
-                                <div>
-                                    <span className="font-medium">End:</span>{' '}
-                                    {new Date(contestInfo.endTime).toLocaleString()}
-                                </div>
-                            </div>
                         </div>
-                    )}
-
-                    <div className="card">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-semibold text-gray-900">
-                                Contest Leaderboard {!internalLoading && rawInternalData.length > 0 && `(${rawInternalData.length} participants)`}
-                            </h2>
-                            {!internalLoading && selectedInternalContest && (
-                                <span className="text-sm text-green-600 font-medium">
-                                    ⟳ Auto-refreshing every 10s
-                                </span>
-                            )}
-                        </div>
-                        {internalLoading ? (
-                            <LoadingSpinner />
-                        ) : rawInternalData.length === 0 ? (
-                            <div className="text-center py-12">
-                                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
-                                <p className="text-gray-600 text-lg font-medium">No submissions yet</p>
-                                <p className="text-gray-500 text-sm mt-2">Be the first to participate in this contest!</p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                {/* Internal contest table - same as before */}
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll No</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Section</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time (min)</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Solved</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tab Switches</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fullscreen Exits</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paste Attempts</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Violations</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {rawInternalData.map((entry, index) => (
-                                            <tr
-                                                key={`${entry.studentId}-${index}`}
-                                                className={
-                                                    entry.rollNumber === user?.education?.rollNumber
-                                                        ? 'bg-blue-50'
-                                                        : ''
-                                                }
-                                            >
-                                                <td className="px-4 py-3 whitespace-nowrap">
-                                                    <span className="font-bold text-lg">{entry.rank}</span>
-                                                </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">{entry.rollNumber}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">{entry.username}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">{entry.branch}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">{entry.section}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap">
-                                                    <span className="font-bold text-lg text-blue-600">{entry.score}</span>
-                                                </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">{entry.time}</td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                                    {entry.problemsSolved}/{contestInfo?.totalProblems || 0}
-                                                </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                                    <span className={entry.violations?.tabSwitches > 0 ? 'text-red-600 font-medium' : ''}>
-                                                        {entry.violations?.tabSwitches || 0}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                                    <span className={entry.violations?.fullscreenExits > 0 ? 'text-red-600 font-medium' : ''}>
-                                                        {entry.violations?.fullscreenExits || 0}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                                    <span className={entry.violations?.pasteAttempts > 0 ? 'text-red-600 font-medium' : ''}>
-                                                        {entry.violations?.pasteAttempts || 0}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                                    <span
-                                                        className={`px-2 py-1 rounded-full text-xs font-bold ${(entry.violations?.total || 0) === 0
-                                                                ? 'bg-green-100 text-green-800'
-                                                                : (entry.violations?.total || 0) < 3
-                                                                    ? 'bg-yellow-100 text-yellow-800'
-                                                                    : 'bg-red-100 text-red-800'
-                                                            }`}
-                                                    >
-                                                        {entry.violations?.total || 0}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                                    {entry.isCompleted ? (
-                                                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                                                            ✓ Submitted
-                                                        </span>
-                                                    ) : (
-                                                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                                                            In Progress
-                                                        </span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+                    )
+                }
+            </div>
         </div>
     );
 };

@@ -44,7 +44,8 @@ const getDashboardData = async (req, res) => {
                 })),
                 languageAcceptedSubmissions: languageStats,
                 progress,
-                externalContestStats: externalStats
+                externalContestStats: externalStats,
+                leaderboardStats: await require('../models/Leaderboard').getStudentRank(studentId)
             }
         });
     } catch (error) {
@@ -316,9 +317,13 @@ const getAllStudentsForInstructor = async (req, res) => {
 
         let students;
 
-        // If instructor has a batchId, show only their batch students
-        if (instructor.batchId) {
-            students = await User.getStudentsByBatch(instructor.batchId);
+        // If instructor has batchId or assignedBatches, show students from all
+        if (instructor.batchId || (instructor.assignedBatches && instructor.assignedBatches.length > 0)) {
+            const batchIds = [instructor.batchId, ...(instructor.assignedBatches || [])].filter(id => id);
+            // Deduplicate
+            const uniqueBatchIds = [...new Set(batchIds.map(id => id.toString()))];
+            
+            students = await User.getStudentsByBatches(uniqueBatchIds);
         } else if (req.user.role === 'admin') {
             // Admins can see all students
             students = await User.findByRole('student');
@@ -357,24 +362,43 @@ const getAllStudentsForInstructor = async (req, res) => {
 // Reset student profile - ONLY AlphaLearn practice data
 const resetStudentProfile = async (req, res) => {
     try {
-        const { studentId } = req.params;
+        const studentId = req.params.studentId || req.user.userId;
         const requesterId = req.user.userId;
         const requester = await User.findById(requesterId);
 
         const student = await User.findById(studentId);
-        if (!student || student.role !== 'student') {
+        if (!student) {
             return res.status(404).json({
                 success: false,
-                message: 'Student not found'
+                message: 'User not found'
             });
         }
 
-        // Check authorization: Admin can reset anyone, Instructor can reset only their batch
-        if (req.user.role === 'instructor') {
-            if (!requester.batchId || student.batchId?.toString() !== requester.batchId.toString()) {
+        const isSelf = requesterId === studentId;
+        const isAdmin = req.user.role === 'admin';
+        const isInstructor = req.user.role === 'instructor';
+
+        // Authorization Logic
+        if (!isAdmin && !isSelf) {
+            if (isInstructor) {
+                // Instructor can only reset STUDENTS in their ASSIGNED BATCHES
+                const instructorBatches = [requester.batchId, ...(requester.assignedBatches || [])]
+                    .filter(id => id)
+                    .map(id => id.toString());
+                
+                const studentBatchId = student.batchId ? student.batchId.toString() : null;
+
+                if (student.role !== 'student' || !studentBatchId || !instructorBatches.includes(studentBatchId)) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'You can only reset students in your assigned batches'
+                    });
+                }
+            } else {
+                // Students cannot reset others
                 return res.status(403).json({
                     success: false,
-                    message: 'You can only reset students in your batch'
+                    message: 'Access denied'
                 });
             }
         }

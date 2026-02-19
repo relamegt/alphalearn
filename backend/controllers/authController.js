@@ -134,6 +134,7 @@ const login = async (req, res) => {
                 lastName: user.lastName,
                 role: user.role,
                 batchId: user.batchId,
+                assignedBatches: user.assignedBatches || [],
                 profileCompleted: user.profileCompleted || false
             }
         });
@@ -165,7 +166,7 @@ const completeFirstLoginProfile = async (req, res) => {
             rollNumber,
             institution,
             degree,
-            stream,
+            branch,
             startYear,
             endYear
         } = req.body;
@@ -229,7 +230,7 @@ const completeFirstLoginProfile = async (req, res) => {
                 rollNumber: rollNumber || user.education?.rollNumber,
                 institution: institution || user.education?.institution,
                 degree: degree || user.education?.degree,
-                stream: stream || user.education?.stream,
+                branch: branch || user.education?.branch,
                 startYear: startYear ? parseInt(startYear) : user.education?.startYear,
                 endYear: endYear ? parseInt(endYear) : user.education?.endYear
             };
@@ -362,6 +363,7 @@ const getCurrentUser = async (req, res) => {
                 lastName: user.lastName,
                 role: user.role,
                 batchId: user.batchId,
+                assignedBatches: user.assignedBatches || [],
                 profile: user.profile,
                 education: user.education,
                 skills: user.skills,

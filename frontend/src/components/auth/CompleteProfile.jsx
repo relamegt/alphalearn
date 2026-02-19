@@ -38,13 +38,13 @@ const CompleteProfile = () => {
         rollNumber: '',
         institution: '',
         degree: '',
-        stream: '',
+        branch: '',
         startYear: '',
         endYear: ''
     });
 
     const [errors, setErrors] = useState({});
-    const [availableStreams, setAvailableStreams] = useState([]);
+    const [availableBranches, setAvailableBranches] = useState([]);
 
     // Fetch user data to pre-fill education from batch
     useEffect(() => {
@@ -58,17 +58,17 @@ const CompleteProfile = () => {
                         degree: userData.education.degree || '',
                         startYear: userData.education.startYear || '',
                         endYear: userData.education.endYear || ''
-                        // stream and rollNumber remain empty for user to fill
+                        // branch and rollNumber remain empty for user to fill
                     }));
                 }
 
-                // Fetch batch data to get available streams
+                // Fetch batch data to get available branches
                 if (userData && userData.batchId) {
                     try {
                         const batchData = await authService.getBatchDetails(userData.batchId);
-                        setAvailableStreams(batchData.streams || []);
+                        setAvailableBranches(batchData.branches || []);
                     } catch (error) {
-                        console.error('Error fetching batch streams:', error);
+                        console.error('Error fetching batch branches:', error);
                     }
                 }
             } catch (error) {
@@ -186,8 +186,8 @@ const CompleteProfile = () => {
             newErrors.rollNumber = 'Roll number is required';
         }
 
-        if (!formData.stream.trim()) {
-            newErrors.stream = 'Branch/Stream is required';
+        if (!formData.branch.trim()) {
+            newErrors.branch = 'Branch is required';
         }
 
         setErrors(newErrors);
@@ -214,7 +214,11 @@ const CompleteProfile = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        // ...validation...
+
+        if (user?.role === 'student' && !validateStep3()) {
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -249,7 +253,7 @@ const CompleteProfile = () => {
                 profileData.rollNumber = formData.rollNumber;
                 profileData.institution = formData.institution;
                 profileData.degree = formData.degree;
-                profileData.stream = formData.stream;
+                profileData.branch = formData.branch;
                 profileData.startYear = formData.startYear ? parseInt(formData.startYear) : null;
                 profileData.endYear = formData.endYear ? parseInt(formData.endYear) : null;
             }
@@ -269,44 +273,40 @@ const CompleteProfile = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl w-full">
                 {/* Header */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                        Welcome to AlphaLearn! 🎉
+                <div className="text-center mb-10">
+                    <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
+                        Welcome to AlphaLearn!
                     </h1>
-                    <p className="text-gray-600">
-                        Complete your profile to get started
+                    <p className="text-lg text-gray-500">
+                        Let's set up your profile to get you started.
                     </p>
                 </div>
 
-                {/* Progress Steps */}
-                <div className="mb-8">
-                    <div className="flex justify-between items-center">
+                {/* Modern Progress Steps */}
+                <div className="mb-10">
+                    <div className="flex justify-between items-center relative">
+                        {/* Connecting Line */}
+                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 -z-10 rounded-full"></div>
+                        <div className={`absolute left-0 top-1/2 transform -translate-y-1/2 h-1 bg-blue-600 transition-all duration-500 -z-0 rounded-full`} style={{ width: `${((step - 1) / 2) * 100}%` }}></div>
+
                         {[1, 2, 3].map((stepNumber) => (
-                            <div key={stepNumber} className="flex-1 flex items-center">
-                                <div className="flex flex-col items-center flex-1">
-                                    <div
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${step >= stepNumber
-                                            ? 'bg-primary-600 text-white'
-                                            : 'bg-gray-300 text-gray-600'
-                                            }`}
-                                    >
-                                        {step > stepNumber ? '✓' : stepNumber}
-                                    </div>
-                                    <span className="text-xs mt-2 text-gray-600">
-                                        {stepNumber === 1 && 'Basic Info'}
-                                        {stepNumber === 2 && 'Contact'}
-                                        {stepNumber === 3 && user?.role === 'student' ? 'Education' : 'Finish'}
-                                    </span>
+                            <div key={stepNumber} className="flex flex-col items-center group cursor-default">
+                                <div
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 border-4 ${step >= stepNumber
+                                        ? 'bg-blue-600 border-blue-100 text-white shadow-md scale-110'
+                                        : 'bg-white border-gray-200 text-gray-400'
+                                        }`}
+                                >
+                                    {step > stepNumber ? '✓' : stepNumber}
                                 </div>
-                                {stepNumber < 3 && (
-                                    <div
-                                        className={`flex-1 h-1 mx-2 ${step > stepNumber ? 'bg-primary-600' : 'bg-gray-300'
-                                            }`}
-                                    ></div>
-                                )}
+                                <span className={`text-xs mt-3 font-medium uppercase tracking-wide transition-colors ${step >= stepNumber ? 'text-blue-600' : 'text-gray-400'}`}>
+                                    {stepNumber === 1 && 'Basic Info'}
+                                    {stepNumber === 2 && 'Contact'}
+                                    {stepNumber === 3 && (user?.role === 'student' ? 'Education' : 'Finish')}
+                                </span>
                             </div>
                         ))}
                     </div>
@@ -593,6 +593,7 @@ const CompleteProfile = () => {
                                                 onChange={handleChange}
                                                 className={`input-field ${errors.rollNumber ? 'border-red-500' : ''}`}
                                                 placeholder="20XX-DEPT-XXX"
+                                                required
                                             />
                                             {errors.rollNumber && (
                                                 <p className="text-red-500 text-xs mt-1">{errors.rollNumber}</p>
@@ -634,25 +635,25 @@ const CompleteProfile = () => {
 
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Branch/Stream *
+                                                    Branch *
                                                 </label>
                                                 <select
-                                                    name="stream"
-                                                    value={formData.stream}
+                                                    name="branch"
+                                                    value={formData.branch}
                                                     onChange={handleChange}
-                                                    className={`input-field ${errors.stream ? 'border-red-500' : ''}`}
+                                                    className={`input-field ${errors.branch ? 'border-red-500' : ''}`}
                                                     required
                                                 >
-                                                    <option value="">Select your branch/stream</option>
-                                                    {availableStreams.map((stream, index) => (
-                                                        <option key={index} value={stream}>{stream}</option>
+                                                    <option value="">Select your branch</option>
+                                                    {availableBranches.map((branch, index) => (
+                                                        <option key={index} value={branch}>{branch}</option>
                                                     ))}
                                                 </select>
-                                                {errors.stream && (
-                                                    <p className="text-red-500 text-xs mt-1">{errors.stream}</p>
+                                                {errors.branch && (
+                                                    <p className="text-red-500 text-xs mt-1">{errors.branch}</p>
                                                 )}
-                                                {availableStreams.length === 0 && (
-                                                    <p className="text-xs text-gray-500 mt-1">No streams available for this batch</p>
+                                                {availableBranches.length === 0 && (
+                                                    <p className="text-xs text-gray-500 mt-1">No branches available for this batch</p>
                                                 )}
                                             </div>
                                         </div>

@@ -2,7 +2,7 @@
 const Contest = require('../models/Contest');
 const ContestSubmission = require('../models/ContestSubmission');
 const Problem = require('../models/Problem');
-const { executeWithTestCases, validateCode } = require('../services/pistonService');
+const { executeWithTestCases, validateCode } = require('../services/judge0Service');
 const { notifyLeaderboardUpdate, notifySubmission, notifyViolation } = require('../config/websocket');
 
 // Create contest (Admin/Instructor)
@@ -93,7 +93,14 @@ const getContestsByBatch = async (req, res) => {
         const studentId = req.user.userId; // Get current user ID
 
         let contests;
-        if (status === 'active') {
+
+        // Handle 'all' batch request (Admin/Instructor only)
+        if (batchId === 'all') {
+            if (req.user.role === 'student') {
+                return res.status(403).json({ success: false, message: 'Access denied' });
+            }
+            contests = await Contest.find({}, { sort: { startTime: -1 } });
+        } else if (status === 'active') {
             contests = await Contest.findActiveContests(batchId);
         } else if (status === 'upcoming') {
             contests = await Contest.findUpcomingContests(batchId);

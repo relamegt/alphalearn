@@ -24,8 +24,8 @@ class Batch {
                 startYear: batchData.education?.startYear || new Date(batchData.startDate).getFullYear(),
                 endYear: batchData.education?.endYear || new Date(batchData.endDate).getFullYear()
             },
-            // Available streams/branches for this batch (e.g., CSE, IT, AIML)
-            streams: batchData.streams || [],
+            // Available branches for this batch (e.g., CSE, IT, AIML)
+            branches: batchData.branches || [],
             createdBy: new ObjectId(batchData.createdBy),
             createdAt: new Date()
         };
@@ -37,6 +37,12 @@ class Batch {
     // Find batch by ID
     static async findById(batchId) {
         return await collections.batches.findOne({ _id: new ObjectId(batchId) });
+    }
+
+    // Find batches by IDs
+    static async findByIds(batchIds) {
+        const objectIds = batchIds.map(id => new ObjectId(id));
+        return await collections.batches.find({ _id: { $in: objectIds } }).toArray();
     }
 
     // Find all active batches
@@ -146,53 +152,65 @@ class Batch {
         // Import User model
         const User = require('./User');
 
-        // Get all users in batch before deletion
+        // Get all users in batch
         const usersInBatch = await collections.users.find({
             batchId: batchObjectId
         }).toArray();
 
-        const userIds = usersInBatch.map(u => u._id);
-        const studentCount = usersInBatch.filter(u => u.role === 'student').length;
+        // Separate students and instructors
+        const prevStudents = usersInBatch.filter(u => u.role === 'student');
+        const prevInstructors = usersInBatch.filter(u => u.role === 'instructor');
 
-        // Delete all users and their data (cascade)
-        if (userIds.length > 0) {
+        const studentIds = prevStudents.map(u => u._id);
+        const instructorIds = prevInstructors.map(u => u._id);
+
+        // 1. Handle Students: Delete ALL data (cascade)
+        if (studentIds.length > 0) {
             await Promise.all([
-                // Delete all user accounts
-                collections.users.deleteMany({ batchId: batchObjectId }),
+                // Delete user accounts
+                collections.users.deleteMany({ _id: { $in: studentIds } }),
 
                 // Delete all practice submissions
-                collections.submissions.deleteMany({ studentId: { $in: userIds } }),
+                collections.submissions.deleteMany({ studentId: { $in: studentIds } }),
 
                 // Delete all progress
-                collections.progress.deleteMany({ studentId: { $in: userIds } }),
+                collections.progress.deleteMany({ studentId: { $in: studentIds } }),
 
                 // Delete all contest submissions
-                collections.contestSubmissions.deleteMany({ studentId: { $in: userIds } }),
+                collections.contestSubmissions.deleteMany({ studentId: { $in: studentIds } }),
 
                 // Delete all external profiles
-                collections.externalProfiles.deleteMany({ studentId: { $in: userIds } }),
+                collections.externalProfiles.deleteMany({ studentId: { $in: studentIds } }),
 
                 // Delete all leaderboard entries
-                collections.leaderboard.deleteMany({ studentId: { $in: userIds } }),
+                collections.leaderboard.deleteMany({ studentId: { $in: studentIds } }),
 
                 // Delete all contest leaderboard entries
-                collections.contestLeaderboard?.deleteMany({ studentId: { $in: userIds } }),
+                collections.contestLeaderboard?.deleteMany({ studentId: { $in: studentIds } }),
 
                 // Delete all notifications
-                collections.notifications?.deleteMany({ userId: { $in: userIds } }),
+                collections.notifications?.deleteMany({ userId: { $in: studentIds } }),
 
                 // Delete all sessions
-                collections.sessions?.deleteMany({ userId: { $in: userIds } }),
+                collections.sessions?.deleteMany({ userId: { $in: studentIds } }),
 
                 // Delete all saved problems
-                collections.savedProblems?.deleteMany({ studentId: { $in: userIds } }),
+                collections.savedProblems?.deleteMany({ studentId: { $in: studentIds } }),
 
                 // Delete all discussion posts
-                collections.discussions?.deleteMany({ userId: { $in: userIds } }),
+                collections.discussions?.deleteMany({ userId: { $in: studentIds } }),
 
                 // Delete all comments
-                collections.comments?.deleteMany({ userId: { $in: userIds } })
+                collections.comments?.deleteMany({ userId: { $in: studentIds } })
             ]);
+        }
+
+        // 2. Handle Instructors: Preserve account, just unassign from batch
+        if (instructorIds.length > 0) {
+            await collections.users.updateMany(
+                { _id: { $in: instructorIds } },
+                { $set: { batchId: null } }
+            );
         }
 
         // Delete all contests associated with this batch
@@ -203,11 +221,11 @@ class Batch {
 
         return {
             success: true,
-            message: 'Batch, all users, and all associated data deleted successfully',
+            message: 'Batch deleted. Students deleted. Instructors unassigned.',
             batchName: batch.name,
-            usersDeleted: userIds.length,
-            studentsDeleted: studentCount,
-            note: 'Total user count preserved for homepage statistics'
+            studentsDeleted: studentIds.length,
+            instructorsUnassigned: instructorIds.length,
+            note: 'Instructors were preserved.'
         };
     }
 
