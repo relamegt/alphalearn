@@ -202,6 +202,9 @@ class ContestSubmission {
 
     static async getLeaderboard(contestId) {
         const User = require('./User');
+        const Contest = require('./Contest'); // Require here to avoid circular dependency issues if any
+
+        const contest = await Contest.findById(contestId);
         const submissions = await this.findByContest(contestId);
         const participantIds = [...new Set(submissions.map(s => s.studentId.toString()))];
 
@@ -210,7 +213,34 @@ class ContestSubmission {
                 const user = await User.findById(studentId);
                 const scoreData = await this.calculateScore(studentId, contestId);
                 const violations = await this.getProctoringViolations(studentId, contestId);
-                const isCompleted = await this.hasSubmittedContest(studentId, 'contestId' in submissions[0] ? submissions[0].contestId : contestId);
+
+                // Use findByStudentAndContest to get relevant submissions excluding markers
+                const studentSubmissions = submissions.filter(s => s.studentId.toString() === studentId.toString() && !s.isFinalContestSubmission && !s.isViolationLog);
+
+                // Determine completion status
+                const isCompleted = await this.hasSubmittedContest(studentId, contestId);
+
+                // Calculate per-problem status
+                const problemsStatus = {};
+                if (contest && contest.problems) {
+                    contest.problems.forEach(problemId => {
+                        const pIdStr = problemId.toString();
+                        const pSubs = studentSubmissions.filter(s => s.problemId && s.problemId.toString() === pIdStr);
+
+                        let status = 'Not Attempted';
+                        let tries = pSubs.length;
+
+                        if (tries > 0) {
+                            if (pSubs.some(s => s.verdict === 'Accepted')) {
+                                status = 'Accepted';
+                            } else {
+                                status = 'Wrong Answer';
+                            }
+                        }
+
+                        problemsStatus[pIdStr] = { status, tries };
+                    });
+                }
 
                 return {
                     studentId: new ObjectId(studentId),
@@ -223,7 +253,8 @@ class ContestSubmission {
                     tabSwitchDuration: violations.totalTabSwitchDuration,
                     pasteAttempts: violations.totalPasteAttempts,
                     fullscreenExits: violations.totalFullscreenExits,
-                    isCompleted
+                    isCompleted,
+                    problems: problemsStatus
                 };
             })
         );

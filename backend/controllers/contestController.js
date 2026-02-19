@@ -630,11 +630,13 @@ const getContestLeaderboard = async (req, res) => {
         const { contestId } = req.params;
 
         const leaderboard = await ContestSubmission.getLeaderboard(contestId);
+        const contest = await Contest.findById(contestId).populate('problems', 'title _id');
 
         res.json({
             success: true,
             count: leaderboard.length,
             leaderboard,
+            contest,
             timestamp: new Date().toISOString()
         });
     } catch (error) {

@@ -147,14 +147,18 @@ const Leaderboard = ({ batchId, isBatchView }) => {
     useEffect(() => {
         let intervalId;
         if (activeTab === 'internal' && selectedInternalContest) {
-            intervalId = setInterval(() => {
-                fetchInternalContestLeaderboard(true);
-            }, 10000);
+            // Check if contest is finished
+            const isFinished = contestInfo && new Date() > new Date(contestInfo.endTime);
+            if (!isFinished) {
+                intervalId = setInterval(() => {
+                    fetchInternalContestLeaderboard(true);
+                }, 10000);
+            }
         }
         return () => {
             if (intervalId) clearInterval(intervalId);
         };
-    }, [activeTab, selectedInternalContest]);
+    }, [activeTab, selectedInternalContest, contestInfo]);
 
     const fetchPracticeLeaderboard = async (forceRefresh = false) => {
         if (!targetBatchId) return;
@@ -246,6 +250,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
     // Sorting state
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
+    const [internalSortConfig, setInternalSortConfig] = useState({ key: 'score', direction: 'desc' });
 
     const handleFilterClick = (filterName) => {
         setActiveFilter(activeFilter === filterName ? null : filterName);
@@ -257,6 +262,16 @@ const Leaderboard = ({ batchId, isBatchView }) => {
             direction = 'desc';
         }
         setSortConfig({ key, direction });
+    };
+
+    const handleInternalSort = (key) => {
+        let direction = 'desc'; // Default to desc for internal score
+        if (internalSortConfig.key === key && internalSortConfig.direction === 'desc') {
+            direction = 'asc';
+        } else if (internalSortConfig.key === key && internalSortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setInternalSortConfig({ key, direction });
     };
 
     // Helper to get value for sorting
@@ -385,6 +400,94 @@ const Leaderboard = ({ batchId, isBatchView }) => {
             startTime: c.startTime
         }));
     }, [rawAllExternalData, selectedPlatform]);
+
+    // Computed Internal Leaderboard Data
+    const sortedInternalData = useMemo(() => {
+        if (!Array.isArray(rawInternalData)) return [];
+        let data = [...rawInternalData];
+
+        if (internalSortConfig.key) {
+            data.sort((a, b) => {
+                let aValue = getValueByPath(a, internalSortConfig.key);
+                let bValue = getValueByPath(b, internalSortConfig.key);
+
+                if (internalSortConfig.key === 'score') {
+                    // special handling for score as string/number
+                    aValue = parseFloat(aValue);
+                    bValue = parseFloat(bValue);
+                }
+
+                // Check if numeric
+                const aNum = parseFloat(aValue);
+                const bNum = parseFloat(bValue);
+
+                if (!isNaN(aNum) && !isNaN(bNum) && typeof aValue !== 'string') {
+                    if (aNum < bNum) return internalSortConfig.direction === 'asc' ? -1 : 1;
+                    if (aNum > bNum) return internalSortConfig.direction === 'asc' ? 1 : -1;
+                    return 0;
+                }
+
+                // String sorting
+                const aStr = String(aValue || '').toLowerCase();
+                const bStr = String(bValue || '').toLowerCase();
+
+                if (aStr < bStr) return internalSortConfig.direction === 'asc' ? -1 : 1;
+                if (aStr > bStr) return internalSortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return data;
+    }, [rawInternalData, internalSortConfig]);
+
+    const downloadInternalCSV = () => {
+        if (!sortedInternalData.length) return;
+
+        // Dynamic problem headers
+        const problemHeaders = contestInfo?.problems?.map((p, i) => `P${i + 1} (${p.title})`) || [];
+        const headers = ['Rank', 'Roll No', 'Username', 'Branch', ...problemHeaders, 'Time (min)', 'Solved', 'Tab Switches', 'Fullscreen Exits', 'Total Violations', 'Status', 'Score'];
+
+        const rows = sortedInternalData.map(entry => {
+            // Problem statuses
+            const problemStatuses = contestInfo?.problems?.map(p => {
+                const pStatus = entry.problems?.[p._id]?.status;
+                return pStatus || 'Not Attempted';
+            }) || [];
+
+            // Fix solved count formatting
+            const solvedCount = `${entry.problemsSolved}/${contestInfo?.totalProblems || 0}`;
+            const solvedCell = `="${solvedCount}"`;
+
+            return [
+                entry.rank,
+                entry.rollNumber,
+                entry.username,
+                entry.branch,
+                ...problemStatuses,
+                entry.time,
+                solvedCell,
+                entry.violations?.tabSwitches || 0,
+                entry.violations?.fullscreenExits || 0,
+                entry.violations?.total || 0,
+                entry.isCompleted ? 'Finished' : 'In Progress',
+                entry.score
+            ];
+        });
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${contestInfo?.title || 'contest'}_leaderboard.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     // Handle platform change (CLIENT-SIDE filtering)
     const handlePlatformChange = (platform) => {
@@ -1169,9 +1272,17 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                         Contest Leaderboard {!internalLoading && rawInternalData.length > 0 && `(${rawInternalData.length} participants)`}
                                     </h2>
                                     {!internalLoading && selectedInternalContest && (
-                                        <span className="text-sm text-green-600 font-medium">
-                                            ⟳ Auto-refreshing every 10s
-                                        </span>
+                                        <div className="flex gap-4 items-center">
+                                            <button
+                                                onClick={downloadInternalCSV}
+                                                className="text-sm bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 font-medium transition-colors"
+                                            >
+                                                Download Report
+                                            </button>
+                                            <span className="text-sm text-green-600 font-medium">
+                                                ⟳ Auto-refreshing every 10s
+                                            </span>
+                                        </div>
                                     )}
                                 </div>
                                 {internalLoading ? (
@@ -1185,28 +1296,47 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                         <p className="text-gray-500 text-sm mt-2">Be the first to participate in this contest!</p>
                                     </div>
                                 ) : (
-                                    <div className="overflow-x-auto">
-                                        {/* Internal contest table - same as before */}
-                                        <table className="min-w-full divide-y divide-gray-200">
-                                            <thead className="bg-gray-50">
+                                    <div className="overflow-x-auto pb-4">
+                                        <table className="min-w-max w-full divide-y divide-gray-200 border-collapse">
+                                            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
                                                 <tr>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Roll No</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
-                                                    {/* <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Section</th> */}
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Time (min)</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Solved</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tab Switches</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fullscreen Exits</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Paste Attempts</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total Violations</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleInternalSort('rank')}>
+                                                        Rank {internalSortConfig.key === 'rank' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                    </th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[60px] bg-gray-50 z-20 w-32 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleInternalSort('rollNumber')}>
+                                                        Roll No {internalSortConfig.key === 'rollNumber' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                    </th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[190px] bg-gray-50 z-20 w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleInternalSort('username')}>
+                                                        Username {internalSortConfig.key === 'username' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                    </th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleInternalSort('branch')}>
+                                                        Branch {internalSortConfig.key === 'branch' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                    </th>
+
+                                                    {/* Dynamic Problem Columns */}
+                                                    {contestInfo?.problems?.map((prob, i) => (
+                                                        <th key={prob._id} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap min-w-[100px]">
+                                                            P{i + 1}
+                                                        </th>
+                                                    ))}
+
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleInternalSort('time')}>
+                                                        Time (min) {internalSortConfig.key === 'time' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                    </th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleInternalSort('problemsSolved')}>
+                                                        Solved {internalSortConfig.key === 'problemsSolved' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                    </th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Tab Switches</th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Exits</th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Violations</th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Status</th>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky right-0 bg-gray-50 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleInternalSort('score')}>
+                                                        Score {internalSortConfig.key === 'score' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                    </th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
-                                                {rawInternalData.map((entry, index) => (
+                                                {sortedInternalData.map((entry, index) => (
                                                     <tr
                                                         key={`${entry.studentId}-${index}`}
                                                         className={`hover:bg-gray-50 transition-colors ${entry.rollNumber === user?.education?.rollNumber
@@ -1214,7 +1344,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                             : ''
                                                             }`}
                                                     >
-                                                        <td className="px-3 py-3 whitespace-nowrap">
+                                                        <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-inherit z-10 border-r border-gray-100">
                                                             <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm">
                                                                 {entry.rank === 1 ? (
                                                                     <span className="text-2xl">🥇</span>
@@ -1227,39 +1357,52 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                 )}
                                                             </div>
                                                         </td>
-                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-600 font-mono">{entry.rollNumber}</td>
-                                                        <td className="px-3 py-3 whitespace-nowrap">
+                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-600 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
+                                                        <td className="px-3 py-3 whitespace-nowrap sticky left-[190px] bg-inherit z-10 border-r border-gray-100 w-40 truncate" title={entry.username}>
                                                             <div className="flex items-center gap-2">
                                                                 <span className="font-medium text-gray-900">{entry.username}</span>
                                                             </div>
                                                         </td>
                                                         <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
-                                                        {/* <td className="px-3 py-2 whitespace-nowrap text-sm">{entry.section}</td> */}
-                                                        <td className="px-3 py-3 whitespace-nowrap">
-                                                            <span className="font-bold text-lg text-blue-600">{entry.score}</span>
-                                                        </td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">{entry.time}</td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
+
+                                                        {/* Problem Status Cells */}
+                                                        {contestInfo?.problems?.map(prob => {
+                                                            const pData = entry.problems?.[prob._id];
+                                                            const status = pData?.status || 'Not Attempted';
+                                                            let cellClass = "bg-gray-50 text-gray-400";
+
+                                                            if (status === 'Accepted') {
+                                                                cellClass = "bg-green-50 text-green-700 font-medium";
+                                                            } else if (status === 'Wrong Answer') {
+                                                                cellClass = "bg-red-50 text-red-700";
+                                                            }
+
+                                                            return (
+                                                                <td key={prob._id} className="px-3 py-3 text-center border-r border-gray-50">
+                                                                    <div className={`px-2 py-1 rounded text-xs inline-block min-w-[60px] ${cellClass}`}>
+                                                                        {status === 'Not Attempted' ? 'Not Tried' : status}
+                                                                    </div>
+                                                                </td>
+                                                            );
+                                                        })}
+
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center">{entry.time}</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center font-bold text-gray-700">
                                                             {entry.problemsSolved}/{contestInfo?.totalProblems || 0}
                                                         </td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
-                                                            <span className={entry.violations?.tabSwitches > 0 ? 'text-red-600 font-medium' : ''}>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                            <span className={entry.violations?.tabSwitches > 0 ? 'text-red-600 font-medium w-full block' : 'w-full block'}>
                                                                 {entry.violations?.tabSwitches || 0}
                                                             </span>
                                                         </td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
-                                                            <span className={entry.violations?.fullscreenExits > 0 ? 'text-red-600 font-medium' : ''}>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                            <span className={entry.violations?.fullscreenExits > 0 ? 'text-red-600 font-medium w-full block' : 'w-full block'}>
                                                                 {entry.violations?.fullscreenExits || 0}
                                                             </span>
                                                         </td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
-                                                            <span className={entry.violations?.pasteAttempts > 0 ? 'text-red-600 font-medium' : ''}>
-                                                                {entry.violations?.pasteAttempts || 0}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
                                                             <span
-                                                                className={`px-2 py-1 rounded-full text-xs font-bold ${(entry.violations?.total || 0) === 0
+                                                                className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${(entry.violations?.total || 0) === 0
                                                                     ? 'bg-green-100 text-green-800'
                                                                     : (entry.violations?.total || 0) < 3
                                                                         ? 'bg-yellow-100 text-yellow-800'
@@ -1269,16 +1412,19 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                 {entry.violations?.total || 0}
                                                             </span>
                                                         </td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
                                                             {entry.isCompleted ? (
-                                                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">
+                                                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200 inline-block">
                                                                     Finished
                                                                 </span>
                                                             ) : (
-                                                                <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">
+                                                                <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200 inline-block">
                                                                     In Progress
                                                                 </span>
                                                             )}
+                                                        </td>
+                                                        <td className="px-3 py-3 whitespace-nowrap text-center sticky right-0 bg-inherit z-10 border-l border-gray-100 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                                            <span className="font-bold text-lg text-blue-600">{entry.score}</span>
                                                         </td>
                                                     </tr>
                                                 ))}

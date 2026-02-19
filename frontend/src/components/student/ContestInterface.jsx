@@ -182,6 +182,7 @@ const ContestInterface = ({ isPractice = false }) => {
     const [hasEnteredFullscreen, setHasEnteredFullscreen] = useState(false);
     const [showEditorial, setShowEditorial] = useState(false);
     const [showSidebar, setShowSidebar] = useState(true);
+    const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
 
     const wsRef = useRef(null);
     const autoSubmitTriggered = useRef(false);
@@ -322,7 +323,11 @@ const ContestInterface = ({ isPractice = false }) => {
                 setLeaderboardData(d.leaderboard || []);
             };
             fetchLb();
-            lbInterval = setInterval(fetchLb, 10000);
+            // Stop refreshing if contest is ended
+            const isEnded = contest && new Date() > new Date(contest.endTime);
+            if (!isEnded) {
+                lbInterval = setInterval(fetchLb, 10000);
+            }
         }
         return () => clearInterval(lbInterval);
     }, [contestId, showLeaderboard]);
@@ -498,6 +503,86 @@ const ContestInterface = ({ isPractice = false }) => {
             toast.error(error.message);
             setFinishing(false);
         }
+    };
+
+
+
+    /* ─── Sorting & CSV ─── */
+    const handleSort = (key) => {
+        let direction = 'desc'; // Default desc for score/solved
+        if (sortConfig.key === key && sortConfig.direction === 'desc') {
+            direction = 'asc';
+        } else if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedLeaderboardData = (() => {
+        if (!leaderboardData) return [];
+        let data = [...leaderboardData];
+        if (sortConfig.key) {
+            data.sort((a, b) => {
+                let aValue = sortConfig.key === 'status' ? (a.isCompleted ? 1 : 0) : a[sortConfig.key];
+                let bValue = sortConfig.key === 'status' ? (b.isCompleted ? 1 : 0) : b[sortConfig.key];
+
+                if (sortConfig.key === 'score' || sortConfig.key === 'problemsSolved') {
+                    aValue = parseFloat(aValue);
+                    bValue = parseFloat(bValue);
+                }
+
+                // String sorting for username/time if needed (time is string "XXm")
+                if (sortConfig.key === 'time') {
+                    aValue = parseInt(aValue.replace('m', ''));
+                    bValue = parseInt(bValue.replace('m', ''));
+                }
+
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return data;
+    })();
+
+    const downloadCSV = () => {
+        if (!sortedLeaderboardData.length) return;
+
+        // Dynamic headers for problems
+        const problemHeaders = contest?.problems?.map((p, i) => `P${i + 1} (${p.title})`) || [];
+        const headers = ['Rank', 'Student', ...problemHeaders, 'Solved', 'Time', 'Status', 'Score'];
+
+        const rows = sortedLeaderboardData.map((entry, index) => {
+            // Problem statuses
+            const problemStatuses = contest?.problems?.map(p => {
+                const pStatus = entry.problems?.[p._id]?.status;
+                return pStatus || 'Not Attempted';
+            }) || [];
+
+            // Fix for "1/2" turning into date: wrap in ="..." formula for Excel or prepend '
+            const solvedCount = `${entry.problemsSolved}/${contest?.problems?.length || 0}`;
+            const solvedCell = `="${solvedCount}"`;
+
+            return [
+                index + 1,
+                entry.username,
+                ...problemStatuses,
+                solvedCell,
+                entry.time,
+                entry.isCompleted ? 'Finished' : 'In Progress',
+                entry.score
+            ];
+        });
+
+        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${contest.title}_leaderboard.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     /* ─── Drag Logic ─── */
@@ -1056,7 +1141,12 @@ const ContestInterface = ({ isPractice = false }) => {
                         <div className="bg-white border-b border-gray-100 p-6 flex justify-between items-center shrink-0">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">🏆 Live Leaderboard</h2>
-                                <p className="text-xs text-gray-500 mt-1">Real-time ranking updates</p>
+                                <div className="flex items-center gap-3 mt-1">
+                                    <p className="text-xs text-gray-500">Real-time ranking updates</p>
+                                    <button onClick={downloadCSV} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold hover:bg-blue-100 transition-colors">
+                                        Download CSV
+                                    </button>
+                                </div>
                             </div>
                             <button onClick={() => setShowLeaderboard(false)} className="bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors text-gray-500">
                                 <LogOut size={16} className="rotate-180" />
@@ -1074,51 +1164,97 @@ const ContestInterface = ({ isPractice = false }) => {
                                     <p>No participants yet</p>
                                 </div>
                             ) : (
-                                <table className="w-full text-left border-collapse">
-                                    <thead className="bg-white sticky top-0 z-10 shadow-sm text-xs uppercase tracking-wider text-gray-500">
-                                        <tr>
-                                            <th className="p-4 font-bold w-20 text-center">Rank</th>
-                                            <th className="p-4 font-bold">Student</th>
-                                            <th className="p-4 font-bold text-center">Score</th>
-                                            <th className="p-4 font-bold text-center">Solved</th>
-                                            <th className="p-4 font-bold text-center">Time</th>
-                                            <th className="p-4 font-bold text-center">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 text-sm bg-white">
-                                        {leaderboardData.map((entry, index) => (
-                                            <tr key={index} className={`hover:bg-gray-50 transition ${entry.studentId === user?.userId ? 'bg-blue-50/30' : ''}`}>
-                                                <td className="p-4 text-center">
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold text-xs ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                                                        index === 1 ? 'bg-gray-100 text-gray-700' :
-                                                            index === 2 ? 'bg-orange-100 text-orange-700' : 'text-gray-500'
-                                                        }`}>
-                                                        {index === 0 ? '1' : index === 1 ? '2' : index === 2 ? '3' : index + 1}
-                                                    </div>
-                                                </td>
-                                                <td className="p-4">
-                                                    <span className="font-semibold text-gray-900">{entry.username}</span>
-                                                </td>
-                                                <td className="p-4 text-center font-bold text-blue-600">{entry.score}</td>
-                                                <td className="p-4 text-center">
-                                                    <span className="inline-block bg-green-50 text-green-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-green-100">{entry.problemsSolved}</span>
-                                                </td>
-                                                <td className="p-4 text-center text-gray-600 font-mono">{entry.time}m</td>
-                                                <td className="p-4 text-center">
-                                                    {entry.isCompleted ? (
-                                                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">
-                                                            Finished
-                                                        </span>
-                                                    ) : (
-                                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">
-                                                            In Progress
-                                                        </span>
-                                                    )}
-                                                </td>
+                                <div className="flex-1 overflow-auto">
+                                    <table className="w-full text-left border-collapse min-w-max">
+                                        <thead className="bg-white sticky top-0 z-10 shadow-sm text-xs uppercase tracking-wider text-gray-500">
+                                            <tr>
+                                                <th className="p-4 font-bold w-20 text-center cursor-pointer hover:bg-gray-50 sticky left-0 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleSort('rank')}>
+                                                    Rank {sortConfig.key === 'rank' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                                <th className="p-4 font-bold cursor-pointer hover:bg-gray-50 sticky left-20 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-48" onClick={() => handleSort('username')}>
+                                                    Student {sortConfig.key === 'username' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                                
+                                                {/* Problem Columns */}
+                                                {contest?.problems?.map((prob, i) => (
+                                                    <th key={prob._id} className="p-4 font-bold text-center whitespace-nowrap min-w-[120px]">
+                                                        P{i + 1}
+                                                    </th>
+                                                ))}
+
+                                                <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('problemsSolved')}>
+                                                    Solved {sortConfig.key === 'problemsSolved' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                                <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('time')}>
+                                                    Time {sortConfig.key === 'time' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                                <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('status')}>
+                                                    Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
+                                                <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap sticky right-0 bg-white z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleSort('score')}>
+                                                    Score {sortConfig.key === 'score' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 text-sm bg-white">
+                                            {sortedLeaderboardData.map((entry, index) => (
+                                                <tr key={index} className={`hover:bg-gray-50 transition ${entry.studentId === user?.userId ? 'bg-blue-50/30' : ''}`}>
+                                                    <td className="p-4 text-center sticky left-0 bg-inherit z-10 border-r border-gray-100">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold text-xs ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                                                            index === 1 ? 'bg-gray-100 text-gray-700' :
+                                                                index === 2 ? 'bg-orange-100 text-orange-700' : 'text-gray-500'
+                                                            }`}>
+                                                            {index + 1}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 sticky left-20 bg-inherit z-10 border-r border-gray-100 max-w-[200px] truncate" title={entry.username}>
+                                                        <span className="font-semibold text-gray-900">{entry.username}</span>
+                                                    </td>
+
+                                                    {/* Problem Cells */}
+                                                    {contest?.problems?.map(prob => {
+                                                        const pData = entry.problems?.[prob._id];
+                                                        const status = pData?.status || 'Not Attempted';
+                                                        let cellClass = "bg-gray-50 text-gray-400";
+                                                        
+                                                        if (status === 'Accepted') {
+                                                            cellClass = "bg-green-50 text-green-700 font-medium";
+                                                        } else if (status === 'Wrong Answer') {
+                                                            cellClass = "bg-red-50 text-red-700";
+                                                        }
+
+                                                        return (
+                                                            <td key={prob._id} className="p-2 text-center border-r border-gray-50">
+                                                                <div className={`px-2 py-1 rounded text-xs inline-block min-w-[60px] ${cellClass}`}>
+                                                                    {status === 'Not Attempted' ? 'Not Tried' : status}
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    })}
+
+                                                    <td className="p-4 text-center">
+                                                        <span className="inline-block bg-green-50 text-green-700 px-2.5 py-0.5 rounded-full text-xs font-bold border border-green-100">
+                                                            {entry.problemsSolved}/{contest?.problems?.length || 0}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-center text-gray-600 font-mono">{entry.time}m</td>
+                                                    <td className="p-4 text-center">
+                                                        {entry.isCompleted ? (
+                                                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">
+                                                                Finished
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">
+                                                                In Progress
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-4 text-center font-bold text-blue-600 sticky right-0 bg-inherit z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-gray-100">{entry.score}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             )}
                         </div>
                     </div>
