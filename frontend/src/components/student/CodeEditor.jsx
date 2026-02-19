@@ -15,9 +15,14 @@ import {
     CheckSquare,
     Terminal,
     Coins,
-    Menu,
     Lock,
-    XCircle
+    XCircle,
+    Clock,
+    Pause,
+    ChevronLeft,
+    ChevronRight,
+    Settings,
+    MoreVertical
 } from 'lucide-react';
 import problemService from '../../services/problemService';
 import useCodeExecution from '../../hooks/useCodeExecution';
@@ -26,6 +31,108 @@ import { initSecurityFeatures } from '../../utils/disableInspect';
 import toast from 'react-hot-toast';
 import ProblemSidebar from './ProblemSidebar';
 import SubmissionsTab from './SubmissionsTab';
+import { GoSidebarCollapse, GoSidebarExpand } from 'react-icons/go';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+
+// ─── Success Pop — Lottie coin + light particles ─────────────────────────────────
+
+// Lottie animation URL — public coin celebration from LottieFiles
+const COIN_LOTTIE_URL = 'https://lottie.host/4f6392d0-c8c9-48f8-b7b1-77eef8ae08d4/etg9mQk4N4.lottie';
+
+// Tiny pop particle dot
+const PopParticle = ({ style }) => (
+    <div style={{
+        position: 'fixed', borderRadius: '50%', pointerEvents: 'none',
+        animation: 'coin-particle 1.1s ease-out forwards',
+        ...style,
+    }} />
+);
+
+const SuccessPopOverlay = ({ result, points, onClose }) => {
+    const [visible, setVisible] = useState(false);
+    // Show earned coins, or fallback to problem points (for re-solves/testing visual)
+    const coins = (result?.coinsEarned && result.coinsEarned > 0) ? result.coinsEarned : (points || 0);
+
+    useEffect(() => {
+        requestAnimationFrame(() => setVisible(true));
+        const t = setTimeout(() => {
+            setVisible(false);
+            setTimeout(onClose, 400);
+        }, 4500);
+        return () => clearTimeout(t);
+    }, []);
+
+    // Light radial pop particles
+    const PART_COLORS = ['#fbbf24', '#f59e0b', '#fcd34d', '#10b981', '#34d399', '#60a5fa', '#c084fc', '#f472b6'];
+    const particles = Array.from({ length: 20 }, (_, i) => {
+        const angle = (i / 20) * 360;
+        const dist = 120 + Math.random() * 140;
+        const rad = angle * Math.PI / 180;
+        return {
+            left: `calc(50% + ${Math.round(Math.cos(rad) * dist)}px)`,
+            top: `calc(50% + ${Math.round(Math.sin(rad) * dist)}px)`,
+            width: `${5 + Math.random() * 7}px`,
+            height: `${5 + Math.random() * 7}px`,
+            background: PART_COLORS[i % PART_COLORS.length],
+            animationDelay: `${Math.random() * 0.3}s`,
+            '--tx': `${Math.round((Math.random() - 0.5) * 50)}px`,
+            '--ty': `${-40 - Math.random() * 70}px`,
+        };
+    });
+
+    return (
+        <div
+            onClick={onClose}
+            style={{
+                position: 'fixed', inset: 0, zIndex: 99999,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,0,0,0.60)', backdropFilter: 'blur(6px)',
+                opacity: visible ? 1 : 0, transition: 'opacity 0.4s',
+                cursor: 'pointer',
+            }}
+        >
+            {/* Light pop particles behind the lottie */}
+            {particles.map((p, i) => <PopParticle key={i} style={p} />)}
+
+            {/* Lottie coin animation */}
+            <div style={{
+                width: 420, height: 420,
+                transform: visible ? 'scale(1) translateY(0)' : 'scale(0.3) translateY(60px)',
+                opacity: visible ? 1 : 0,
+                transition: 'transform 0.55s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s',
+                filter: 'drop-shadow(0 0 40px rgba(251,191,36,0.6))',
+                pointerEvents: 'none',
+            }}>
+                <DotLottieReact
+                    src={COIN_LOTTIE_URL}
+                    loop
+                    autoplay
+                />
+            </div>
+
+            {/* +N coins + label */}
+            {coins > 0 && (
+                <div style={{
+                    textAlign: 'center', marginTop: -20,
+                    transform: visible ? 'scale(1) translateY(0)' : 'scale(0.4) translateY(30px)',
+                    opacity: visible ? 1 : 0,
+                    transition: 'transform 0.5s 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s 0.3s',
+                    lineHeight: 1,
+                }}>
+                    <div style={{
+                        fontSize: 45, fontWeight: 900,
+                        color: '#f59e0b',
+                        textShadow: '0 4px 24px rgba(245,158,11,0.6)',
+                        letterSpacing: '-1px', lineHeight: 1, fontFamily: "'Outfit', sans-serif",
+                    }}>
+                        + {coins} Coins
+                    </div>
+                </div>
+            )}
+
+        </div>
+    );
+};
 
 // ─── BookOpen icon ──────────────────────────────────────────────────────────
 const BookOpenIcon = ({ size = 14, className = '' }) => (
@@ -77,11 +184,15 @@ const DEFAULT_CODE = {
 
 // ─── Difficulty badge ───────────────────────────────────────────────────────
 const DiffBadge = ({ d }) => {
-    const cls = d === 'Easy' ? 'bg-green-50  text-green-700  border-green-200'
-        : d === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-            : 'bg-red-50    text-red-700    border-red-200';
+    const styles = {
+        Easy: { background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' },
+        Medium: { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' },
+        Hard: { background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' },
+    };
+    const dot = { Easy: '#22c55e', Medium: '#eab308', Hard: '#ef4444' };
     return (
-        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${cls}`}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', ...styles[d] }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: dot[d], flexShrink: 0 }} />
             {d}
         </span>
     );
@@ -150,6 +261,45 @@ const ExecutionProgress = ({ isRunning, isSubmitting, total }) => {
     );
 };
 
+// ─── Timer Component ────────────────────────────────────────────────────────
+const ProblemTimer = () => {
+    const [seconds, setSeconds] = useState(0);
+    const [isRunning, setIsRunning] = useState(true);
+
+    useEffect(() => {
+        let interval;
+        if (isRunning) {
+            interval = setInterval(() => {
+                setSeconds(prev => prev + 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [isRunning]);
+
+    const formatTime = (totalSeconds) => {
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+        return `${hours > 0 ? `${hours}:` : ''}${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    return (
+        <div className="flex items-center gap-2 bg-gray-100/80 hover:bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 transition-colors">
+            <Clock size={14} className="text-gray-500" />
+            <span className="font-mono text-sm font-medium text-gray-700 min-w-[48px] text-center">
+                {formatTime(seconds)}
+            </span>
+            <button
+                onClick={() => setIsRunning(!isRunning)}
+                className="ml-1 p-1 hover:bg-gray-200 rounded-full text-gray-500 transition-colors"
+                title={isRunning ? "Pause Timer" : "Resume Timer"}
+            >
+                {isRunning ? <Pause size={12} className="fill-current" /> : <Play size={12} className="fill-current" />}
+            </button>
+        </div>
+    );
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  Main Component
 // ═══════════════════════════════════════════════════════════════════════════
@@ -165,6 +315,7 @@ const CodeEditor = () => {
     const [descW, setDescW] = useState(38);
     const [editorTopH, setEditorTopH] = useState(65);
     const [showSidebar, setShowSidebar] = useState(true);
+    const COLLAPSED_SIDEBAR_WIDTH = 48; // px
 
     // ── problem data ──
     const [problem, setProblem] = useState(null);
@@ -187,6 +338,10 @@ const CodeEditor = () => {
     const [activeInputCase, setActiveInputCase] = useState(0);   // test case input tab index
     const [isCustomInput, setIsCustomInput] = useState(false);
     const [customInputVal, setCustomInputVal] = useState('');
+    const [showSuccessPop, setShowSuccessPop] = useState(false);
+    const [successResult, setSuccessResult] = useState(null);
+    const [resultsAnimKey, setResultsAnimKey] = useState(0);
+    const [isResizing, setIsResizing] = useState(false);
 
     const { running, submitting, runResult, submitResult, runCode, submitCode, error: execError } = useCodeExecution();
 
@@ -198,11 +353,20 @@ const CodeEditor = () => {
             .then(data => {
                 if (!mounted) return;
                 setProblem(data.problem);
-                const examples = data.problem.examples || [];
-                setTestCases(examples.length
-                    ? examples.map(e => ({ input: e.input, output: e.output, explanation: e.explanation }))
-                    : [{ input: '', output: '' }]
-                );
+
+                // Show all non-hidden test cases
+                const allCases = data.problem.testCases || [];
+                const publicCases = allCases.filter(tc => !tc.isHidden);
+
+                if (publicCases.length > 0) {
+                    setTestCases(publicCases.map(tc => ({ input: tc.input, output: tc.output })));
+                } else {
+                    const examples = data.problem.examples || [];
+                    setTestCases(examples.length
+                        ? examples.map(e => ({ input: e.input, output: e.output, explanation: e.explanation }))
+                        : [{ input: '', output: '' }]
+                    );
+                }
                 setPageLoading(false);
             })
             .catch(() => {
@@ -230,11 +394,19 @@ const CodeEditor = () => {
         });
     }, [editorRef.current]);
 
-    // ───── auto-switch to results tab ────────────────────────────────────────
+    // ───── auto-switch to results tab + trigger success pop ────────────────────
     useEffect(() => {
         if (runResult || submitResult || execError) {
             setBottomTab('results');
-            setActiveResultCase(0);
+            if (activeResultCase === undefined || activeResultCase === null) setActiveResultCase(0);
+        }
+        // Show success overlay on accepted submission
+        if (submitResult?.verdict === 'Accepted') {
+            const timer = setTimeout(() => {
+                setSuccessResult(submitResult);
+                setShowSuccessPop(true);
+            }, 400);
+            return () => clearTimeout(timer);
         }
     }, [runResult, submitResult, execError]);
 
@@ -303,6 +475,7 @@ const CodeEditor = () => {
 
     const onMouseUpResize = useCallback(() => {
         dragging.current = null;
+        setIsResizing(false);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
     }, []);
@@ -318,6 +491,7 @@ const CodeEditor = () => {
 
     const startDrag = (type, e) => {
         e.preventDefault();
+        setIsResizing(true);
         document.body.style.cursor = type === 'editorH' ? 'row-resize' : 'col-resize';
         document.body.style.userSelect = 'none';
         dragging.current = {
@@ -330,6 +504,11 @@ const CodeEditor = () => {
 
     // ───── handlers ──────────────────────────────────────────────────────────
     const handleRun = async () => {
+        setBottomTab('results');
+        setEditorTopH(35);
+        setResultsAnimKey(k => k + 1);
+        setActiveResultCase(0);
+
         const monaco = monacoRef.current;
         const editor = editorRef.current;
         if (monaco && editor) monaco.editor.setModelMarkers(editor.getModel(), 'owner', []);
@@ -338,11 +517,16 @@ const CodeEditor = () => {
     };
 
     const handleSubmit = async () => {
+        setBottomTab('results');
+        setEditorTopH(35);
+        setResultsAnimKey(k => k + 1);
+        setActiveResultCase(0);
+
         const monaco = monacoRef.current;
         const editor = editorRef.current;
         if (monaco && editor) monaco.editor.setModelMarkers(editor.getModel(), 'owner', []);
         if (!code.trim()) return toast.error('Code cannot be empty');
-        if (!window.confirm('Submit solution? This will be tracked.')) return;
+        // if (!window.confirm('Submit solution? This will be tracked.')) return;
         await submitCode(problemId, code, language);
     };
 
@@ -365,7 +549,17 @@ const CodeEditor = () => {
     }
     if (!problem) return null;
 
-    const rightW = 100 - (showSidebar ? sidebarW : 0) - descW;
+    if (!problem) return null;
+
+    // Responsive width calculation
+    // If sidebar is shown, it takes `sidebarW` %. If hidden, it takes fixed `COLLAPSED_SIDEBAR_WIDTH` px.
+    // Desc takes `descW` %.
+    // Right panel (Editor) takes REST.
+    const containerStyle = {
+        gridTemplateColumns: showSidebar
+            ? `${sidebarW}% ${descW}% 1fr`
+            : `${COLLAPSED_SIDEBAR_WIDTH}px ${descW}% 1fr`,
+    };
 
     // ─── Result data ───────────────────────────────────────────────────────────
     // Unified single result object (prefer submitResult then runResult)
@@ -387,82 +581,60 @@ const CodeEditor = () => {
             className={`flex flex-col bg-white text-gray-800 select-none overflow-hidden
                 ${isFullScreen ? 'fixed inset-0 z-50 h-screen' : 'h-[calc(100vh-64px)]'}`}
         >
-            {/* ── Top Header ───────────────────────────────────────────────── */}
-            <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 z-20 shadow-sm">
-                {/* left */}
-                <div className="flex items-center gap-4 overflow-hidden">
-                    <button
-                        onClick={() => setShowSidebar(s => !s)}
-                        className="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
-                        title={showSidebar ? 'Hide Sidebar' : 'Show Sidebar'}
-                    >
-                        <Menu size={20} />
-                    </button>
 
-                    <div className="flex flex-col">
-                        <h1 className="font-bold text-gray-900 truncate text-sm md:text-base leading-tight">
-                            {problem.title}
-                        </h1>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <DiffBadge d={problem.difficulty} />
-                            <span className="hidden md:flex items-center text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">
-                                <Coins size={10} className="mr-1" />{problem.points} pts
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* right */}
-                <div className="flex items-center gap-2">
-                    {pasteAttempts > 0 && (
-                        <span className="text-xs text-red-500 font-medium hidden sm:flex items-center gap-1">
-                            <AlertTriangle size={12} /> {pasteAttempts} paste{pasteAttempts > 1 ? 's' : ''} blocked
-                        </span>
-                    )}
-                    <div className="flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
-                        <button
-                            onClick={handleRun}
-                            disabled={isExecuting}
-                            className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-gray-700 rounded-md hover:bg-white hover:shadow-sm transition-all disabled:opacity-50"
-                        >
-                            {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} className="fill-current" />}
-                            Run
-                        </button>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={isExecuting}
-                            className="flex items-center gap-1.5 px-3 py-1 ml-1 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-md shadow-sm transition-all disabled:opacity-50"
-                        >
-                            {submitting ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
-                            Submit
-                        </button>
-                    </div>
-                    <button
-                        onClick={() => setIsFullScreen(f => !f)}
-                        className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                        {isFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                    </button>
-                </div>
-            </header>
 
             {/* ── Main 3‑column area ─────────────────────────────────────── */}
             <div className="flex-1 flex overflow-hidden relative">
 
                 {/* ─ Col 1: Sidebar ─ */}
-                {showSidebar && (
-                    <>
-                        <div style={{ width: `${sidebarW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 bg-white">
-                            <ProblemSidebar />
+                <div
+                    style={{ width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px` }}
+                    className="relative flex flex-col overflow-hidden shrink-0 border-r border-gray-200 bg-white transition-all duration-300 ease-in-out"
+                >
+                    {showSidebar ? (
+                        <ProblemSidebar />
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center py-6 gap-6 bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => setShowSidebar(true)}>
+                            <div className="p-2 rounded-lg bg-white border border-gray-200 shadow-sm text-gray-400">
+                                <List size={20} />
+                            </div>
+                            <div style={{ writingMode: 'vertical-rl' }} className="text-xs font-bold text-gray-500 tracking-widest uppercase select-none flex items-center gap-2">
+                                <span className="rotate-180">Problem List</span>
+                            </div>
                         </div>
-                        <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />
-                    </>
-                )}
+                    )}
+
+                    {/* Toggle Arrow at Middle */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 z-50 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-md text-gray-500 hover:text-primary-600 hover:border-primary-200 transition-all hover:scale-110"
+                        title={showSidebar ? "Collapse Sidebar" : "Expand Sidebar"}
+                    >
+                        {showSidebar ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+                    </button>
+                </div>
+
+                {showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
 
                 {/* ─ Col 2: Description / Editorial / Submissions ─ */}
                 <div style={{ width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 bg-white">
+                    {/* Problem Header (Title & Meta) */}
+                    <div className="px-5 py-4 border-b border-gray-200 bg-gray-50/40 shrink-0">
+                        <div className="flex items-center justify-between mb-2">
+                            <h1 className="text-lg font-bold text-gray-900 leading-tight truncate mr-2" title={problem.title}>
+                                {problem.title}
+                            </h1>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <DiffBadge d={problem.difficulty} />
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: '#92400e', background: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '1px solid #fcd34d', padding: '2px 7px', borderRadius: 20 }}>
+                                <Coins size={10} color="#f59e0b" />{problem.points} pts
+                            </span>
+                        </div>
+                    </div>
+
                     {/* Tabs */}
-                    <div className="flex items-center h-9 border-b border-gray-200 bg-white shrink-0">
+                    <div className="flex items-center h-10 border-b border-gray-200 bg-white shrink-0">
                         {[
                             { id: 'description', label: 'Description', Icon: FileText },
                             { id: 'editorial', label: 'Editorial', Icon: BookOpenIcon },
@@ -587,28 +759,73 @@ const CodeEditor = () => {
                 <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />
 
                 {/* ─ Col 3: Editor + Test Cases (vertical split) ─ */}
-                <div style={{ width: `${rightW}%` }} className="flex flex-col overflow-hidden bg-white">
+                <div style={{ width: showSidebar ? `calc(${100 - sidebarW - descW}%)` : `calc(100% - ${COLLAPSED_SIDEBAR_WIDTH}px - ${descW}%)` }} className="flex flex-col overflow-hidden bg-white">
 
                     {/* ── Code Editor ── */}
-                    <div style={{ height: `${editorTopH}%` }} className="flex flex-col overflow-hidden">
-                        {/* editor toolbar */}
-                        <div className="h-9 bg-gray-50 border-b border-gray-200 flex items-center justify-between px-3 shrink-0">
-                            <div className="flex items-center gap-2 text-xs font-medium text-gray-600">
-                                <Code2 size={13} className="text-gray-400" /> Code Editor
+                    {/* ── Code Editor ── */}
+                    <div
+                        style={{ height: `${editorTopH}%`, transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
+                        className="flex flex-col overflow-hidden"
+                    >
+                        {/* editor toolbar (Language + Timer + Actions) */}
+                        <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-3 shrink-0">
+                            {/* Left: Language & Timer */}
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <select
+                                        value={language}
+                                        onChange={handleLangChange}
+                                        className="bg-gray-50 border border-gray-200 text-xs font-medium text-gray-700 rounded-md py-1.5 pl-2.5 pr-8 outline-none focus:ring-1 focus:ring-primary-400 cursor-pointer appearance-none hover:bg-gray-100 transition-colors"
+                                    >
+                                        {LANGUAGE_OPTIONS.map(o => (
+                                            <option key={o.value} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                </div>
+                                <div className="h-5 w-px bg-gray-200" />
+                                <ProblemTimer />
                             </div>
-                            <div className="relative">
-                                <select
-                                    value={language}
-                                    onChange={handleLangChange}
-                                    className="bg-white border border-gray-200 text-xs text-gray-700 rounded py-1 pl-2 pr-6 outline-none focus:ring-1 focus:ring-primary-400 cursor-pointer appearance-none"
+
+                            {/* Right: Actions */}
+                            <div className="flex items-center gap-2">
+                                {pasteAttempts > 0 && (
+                                    <span className="text-xs text-red-500 font-medium hidden lg:flex items-center gap-1 mr-2" title={`${pasteAttempts} paste attempts blocked`}>
+                                        <AlertTriangle size={14} /> <span className="hidden xl:inline">Paste Limit:</span> {pasteAttempts}
+                                    </span>
+                                )}
+
+                                <div className="flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
+                                    <button
+                                        onClick={handleRun}
+                                        disabled={isExecuting}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 rounded-md hover:bg-white hover:shadow-sm transition-all disabled:opacity-50"
+                                        title="Run Sample Cases"
+                                    >
+                                        {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} className="fill-current" />}
+                                        <span className="hidden sm:inline">Run</span>
+                                    </button>
+                                    <button
+                                        onClick={handleSubmit}
+                                        disabled={isExecuting}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 ml-0.5 text-xs font-bold text-white bg-primary-600 hover:bg-primary-700 rounded-md shadow-sm transition-all disabled:opacity-50"
+                                        title="Submit Code"
+                                    >
+                                        {submitting ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
+                                        <span className="hidden sm:inline">Submit</span>
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={() => setIsFullScreen(f => !f)}
+                                    className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                                    title={isFullScreen ? "Exit Fullscreen" : "Fullscreen"}
                                 >
-                                    {LANGUAGE_OPTIONS.map(o => (
-                                        <option key={o.value} value={o.value}>{o.label}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                    {isFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                                </button>
                             </div>
                         </div>
+
                         {/* monaco */}
                         <div className="flex-1 overflow-hidden">
                             <Editor
@@ -639,7 +856,13 @@ const CodeEditor = () => {
                     <DragHandleV onMouseDown={(e) => startDrag('editorH', e)} />
 
                     {/* ── Bottom: Test Cases / Results ── */}
-                    <div style={{ height: `${100 - editorTopH}%` }} className="flex flex-col overflow-hidden border-t border-gray-100">
+                    {/* ── Bottom: Test Cases / Results ── */}
+                    <div
+                        key={resultsAnimKey}
+                        style={{ height: `${100 - editorTopH}%`, transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
+                        className="flex flex-col overflow-hidden border-t border-gray-100"
+                        data-results-panel
+                    >
                         {/* bottom tabs */}
                         <div className="flex items-center h-9 border-b border-gray-200 bg-gray-50 shrink-0 px-1">
                             <button
@@ -758,7 +981,7 @@ const CodeEditor = () => {
 
                             {/* ── Results tab ── */}
                             {bottomTab === 'results' && (
-                                <div className="h-full overflow-y-auto flex flex-col">
+                                <div className="h-full overflow-y-auto flex flex-col" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
 
                                     {/* ── Executing (live progress) ── */}
                                     {isExecuting && (
@@ -910,26 +1133,18 @@ const CodeEditor = () => {
                                                                     )}
                                                                 </div>
 
-                                                                {/* Custom input: expected output from reference solution */}
-                                                                {displayResult.isCustomInput && (visibleResults[activeResultCase].expectedOutput && visibleResults[activeResultCase].expectedOutput !== '(No reference solution available)' ? (
-                                                                    <div>
-                                                                        <div className="flex items-center gap-2 mb-1.5">
-                                                                            <p className="text-[10px] font-bold text-gray-400 uppercase">Expected Output</p>
-                                                                            <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-medium">Reference Solution</span>
-                                                                        </div>
-                                                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
-                                                                            {visibleResults[activeResultCase].expectedOutput}
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-                                                                        <AlertTriangle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                                                                {/* Custom input: expected output (no badge, clean display) */}
+                                                                {displayResult.isCustomInput && (
+                                                                    visibleResults[activeResultCase].expectedOutput &&
+                                                                        visibleResults[activeResultCase].expectedOutput !== '(No reference solution available)' ? (
                                                                         <div>
-                                                                            <p className="text-xs font-semibold text-amber-700">No reference solution</p>
-                                                                            <p className="text-[11px] text-amber-600 mt-0.5">Ask your admin to add a reference solution to see expected output for custom inputs.</p>
+                                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
+                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
+                                                                                {visibleResults[activeResultCase].expectedOutput}
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                ))}
+                                                                    ) : null
+                                                                )}
 
 
                                                                 {/* Your Output */}
@@ -991,6 +1206,15 @@ const CodeEditor = () => {
                     </div>
                 </div>
             </div>
+
+            {/* ── Success Pop Overlay ── */}
+            {showSuccessPop && (
+                <SuccessPopOverlay
+                    result={successResult}
+                    points={problem?.points}
+                    onClose={() => { setShowSuccessPop(false); setSuccessResult(null); }}
+                />
+            )}
         </div>
     );
 };

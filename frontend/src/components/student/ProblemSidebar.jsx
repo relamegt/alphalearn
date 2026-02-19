@@ -1,9 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, ChevronDown, CheckCircle, List, Search } from 'lucide-react';
+import { ChevronRight, CheckCircle } from 'lucide-react';
+import { CiCircleList } from 'react-icons/ci';
+import { FaRegFolder, FaRegFolderOpen } from "react-icons/fa6";
 import problemService from '../../services/problemService';
 import sectionService from '../../services/sectionService';
-import toast from 'react-hot-toast';
+
+const DIFF_COLORS = {
+    Easy: { dot: '#10b981', text: '#065f46', bg: '#d1fae5' },
+    Medium: { dot: '#f59e0b', text: '#78350f', bg: '#fef3c7' },
+    Hard: { dot: '#ef4444', text: '#7f1d1d', bg: '#fee2e2' },
+};
 
 const ProblemSidebar = () => {
     const navigate = useNavigate();
@@ -15,18 +22,14 @@ const ProblemSidebar = () => {
     const [expandedSubsections, setExpandedSubsections] = useState({});
     const [difficulty, setDifficulty] = useState('All');
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    useEffect(() => { fetchData(); }, []);
 
-    // Auto-expand the section containing the current problem
     useEffect(() => {
         if (problems.length && sections.length && problemId) {
-            // Find section/subsection containing problemId
             for (const section of sections) {
                 if (section.subsections) {
                     for (const sub of section.subsections) {
-                        if (sub.problemIds && sub.problemIds.map(String).includes(problemId)) {
+                        if (sub.problemIds?.map(String).includes(problemId)) {
                             setExpandedSections(prev => ({ ...prev, [section._id]: true }));
                             setExpandedSubsections(prev => ({ ...prev, [sub._id]: true }));
                             return;
@@ -47,7 +50,6 @@ const ProblemSidebar = () => {
             setSections(sectionsData.sections);
         } catch (error) {
             console.error(error);
-            // Silent error or retry? Toast might be spammy inside a component
         } finally {
             setLoading(false);
         }
@@ -55,12 +57,8 @@ const ProblemSidebar = () => {
 
     const structuredContent = useMemo(() => {
         if (!problems.length) return null;
-
         const problemMap = {};
-        problems.forEach(p => {
-            problemMap[p.id] = p;
-        });
-
+        problems.forEach(p => { problemMap[p.id] = p; });
         const categorizedProblemIds = new Set();
 
         const mappedSections = sections.map(section => {
@@ -73,17 +71,9 @@ const ProblemSidebar = () => {
                     })
                     .filter(p => !!p)
                     .filter(p => difficulty === 'All' || p.difficulty === difficulty);
-
-                return {
-                    ...subsection,
-                    problems: subsectionProblems
-                };
+                return { ...subsection, problems: subsectionProblems };
             }).filter(sub => sub.problems.length > 0);
-
-            return {
-                ...section,
-                subsections: mappedSubsections
-            };
+            return { ...section, subsections: mappedSubsections };
         }).filter(sec => sec.subsections.length > 0);
 
         const uncategorized = problems.filter(p =>
@@ -94,40 +84,76 @@ const ProblemSidebar = () => {
         return { sections: mappedSections, uncategorized };
     }, [problems, sections, difficulty]);
 
-    const toggleSection = (id) => {
-        setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
-    };
-
-    const toggleSubsection = (id) => {
-        setExpandedSubsections(prev => ({ ...prev, [id]: !prev[id] }));
-    };
-
-    if (loading) return <div className="p-4 text-center text-gray-500 text-sm flex items-center justify-center h-full"><span className="loader"></span> Loading...</div>;
-
+    const toggleSection = (id) => setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
+    const toggleSubsection = (id) => setExpandedSubsections(prev => ({ ...prev, [id]: !prev[id] }));
     const isActive = (id) => id === problemId;
 
+    const solvedCount = problems.filter(p => p.isSolved).length;
+    const progressPct = problems.length ? Math.round(solvedCount / problems.length * 100) : 0;
+    const circumference = 2 * Math.PI * 13;
+
+    if (loading) return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #e5e7eb', borderTopColor: '#2563eb', animation: 'spin 0.7s linear infinite' }} />
+            <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Loading problems…</span>
+        </div>
+    );
+
     return (
-        <div className="flex flex-col h-full bg-white w-full">
-            {/* Header */}
-            <div className="p-4 border-b border-gray-100 bg-gray-50/30">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                        <List size={18} className="text-gray-600" />
-                        <h2 className="font-bold text-gray-800 text-sm">Problem List</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', overflow: 'hidden' }}>
+
+            {/* ── Header ─────────────────────────────────────────────── */}
+            <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #f3f4f6', flexShrink: 0 }}>
+
+                {/* Title row */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        {/* CiCircleList icon — bigger, neutral */}
+                        <CiCircleList style={{ fontSize: 22, color: '#6b7280', flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#111827', letterSpacing: '-0.01em' }}>
+                            Problem List
+                        </span>
+                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>
+                            {solvedCount}/{problems.length}
+                        </span>
                     </div>
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">{problems.length}</span>
+
+                    {/* Circular progress (blue only) */}
+                    <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
+                        <svg width="36" height="36" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
+                            <circle cx="18" cy="18" r="13" fill="none" stroke="#f3f4f6" strokeWidth="3" />
+                            <circle
+                                cx="18" cy="18" r="13" fill="none"
+                                stroke="#2563eb" strokeWidth="3"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={circumference * (1 - (problems.length ? solvedCount / problems.length : 0))}
+                                strokeLinecap="round"
+                                style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+                            />
+                        </svg>
+                        <span style={{
+                            position: 'absolute', inset: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 9, fontWeight: 800, color: '#2563eb',
+                        }}>
+                            {progressPct}%
+                        </span>
+                    </div>
                 </div>
 
-                {/* Filter Toggle */}
-                <div className="flex p-1 bg-gray-100/80 rounded-lg">
+                {/* Difficulty filter */}
+                <div style={{ display: 'flex', gap: 3, background: '#f9fafb', borderRadius: 8, padding: 3, border: '1px solid #f3f4f6' }}>
                     {['All', 'Easy', 'Medium', 'Hard'].map(level => (
                         <button
                             key={level}
                             onClick={() => setDifficulty(level)}
-                            className={`flex-1 py-1 text-[10px] font-semibold uppercase tracking-wider rounded-md transition-all ${difficulty === level
-                                ? 'bg-white text-gray-800 shadow-sm transform scale-105'
-                                : 'text-gray-500 hover:text-gray-700'
-                                }`}
+                            style={{
+                                flex: 1, padding: '4px 0', borderRadius: 6, border: 'none',
+                                fontSize: 10, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
+                                background: difficulty === level ? '#fff' : 'transparent',
+                                color: difficulty === level ? '#374151' : '#9ca3af',
+                                boxShadow: difficulty === level ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                            }}
                         >
                             {level}
                         </button>
@@ -135,117 +161,170 @@ const ProblemSidebar = () => {
                 </div>
             </div>
 
-            {/* List */}
-            <div className="flex-1 overflow-y-auto scrollbar-thin">
-                <div className="divide-y divide-gray-50">
-                    {structuredContent?.sections.map(section => (
-                        <div key={section._id}>
-                            <button
-                                onClick={() => toggleSection(section._id)}
-                                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors group"
-                            >
-                                <span className="font-semibold text-sm text-gray-700 group-hover:text-primary-700 transition-colors">{section.title}</span>
-                                <span className={`transform transition-transform duration-200 text-gray-400 ${expandedSections[section._id] ? 'rotate-90' : ''}`}>
-                                    <ChevronRight size={14} />
-                                </span>
-                            </button>
+            {/* ── List ────────────────────────────────────────────────── */}
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
 
-                            {/* Subsections */}
-                            {expandedSections[section._id] && (
-                                <div className="bg-gray-50/50 pb-1">
-                                    {section.subsections.map(sub => (
-                                        <div key={sub._id}>
-                                            <button
-                                                onClick={() => toggleSubsection(sub._id)}
-                                                className="w-full pl-6 pr-4 py-2 flex items-center space-x-2 hover:bg-gray-100/80 transition-colors"
-                                            >
-                                                <span className={`transform transition-transform duration-200 text-gray-400 ${expandedSubsections[sub._id] ? 'rotate-90' : ''}`}>
-                                                    <ChevronRight size={12} />
-                                                </span>
-                                                <span className="text-xs font-medium text-gray-600">{sub.title}</span>
-                                            </button>
+                {structuredContent?.sections.map(section => (
+                    <div key={section._id}>
+                        {/* Section header */}
+                        <SectionHeader
+                            title={section.title}
+                            expanded={expandedSections[section._id]}
+                            count={section.subsections.reduce((a, s) => a + s.problems.length, 0)}
+                            onClick={() => toggleSection(section._id)}
+                        />
 
-                                            {/* Problems */}
-                                            {expandedSubsections[sub._id] && (
-                                                <div className="pl-10 pr-2 space-y-0.5 mb-2">
-                                                    {sub.problems.map(problem => (
-                                                        <div
-                                                            key={problem.id}
-                                                            onClick={() => navigate(`/student/problem/${problem.id}`)}
-                                                            className={`
-                                                                group flex items-center justify-between px-3 py-2 rounded-md cursor-pointer text-xs transition-all border-l-2
-                                                                ${isActive(problem.id)
-                                                                    ? 'bg-primary-50 border-primary-500 text-primary-700'
-                                                                    : 'hover:bg-gray-100 border-transparent text-gray-600'
-                                                                }
-                                                            `}
-                                                        >
-                                                            <div className="flex items-center space-x-2 truncate">
-                                                                {problem.isSolved && (
-                                                                    <CheckCircle size={12} className="text-green-500 shrink-0" />
-                                                                )}
-                                                                <span className="truncate">{problem.title}</span>
-                                                            </div>
-                                                            <span className={`
-                                                                ml-2 px-1.5 py-0.5 rounded text-[10px]
-                                                                ${problem.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
-                                                                    problem.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}
-                                                            `}>
-                                                                {problem.difficulty}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                        {expandedSections[section._id] && (
+                            <div style={{ background: '#fafafa' }}>
+                                {section.subsections.map(sub => (
+                                    <div key={sub._id}>
+                                        {/* Subsection header */}
+                                        <button
+                                            onClick={() => toggleSubsection(sub._id)}
+                                            style={{
+                                                width: '100%', display: 'flex', alignItems: 'center', gap: 6,
+                                                padding: '7px 14px 7px 32px', border: 'none', cursor: 'pointer',
+                                                background: 'transparent', transition: 'background 0.12s',
+                                                borderBottom: '1px solid #f3f4f6',
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <ChevronRight
+                                                size={11} color="#d1d5db"
+                                                style={{ transform: expandedSubsections[sub._id] ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}
+                                            />
+                                            <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', flex: 1, textAlign: 'left' }}>{sub.title}</span>
+                                            <span style={{ fontSize: 9, background: '#f3f4f6', color: '#9ca3af', borderRadius: 12, padding: '1px 6px', fontWeight: 700 }}>
+                                                {sub.problems.length}
+                                            </span>
+                                        </button>
 
-                    {/* Uncategorized */}
-                    {structuredContent?.uncategorized.length > 0 && (
-                        <div className="p-4">
-                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                <Search size={12} />
-                                Other Problems
-                            </h3>
-                            <div className="space-y-0.5">
-                                {structuredContent.uncategorized.map(problem => (
-                                    <div
-                                        key={problem.id}
-                                        onClick={() => navigate(`/student/problem/${problem.id}`)}
-                                        className={`
-                                            group flex items-center justify-between px-3 py-2 rounded-md cursor-pointer text-xs transition-all border-l-2
-                                            ${isActive(problem.id)
-                                                ? 'bg-primary-50 border-primary-500 text-primary-700'
-                                                : 'hover:bg-gray-100 border-transparent text-gray-600'
-                                            }
-                                        `}
-                                    >
-                                        <div className="flex items-center space-x-2 truncate">
-                                            {problem.isSolved && <CheckCircle size={12} className="text-green-500 shrink-0" />}
-                                            <span className="truncate">{problem.title}</span>
-                                        </div>
-                                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${problem.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
-                                            problem.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-                                            }`}>
-                                            {problem.difficulty}
-                                        </span>
+                                        {expandedSubsections[sub._id] && (
+                                            <div style={{ paddingBottom: 2 }}>
+                                                {sub.problems.map(problem => (
+                                                    <ProblemRow
+                                                        key={problem.id}
+                                                        problem={problem}
+                                                        active={isActive(problem.id)}
+                                                        indent={44}
+                                                        onClick={() => navigate(`/student/problem/${problem.id}`)}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
+                ))}
 
-                    {!structuredContent?.sections.length && !structuredContent?.uncategorized.length && (
-                        <div className="p-8 text-center text-xs text-gray-400">
-                            No problems found.
-                        </div>
-                    )}
-                </div>
+                {/* Uncategorized */}
+                {structuredContent?.uncategorized.length > 0 && (
+                    <div>
+                        <SectionHeader
+                            title="Other Problems"
+                            expanded
+                            count={structuredContent.uncategorized.length}
+                            onClick={() => { }}
+                            noToggle
+                        />
+                        {structuredContent.uncategorized.map(problem => (
+                            <ProblemRow
+                                key={problem.id}
+                                problem={problem}
+                                active={isActive(problem.id)}
+                                indent={14}
+                                onClick={() => navigate(`/student/problem/${problem.id}`)}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                {!structuredContent?.sections.length && !structuredContent?.uncategorized.length && (
+                    <div style={{ padding: 32, textAlign: 'center', color: '#d1d5db', fontSize: 12 }}>
+                        No problems found.
+                    </div>
+                )}
             </div>
+        </div>
+    );
+};
+
+// ── Section Header ──────────────────────────────────────────────────────────
+const SectionHeader = ({ title, expanded, count, onClick, noToggle }) => {
+    const [hover, setHover] = useState(false);
+    return (
+        <button
+            onClick={onClick}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '9px 14px', border: 'none', cursor: noToggle ? 'default' : 'pointer',
+                background: hover && !noToggle ? '#f9fafb' : '#fff',
+                borderBottom: '1px solid #f3f4f6',
+                transition: 'background 0.12s',
+            }}
+        >
+            {/* Folder icon — open/closed state */}
+            {expanded
+                ? <FaRegFolderOpen size={14} color="#9ca3af" style={{ flexShrink: 0 }} />
+                : <FaRegFolder size={14} color="#9ca3af" style={{ flexShrink: 0 }} />
+            }
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', flex: 1, textAlign: 'left', letterSpacing: '-0.01em' }}>
+                {title}
+            </span>
+            <span style={{ fontSize: 9, background: '#f3f4f6', color: '#9ca3af', borderRadius: 12, padding: '1px 6px', fontWeight: 700 }}>
+                {count}
+            </span>
+            {!noToggle && (
+                <ChevronRight
+                    size={12} color="#d1d5db"
+                    style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}
+                />
+            )}
+        </button>
+    );
+};
+
+// ── Problem Row ──────────────────────────────────────────────────────────────
+const ProblemRow = ({ problem, active, indent, onClick }) => {
+    const [hover, setHover] = useState(false);
+    const d = DIFF_COLORS[problem.difficulty] || DIFF_COLORS.Easy;
+
+    return (
+        <div
+            onClick={onClick}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: `7px 12px 7px ${indent}px`,
+                cursor: 'pointer', transition: 'all 0.12s',
+                background: active ? '#eff6ff' : hover ? '#f9fafb' : 'transparent',
+                borderLeft: active ? '2px solid #2563eb' : '2px solid transparent',
+                borderBottom: '1px solid #f9fafb',
+            }}
+        >
+            {problem.isSolved
+                ? <CheckCircle size={12} color="#10b981" style={{ flexShrink: 0 }} />
+                : <div style={{ width: 12, height: 12, borderRadius: '50%', border: '1.5px solid #e5e7eb', flexShrink: 0 }} />
+            }
+            <span style={{
+                flex: 1, fontSize: 12, fontWeight: active ? 700 : 500,
+                color: active ? '#1d4ed8' : hover ? '#111827' : '#4b5563',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.4,
+            }}>
+                {problem.title}
+            </span>
+            <span style={{
+                fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 20, flexShrink: 0,
+                background: d.bg, color: d.text, lineHeight: 1.6,
+            }}>
+                {problem.difficulty === 'Medium' ? 'Med' : problem.difficulty}
+            </span>
         </div>
     );
 };
