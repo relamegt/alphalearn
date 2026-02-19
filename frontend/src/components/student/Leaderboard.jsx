@@ -507,25 +507,25 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
             {/* Header Section */}
             {isBatchView ? (
-                <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-md">
+                <div className="bg-transparent sticky top-0 z-30">
                     <div className="w-full mx-auto px-6 h-16 flex items-center justify-between relative">
                         {/* Left: Logo */}
                         <div className="flex items-center gap-2">
-                            <div className="bg-yellow-400 p-1.5 rounded-full">
-                                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="bg-yellow-400 p-1 rounded-full">
+                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            <span className="text-xl font-bold text-gray-800 tracking-tight">AlphaLearn</span>
+                            <span className="text-lg font-bold text-gray-800 tracking-tight">AlphaLearn</span>
                         </div>
 
                         {/* Center: Batch Name + current filter indicator */}
                         <div className="absolute left-1/2 transform -translate-x-1/2 text-center hidden md:block">
-                            <div className="text-lg font-semibold text-gray-800">
+                            <div className="text-base font-semibold text-gray-800">
                                 {batchName || user?.education?.batch || 'Batch Leaderboard'}
                             </div>
                             {filters.timeline && (
-                                <div className="text-xs text-blue-500 font-medium mt-0.5">
+                                <div className="text-[10px] text-blue-500 font-medium mt-0.5">
                                     {filters.timeline === 'month' ? 'This Month' : 'This Week'}
                                 </div>
                             )}
@@ -536,10 +536,10 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                             <button
                                 ref={kebabBtnRef}
                                 onClick={handleToggleOptions}
-                                className={`p-2 rounded-full transition-colors focus:outline-none ${showOptions ? 'bg-gray-100 text-gray-700' : 'text-gray-500 hover:bg-gray-100'}`}
+                                className={`p-1.5 rounded-full transition-colors focus:outline-none ${showOptions ? 'bg-gray-100 text-gray-700' : 'text-gray-500 hover:bg-gray-100'}`}
                                 title="Options"
                             >
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                                 </svg>
                             </button>
@@ -547,17 +547,17 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                     </div>
                 </div>
             ) : (
-                <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-                    <div className="w-full mx-auto px-6 sm:px-8">
+                <div className="bg-transparent sticky top-0 z-30">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="flex flex-col md:flex-row md:items-center justify-between py-4 gap-4">
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                                    <span className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                                <h1 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                                    <span className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
                                         <Trophy size={20} />
                                     </span>
                                     Leaderboard
                                 </h1>
-                                <p className="text-sm text-gray-500 mt-1 ml-11">
+                                <p className="text-xs text-gray-500 mt-1 ml-9">
                                     {viewType === 'contest' ? 'External Contests Performance' : 'Batch Performance & Rankings'}
                                 </p>
                             </div>
@@ -566,7 +566,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                 </div>
             )}
 
-            <div className="w-full mx-auto px-4 sm:px-6 mt-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8">
 
                 {/* Practice Leaderboard Controls */}
                 {activeTab === 'practice' && (
@@ -877,7 +877,17 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     >
                                                         <td className={`px-4 py-3 whitespace-nowrap font-bold sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-center border-b border-gray-100 w-[90px] min-w-[90px] ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
                                                             }`}>
-                                                            {entry.rank}
+                                                            <div className="flex items-center justify-center w-8 h-8 mx-auto rounded-full font-bold text-sm">
+                                                                {entry.rank === 1 ? (
+                                                                    <span className="text-2xl">🥇</span>
+                                                                ) : entry.rank === 2 ? (
+                                                                    <span className="text-2xl">🥈</span>
+                                                                ) : entry.rank === 3 ? (
+                                                                    <span className="text-2xl">🥉</span>
+                                                                ) : (
+                                                                    <span className="text-gray-500">#{entry.rank}</span>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className={`px-4 py-3 whitespace-nowrap sticky left-[90px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-gray-100 w-[130px] min-w-[130px] ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
                                                             }`}>
@@ -1065,7 +1075,21 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     <tbody className="bg-white divide-y divide-gray-200">
                                                         {externalLeaderboard.map((entry, index) => (
                                                             <tr key={`${entry.rollNumber}-${index}`}>
-                                                                <td className="px-3 py-2 whitespace-nowrap font-bold">{entry.rank}</td>
+                                                                <td className="px-3 py-2 whitespace-nowrap font-bold">
+                                                                    <div className="flex items-center justify-start gap-2">
+                                                                        <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm">
+                                                                            {entry.rank === 1 ? (
+                                                                                <span className="text-2xl">🥇</span>
+                                                                            ) : entry.rank === 2 ? (
+                                                                                <span className="text-2xl">🥈</span>
+                                                                            ) : entry.rank === 3 ? (
+                                                                                <span className="text-2xl">🥉</span>
+                                                                            ) : (
+                                                                                <span className="text-gray-500">#{entry.rank}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
                                                                 <td className="px-3 py-2 whitespace-nowrap text-gray-600">{entry.globalRank}</td>
                                                                 <td className="px-3 py-2 whitespace-nowrap">{entry.rollNumber}</td>
                                                                 <td className="px-3 py-2 whitespace-nowrap font-medium">{entry.username}</td>
@@ -1090,29 +1114,31 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                 {
                     activeTab === 'internal' && (
                         <div className="space-y-6">
-                            <div className="card">
-                                <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Internal Contest</h2>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Contest</label>
-                                <select
-                                    value={selectedInternalContest || ''}
-                                    onChange={(e) => setSelectedInternalContest(e.target.value)}
-                                    className="input-field"
-                                    disabled={internalContests.length === 0}
-                                >
-                                    {internalContests.length === 0 ? (
-                                        <option value="">No contests available</option>
-                                    ) : (
-                                        <>
-                                            <option value="">Select a contest</option>
-                                            {internalContests.map((contest) => (
-                                                <option key={contest._id} value={contest._id}>
-                                                    {contest.title} - {new Date(contest.startTime).toLocaleDateString()}
-                                                </option>
-                                            ))}
-                                        </>
-                                    )}
-                                </select>
-                            </div>
+                            {!contestId && (
+                                <div className="card">
+                                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Internal Contest</h2>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Contest</label>
+                                    <select
+                                        value={selectedInternalContest || ''}
+                                        onChange={(e) => setSelectedInternalContest(e.target.value)}
+                                        className="input-field"
+                                        disabled={internalContests.length === 0}
+                                    >
+                                        {internalContests.length === 0 ? (
+                                            <option value="">No contests available</option>
+                                        ) : (
+                                            <>
+                                                <option value="">Select a contest</option>
+                                                {internalContests.map((contest) => (
+                                                    <option key={contest._id} value={contest._id}>
+                                                        {contest.title} - {new Date(contest.startTime).toLocaleDateString()}
+                                                    </option>
+                                                ))}
+                                            </>
+                                        )}
+                                    </select>
+                                </div>
+                            )}
 
                             {contestInfo && !internalLoading && (
                                 <div className="card bg-blue-50 border-l-4 border-blue-600">
@@ -1183,20 +1209,36 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                 {rawInternalData.map((entry, index) => (
                                                     <tr
                                                         key={`${entry.studentId}-${index}`}
-                                                        className={
-                                                            entry.rollNumber === user?.education?.rollNumber
-                                                                ? 'bg-blue-50'
-                                                                : ''
-                                                        }
+                                                        className={`hover:bg-gray-50 transition-colors ${entry.rollNumber === user?.education?.rollNumber
+                                                            ? 'bg-blue-50/60 ring-1 ring-blue-100'
+                                                            : ''
+                                                            }`}
                                                     >
-                                                        <td className="px-3 py-2 whitespace-nowrap">
-                                                            <span className="font-bold text-lg">{entry.rank}</span>
+                                                        <td className="px-3 py-3 whitespace-nowrap">
+                                                            <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm">
+                                                                {entry.rank === 1 ? (
+                                                                    <span className="text-2xl">🥇</span>
+                                                                ) : entry.rank === 2 ? (
+                                                                    <span className="text-2xl">🥈</span>
+                                                                ) : entry.rank === 3 ? (
+                                                                    <span className="text-2xl">🥉</span>
+                                                                ) : (
+                                                                    <span className="text-gray-500">#{entry.rank}</span>
+                                                                )}
+                                                            </div>
                                                         </td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">{entry.rollNumber}</td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm font-medium">{entry.username}</td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm">{entry.branch}</td>
+                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-600 font-mono">{entry.rollNumber}</td>
+                                                        <td className="px-3 py-3 whitespace-nowrap">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${['bg-red-500', 'bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-yellow-500'][((entry.username?.length || 0) % 5)]}`}>
+                                                                    {entry.username?.substring(0, 2).toUpperCase()}
+                                                                </div>
+                                                                <span className="font-medium text-gray-900">{entry.username}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
                                                         {/* <td className="px-3 py-2 whitespace-nowrap text-sm">{entry.section}</td> */}
-                                                        <td className="px-3 py-2 whitespace-nowrap">
+                                                        <td className="px-3 py-3 whitespace-nowrap">
                                                             <span className="font-bold text-lg text-blue-600">{entry.score}</span>
                                                         </td>
                                                         <td className="px-3 py-2 whitespace-nowrap text-sm">{entry.time}</td>
@@ -1232,11 +1274,11 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         </td>
                                                         <td className="px-3 py-2 whitespace-nowrap text-sm">
                                                             {entry.isCompleted ? (
-                                                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                                                                    ✓ Submitted
+                                                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">
+                                                                    Finished
                                                                 </span>
                                                             ) : (
-                                                                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                                                                <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">
                                                                     In Progress
                                                                 </span>
                                                             )}

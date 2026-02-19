@@ -24,10 +24,11 @@ import {
     FileText,
     Code,
     BookOpen,
-    Layers
+    Layers,
+    ArrowLeft
 } from 'lucide-react';
 
-const ContestCreator = () => {
+const ContestCreator = ({ onSuccess, onBack, initialData }) => {
     const { user } = useAuth();
     const [batches, setBatches] = useState([]);
     const [existingProblems, setExistingProblems] = useState([]);
@@ -72,6 +73,25 @@ const ContestCreator = () => {
         fetchBatches();
         fetchProblems();
     }, []);
+
+    // Load initial data for editing
+    useEffect(() => {
+        if (initialData) {
+            setFormData({
+                title: initialData.title || '',
+                description: initialData.description || '',
+                startTime: initialData.startTime ? new Date(initialData.startTime).toISOString().slice(0, 16) : '',
+                endTime: initialData.endTime ? new Date(initialData.endTime).toISOString().slice(0, 16) : '',
+                batchId: initialData.batchId || '',
+                existingProblemIds: initialData.problems || [], // Assuming problems is array of IDs
+                proctoringEnabled: initialData.proctoringEnabled !== undefined ? initialData.proctoringEnabled : true,
+                tabSwitchLimit: initialData.tabSwitchLimit || 3,
+                maxViolations: initialData.maxViolations || 5,
+            });
+            // We cannot easily restore "newProblems" as they are now "existing" in the DB, 
+            // but for a simple edit, we rely on existingProblemIds.
+        }
+    }, [initialData]);
 
     const fetchBatches = async () => {
         try {
@@ -149,24 +169,33 @@ const ContestCreator = () => {
                 problems: [...formData.existingProblemIds, ...newProblems]
             };
 
-            await contestService.createContest(payload, user.role);
-            toast.success('Contest created successfully!');
+            if (initialData) {
+                await contestService.updateContest(initialData._id, payload);
+                toast.success('Contest updated successfully!');
+            } else {
+                await contestService.createContest(payload, user.role);
+                toast.success('Contest created successfully!');
+            }
 
-            // Reset form
-            setFormData({
-                title: '',
-                description: '',
-                startTime: '',
-                endTime: '',
-                batchId: '',
-                existingProblemIds: [],
-                proctoringEnabled: true,
-                tabSwitchLimit: 3,
-                maxViolations: 5,
-            });
-            setNewProblems([]);
-            setSearchQuery('');
-            setDifficultyFilter('all');
+            if (onSuccess) onSuccess();
+
+            // Reset form if creating new (optional, but good practice if not unmounting)
+            if (!initialData) {
+                setFormData({
+                    title: '',
+                    description: '',
+                    startTime: '',
+                    endTime: '',
+                    batchId: '',
+                    existingProblemIds: [],
+                    proctoringEnabled: true,
+                    tabSwitchLimit: 3,
+                    maxViolations: 5,
+                });
+                setNewProblems([]);
+                setSearchQuery('');
+                setDifficultyFilter('all');
+            }
         } catch (error) {
             toast.error(error.message || 'Failed to create contest');
         } finally {
@@ -247,13 +276,21 @@ const ContestCreator = () => {
         <div className="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-24">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
+                    <button
+                        onClick={onBack}
+                        className="flex items-center text-gray-500 hover:text-gray-700 mb-2 transition-colors"
+                    >
+                        <ArrowLeft size={16} className="mr-1" /> Back to Contests
+                    </button>
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
                         <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl text-white shadow-sm">
                             <Trophy size={28} />
                         </div>
-                        Create Contest
+                        {initialData ? 'Edit Contest' : 'Create Contest'}
                     </h1>
-                    <p className="text-gray-500 mt-2 ml-1">Set up a new coding challenge for your students.</p>
+                    <p className="text-gray-500 mt-2 ml-1">
+                        {initialData ? 'Update contest details and problems.' : 'Set up a new coding challenge for your students.'}
+                    </p>
                 </div>
             </div>
 
@@ -553,244 +590,246 @@ const ContestCreator = () => {
                             ) : (
                                 <>
                                     <Save size={18} />
-                                    <span>Create Contest</span>
+                                    <span>{initialData ? 'Update Contest' : 'Create Contest'}</span>
                                 </>
                             )}
                         </button>
                     </div>
                 </form>
-            </div>
+            </div >
 
             {/* Create Problem Modal - Keeping existing modal logic but ensuring style consistency */}
-            {showProblemModal && (
-                <div className="modal-backdrop overflow-y-auto">
-                    <div className="modal-content max-w-4xl p-0 my-8 shadow-2xl">
-                        {/* Header */}
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-green-50 text-green-600 rounded-lg">
-                                    <Plus size={20} />
+            {
+                showProblemModal && (
+                    <div className="modal-backdrop overflow-y-auto">
+                        <div className="modal-content max-w-4xl p-0 my-8 shadow-2xl">
+                            {/* Header */}
+                            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-green-50 text-green-600 rounded-lg">
+                                        <Plus size={20} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-gray-900">Create New Problem</h2>
+                                        <p className="text-xs text-gray-500 mt-0.5">Define problem details, test cases, and constraints.</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-bold text-gray-900">Create New Problem</h2>
-                                    <p className="text-xs text-gray-500 mt-0.5">Define problem details, test cases, and constraints.</p>
-                                </div>
+                                <button
+                                    onClick={() => setShowProblemModal(false)}
+                                    className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    <X size={24} />
+                                </button>
                             </div>
-                            <button
-                                onClick={() => setShowProblemModal(false)}
-                                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <X size={24} />
-                            </button>
-                        </div>
 
-                        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Problem Title <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="text"
+                                            className="input-field w-full"
+                                            value={currentProblem.title}
+                                            onChange={(e) => setCurrentProblem({ ...currentProblem, title: e.target.value })}
+                                            placeholder="e.g. Two Sum"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Difficulty</label>
+                                        <CustomDropdown
+                                            options={[
+                                                { value: 'Easy', label: 'Easy (20 pts)' },
+                                                { value: 'Medium', label: 'Medium (50 pts)' },
+                                                { value: 'Hard', label: 'Hard (100 pts)' }
+                                            ]}
+                                            value={currentProblem.difficulty}
+                                            onChange={(val) => setCurrentProblem({ ...currentProblem, difficulty: val })}
+                                        />
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Problem Title <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="text"
-                                        className="input-field w-full"
-                                        value={currentProblem.title}
-                                        onChange={(e) => setCurrentProblem({ ...currentProblem, title: e.target.value })}
-                                        placeholder="e.g. Two Sum"
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Description <span className="text-red-500">*</span></label>
+                                    <textarea
+                                        className="input-field w-full min-h-[120px]"
+                                        value={currentProblem.description}
+                                        onChange={(e) => setCurrentProblem({ ...currentProblem, description: e.target.value })}
+                                        placeholder="Describe the problem clearly..."
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Difficulty</label>
-                                    <CustomDropdown
-                                        options={[
-                                            { value: 'Easy', label: 'Easy (20 pts)' },
-                                            { value: 'Medium', label: 'Medium (50 pts)' },
-                                            { value: 'Hard', label: 'Hard (100 pts)' }
-                                        ]}
-                                        value={currentProblem.difficulty}
-                                        onChange={(val) => setCurrentProblem({ ...currentProblem, difficulty: val })}
-                                    />
+
+                                {/* Constraints */}
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200/60">
+                                    <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <AlertTriangle size={16} className="text-amber-500" />
+                                        Constraints
+                                    </label>
+                                    <div className="space-y-3">
+                                        {currentProblem.constraints.map((c, idx) => (
+                                            <div key={`constraint-${idx}`} className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    className="input-field flex-1 text-sm font-mono"
+                                                    placeholder="e.g. 1 <= N <= 1000"
+                                                    value={c}
+                                                    onChange={(e) => updateConstraint(idx, e.target.value)}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeConstraint(idx)}
+                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={addConstraint}
+                                            className="text-primary-600 text-sm font-medium hover:underline flex items-center gap-1"
+                                        >
+                                            <Plus size={14} /> Add Constraint
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Description <span className="text-red-500">*</span></label>
-                                <textarea
-                                    className="input-field w-full min-h-[120px]"
-                                    value={currentProblem.description}
-                                    onChange={(e) => setCurrentProblem({ ...currentProblem, description: e.target.value })}
-                                    placeholder="Describe the problem clearly..."
-                                />
-                            </div>
-
-                            {/* Constraints */}
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200/60">
-                                <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                    <AlertTriangle size={16} className="text-amber-500" />
-                                    Constraints
-                                </label>
-                                <div className="space-y-3">
-                                    {currentProblem.constraints.map((c, idx) => (
-                                        <div key={`constraint-${idx}`} className="flex gap-2">
-                                            <input
-                                                type="text"
-                                                className="input-field flex-1 text-sm font-mono"
-                                                placeholder="e.g. 1 <= N <= 1000"
-                                                value={c}
-                                                onChange={(e) => updateConstraint(idx, e.target.value)}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeConstraint(idx)}
-                                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
+                                {/* Examples */}
+                                <div className="space-y-4">
+                                    <label className="block text-sm font-bold text-gray-800">Examples</label>
+                                    {currentProblem.examples.map((ex, idx) => (
+                                        <div key={`example-${idx}`} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative group">
+                                            <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeExample(idx)}
+                                                    className="text-gray-400 hover:text-red-500 p-1 rounded-md hover:bg-red-50"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                                                <div>
+                                                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Input</div>
+                                                    <input
+                                                        type="text"
+                                                        className="input-field w-full font-mono text-sm bg-gray-50"
+                                                        value={ex.input}
+                                                        onChange={(e) => updateExample(idx, 'input', e.target.value)}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Output</div>
+                                                    <input
+                                                        type="text"
+                                                        className="input-field w-full font-mono text-sm bg-gray-50"
+                                                        value={ex.output}
+                                                        onChange={(e) => updateExample(idx, 'output', e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Explanation (Optional)</div>
+                                                <textarea
+                                                    className="input-field w-full text-sm"
+                                                    rows="2"
+                                                    value={ex.explanation}
+                                                    onChange={(e) => updateExample(idx, 'explanation', e.target.value)}
+                                                />
+                                            </div>
                                         </div>
                                     ))}
                                     <button
                                         type="button"
-                                        onClick={addConstraint}
-                                        className="text-primary-600 text-sm font-medium hover:underline flex items-center gap-1"
+                                        onClick={addExample}
+                                        className="btn-secondary w-full py-2 flex items-center justify-center gap-2 border-dashed"
                                     >
-                                        <Plus size={14} /> Add Constraint
+                                        <Plus size={16} /> Add Example
+                                    </button>
+                                </div>
+
+                                {/* Test Cases */}
+                                <div className="space-y-4 pt-4 border-t border-gray-100">
+                                    <label className="block text-sm font-bold text-gray-800">Test Cases <span className="text-red-500 px-1 font-normal text-xs">* Required for judging</span></label>
+                                    {currentProblem.testCases.map((tc, idx) => (
+                                        <div key={`testcase-${idx}`} className="bg-gray-900 text-gray-200 p-4 rounded-xl border border-gray-700 relative group">
+                                            <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeTestCase(idx)}
+                                                    className="text-gray-500 hover:text-red-400 p-1 rounded-md"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                                                <div>
+                                                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Standard Input</div>
+                                                    <textarea
+                                                        className="w-full bg-gray-800 border-gray-700 rounded-lg p-2 text-sm font-mono text-white focus:ring-1 focus:ring-primary-500 focus:outline-none"
+                                                        rows="2"
+                                                        value={tc.input}
+                                                        onChange={(e) => updateTestCase(idx, 'input', e.target.value)}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Expected Output</div>
+                                                    <textarea
+                                                        className="w-full bg-gray-800 border-gray-700 rounded-lg p-2 text-sm font-mono text-white focus:ring-1 focus:ring-primary-500 focus:outline-none"
+                                                        rows="2"
+                                                        value={tc.output}
+                                                        onChange={(e) => updateTestCase(idx, 'output', e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <label className="flex items-center space-x-2 cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={tc.isHidden}
+                                                    onChange={(e) => updateTestCase(idx, 'isHidden', e.target.checked)}
+                                                    className="rounded bg-gray-700 border-gray-600 text-primary-500 focus:ring-offset-gray-900"
+                                                />
+                                                <span className="text-xs font-medium text-gray-400 flex items-center gap-1.5">
+                                                    {tc.isHidden ? <Shield size={12} className="text-green-400" /> : <Shield size={12} />}
+                                                    Hidden Test Case (Private)
+                                                </span>
+                                            </label>
+                                        </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={addTestCase}
+                                        className="btn-secondary w-full py-2 flex items-center justify-center gap-2 border-dashed"
+                                    >
+                                        <Plus size={16} /> Add Test Case
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Examples */}
-                            <div className="space-y-4">
-                                <label className="block text-sm font-bold text-gray-800">Examples</label>
-                                {currentProblem.examples.map((ex, idx) => (
-                                    <div key={`example-${idx}`} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative group">
-                                        <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                type="button"
-                                                onClick={() => removeExample(idx)}
-                                                className="text-gray-400 hover:text-red-500 p-1 rounded-md hover:bg-red-50"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Input</div>
-                                                <input
-                                                    type="text"
-                                                    className="input-field w-full font-mono text-sm bg-gray-50"
-                                                    value={ex.input}
-                                                    onChange={(e) => updateExample(idx, 'input', e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Output</div>
-                                                <input
-                                                    type="text"
-                                                    className="input-field w-full font-mono text-sm bg-gray-50"
-                                                    value={ex.output}
-                                                    onChange={(e) => updateExample(idx, 'output', e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Explanation (Optional)</div>
-                                            <textarea
-                                                className="input-field w-full text-sm"
-                                                rows="2"
-                                                value={ex.explanation}
-                                                onChange={(e) => updateExample(idx, 'explanation', e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-2xl">
                                 <button
                                     type="button"
-                                    onClick={addExample}
-                                    className="btn-secondary w-full py-2 flex items-center justify-center gap-2 border-dashed"
+                                    onClick={() => {
+                                        setShowProblemModal(false);
+                                        setCurrentProblem(getEmptyProblem());
+                                    }}
+                                    className="btn-secondary"
                                 >
-                                    <Plus size={16} /> Add Example
+                                    Cancel
                                 </button>
-                            </div>
-
-                            {/* Test Cases */}
-                            <div className="space-y-4 pt-4 border-t border-gray-100">
-                                <label className="block text-sm font-bold text-gray-800">Test Cases <span className="text-red-500 px-1 font-normal text-xs">* Required for judging</span></label>
-                                {currentProblem.testCases.map((tc, idx) => (
-                                    <div key={`testcase-${idx}`} className="bg-gray-900 text-gray-200 p-4 rounded-xl border border-gray-700 relative group">
-                                        <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                type="button"
-                                                onClick={() => removeTestCase(idx)}
-                                                className="text-gray-500 hover:text-red-400 p-1 rounded-md"
-                                            >
-                                                <X size={16} />
-                                            </button>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Standard Input</div>
-                                                <textarea
-                                                    className="w-full bg-gray-800 border-gray-700 rounded-lg p-2 text-sm font-mono text-white focus:ring-1 focus:ring-primary-500 focus:outline-none"
-                                                    rows="2"
-                                                    value={tc.input}
-                                                    onChange={(e) => updateTestCase(idx, 'input', e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Expected Output</div>
-                                                <textarea
-                                                    className="w-full bg-gray-800 border-gray-700 rounded-lg p-2 text-sm font-mono text-white focus:ring-1 focus:ring-primary-500 focus:outline-none"
-                                                    rows="2"
-                                                    value={tc.output}
-                                                    onChange={(e) => updateTestCase(idx, 'output', e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                        <label className="flex items-center space-x-2 cursor-pointer select-none">
-                                            <input
-                                                type="checkbox"
-                                                checked={tc.isHidden}
-                                                onChange={(e) => updateTestCase(idx, 'isHidden', e.target.checked)}
-                                                className="rounded bg-gray-700 border-gray-600 text-primary-500 focus:ring-offset-gray-900"
-                                            />
-                                            <span className="text-xs font-medium text-gray-400 flex items-center gap-1.5">
-                                                {tc.isHidden ? <Shield size={12} className="text-green-400" /> : <Shield size={12} />}
-                                                Hidden Test Case (Private)
-                                            </span>
-                                        </label>
-                                    </div>
-                                ))}
                                 <button
                                     type="button"
-                                    onClick={addTestCase}
-                                    className="btn-secondary w-full py-2 flex items-center justify-center gap-2 border-dashed"
+                                    onClick={handleAddNewProblem}
+                                    className="btn-primary"
                                 >
-                                    <Plus size={16} /> Add Test Case
+                                    Add Problem to Contest
                                 </button>
                             </div>
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-2xl">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowProblemModal(false);
-                                    setCurrentProblem(getEmptyProblem());
-                                }}
-                                className="btn-secondary"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleAddNewProblem}
-                                className="btn-primary"
-                            >
-                                Add Problem to Contest
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

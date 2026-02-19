@@ -99,7 +99,7 @@ const getContestsByBatch = async (req, res) => {
             if (req.user.role === 'student') {
                 return res.status(403).json({ success: false, message: 'Access denied' });
             }
-            contests = await Contest.find({}, { sort: { startTime: -1 } });
+            contests = await Contest.find({}).sort({ startTime: -1 });
         } else if (status === 'active') {
             contests = await Contest.findActiveContests(batchId);
         } else if (status === 'upcoming') {
@@ -296,10 +296,63 @@ const submitContestCode = async (req, res) => {
             tabSwitchDuration = 0,
             pasteAttempts = 0,
             fullscreenExits = 0,
-            isAutoSubmit = false
+            isAutoSubmit = false,
+            isPractice = false // New flag for practice mode
         } = req.body;
         const studentId = req.user.userId;
 
+        // 1. Basic Validation
+        if (!code || !code.trim()) {
+            return res.status(400).json({ success: false, message: 'Code cannot be empty' });
+        }
+
+        const validation = validateCode(code, language);
+        if (!validation.valid) {
+            return res.status(400).json({ success: false, message: 'Code validation failed', errors: validation.errors });
+        }
+
+        const problem = await Problem.findById(problemId);
+        if (!problem) {
+            return res.status(404).json({ success: false, message: 'Problem not found' });
+        }
+
+        const contest = await Contest.findById(contestId);
+        if (!contest) {
+            return res.status(404).json({ success: false, message: 'Contest not found' });
+        }
+
+        // 2. Handle Practice Mode (No DB Save, No Checks)
+        if (isPractice) {
+            // Ensure contest is over (optional constraint, user asked for after finish)
+            // But let's allow it if explicitly requested as practice
+
+            // Execute code
+            const allTestCases = await Problem.getAllTestCases(problemId);
+            const result = await executeWithTestCases(language, code, allTestCases, problem.timeLimit);
+
+            return res.json({
+                success: true,
+                message: result.verdict === 'Accepted' ? 'Correct Answer!' : 'Wrong Answer',
+                submission: {
+                    verdict: result.verdict,
+                    testCasesPassed: result.testCasesPassed,
+                    totalTestCases: result.totalTestCases,
+                    submittedAt: new Date(),
+                    isPractice: true
+                },
+                results: result.results.map(r => ({
+                    input: r.isHidden ? 'Hidden' : r.input,
+                    expectedOutput: r.isHidden ? 'Hidden' : r.expectedOutput,
+                    actualOutput: r.isHidden ? (r.passed ? 'Hidden' : 'Wrong Answer') : r.actualOutput,
+                    passed: r.passed,
+                    isHidden: r.isHidden,
+                    verdict: r.verdict,
+                    error: r.error
+                }))
+            });
+        }
+
+        // 3. Normal Contest Submission Flow
         // Check if contest is submitted (completed)
         const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
         if (hasSubmitted) {
@@ -315,15 +368,6 @@ const submitContestCode = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Problem already solved. Cannot submit again.'
-            });
-        }
-
-        // Check if contest is active
-        const contest = await Contest.findById(contestId);
-        if (!contest) {
-            return res.status(404).json({
-                success: false,
-                message: 'Contest not found'
             });
         }
 
@@ -351,32 +395,6 @@ const submitContestCode = async (req, res) => {
                 message: 'Maximum violations exceeded. Triggering auto-submission...',
                 shouldAutoSubmit: true,
                 totalViolations
-            });
-        }
-
-        // Validate code
-        if (!code || !code.trim()) {
-            return res.status(400).json({
-                success: false,
-                message: 'Code cannot be empty'
-            });
-        }
-
-        const validation = validateCode(code, language);
-        if (!validation.valid) {
-            return res.status(400).json({
-                success: false,
-                message: 'Code validation failed',
-                errors: validation.errors
-            });
-        }
-
-        // Get problem
-        const problem = await Problem.findById(problemId);
-        if (!problem) {
-            return res.status(404).json({
-                success: false,
-                message: 'Problem not found'
             });
         }
 

@@ -37,7 +37,7 @@ const sendSessionLogoutNotification = async (email, name, deviceInfo) => {
     return true;
 };
 
-// Login with automatic session replacement
+// Login with optimized token versioning
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -60,69 +60,39 @@ const login = async (req, res) => {
             });
         }
 
-        // Check if user is active
+        // Check active status
         if (!user.isActive) {
             return res.status(403).json({
                 success: false,
-                message: 'Your account has been deactivated. Please contact admin.'
+                message: 'Your account has been deactivated.'
             });
         }
 
-        // Generate device fingerprint
-        const deviceFingerprint = generateFingerprint(req);
+        // Invalidate all previous sessions by incrementing token version
+        const updatedUser = await User.incrementTokenVersion(user._id);
+        const tokenVersion = updatedUser.tokenVersion || 0;
 
-        // Check for existing session (single login enforcement)
-        let sessionReplaced = false;
-        let previousDevice = null;
-
-        if (user.activeSessionToken && user.deviceFingerprint) {
-            if (user.deviceFingerprint !== deviceFingerprint) {
-                // Different device detected - automatically logout previous session
-                sessionReplaced = true;
-                previousDevice = user.deviceFingerprint.substring(0, 8); // Short identifier
-
-                // Clear previous session
-                await User.clearSession(user._id.toString());
-
-                // Send notification email about session replacement
-                await sendSessionLogoutNotification(
-                    user.email,
-                    `${user.firstName} ${user.lastName}`,
-                    `device ${previousDevice}`
-                );
-
-                console.log(`⚠️ Session replaced for user ${user.email}. Previous device: ${previousDevice}`);
-            }
-        }
-
-        // Generate tokens
+        // Generate tokens with version
         const accessToken = jwt.sign(
-            { userId: user._id.toString(), email: user.email, role: user.role },
+            { userId: user._id.toString(), email: user.email, role: user.role, tokenVersion },
             process.env.JWT_ACCESS_SECRET,
             { expiresIn: '15m' }
         );
 
         const refreshToken = jwt.sign(
-            { userId: user._id.toString() },
+            { userId: user._id.toString(), tokenVersion },
             process.env.JWT_REFRESH_SECRET,
             { expiresIn: '7d' }
         );
-
-        // Update user session
-        await User.updateSession(user._id.toString(), refreshToken, deviceFingerprint);
-        await User.updateLastLogin(user._id.toString());
 
         // Check if first login
         const isFirstLogin = user.isFirstLogin === true;
 
         res.json({
             success: true,
-            message: sessionReplaced
-                ? 'Login successful. Your previous session has been automatically logged out.'
-                : 'Login successful',
+            message: 'Login successful',
             isFirstLogin,
             requiresProfileCompletion: isFirstLogin,
-            sessionReplaced, // Flag to show notification in frontend
             tokens: {
                 accessToken,
                 refreshToken
@@ -253,91 +223,80 @@ const completeFirstLoginProfile = async (req, res) => {
     }
 };
 
-// Refresh access token
+// Refresh access token (No DB writes, just version check)
 const refreshToken = async (req, res) => {
     try {
         const { refreshToken } = req.body;
 
         if (!refreshToken) {
-            return res.status(401).json({
-                success: false,
-                message: 'Refresh token is required'
-            });
+            return res.status(401).json({ success: false, message: 'Refresh token required' });
         }
 
-        // Verify refresh token
+        // Verify signature
         const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
         // Find user
         const user = await User.findById(decoded.userId);
         if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid refresh token'
-            });
+            return res.status(401).json({ success: false, message: 'User not found' });
         }
 
-        // Check if refresh token matches
-        if (user.activeSessionToken !== refreshToken) {
+        // Verify Token Version (Single session enforcement)
+        // If versions don't match, it means another login happened later (invalidating this one)
+        if (decoded.tokenVersion !== undefined && user.tokenVersion !== decoded.tokenVersion) {
             return res.status(401).json({
                 success: false,
-                message: 'Session expired. Please login again.',
+                message: 'Session valid elsewhere. Please login again.',
                 code: 'SESSION_REPLACED'
             });
         }
 
-        // Generate new tokens
+        // Success: Issue new Access Token with SAME version
+        // No DB update needed here -> Optimized!
         const newAccessToken = jwt.sign(
-            { userId: user._id.toString(), email: user.email, role: user.role },
+            {
+                userId: user._id.toString(),
+                email: user.email,
+                role: user.role,
+                tokenVersion: user.tokenVersion // Keep existing version
+            },
             process.env.JWT_ACCESS_SECRET,
             { expiresIn: '15m' }
         );
 
-        const newRefreshToken = jwt.sign(
-            { userId: user._id.toString() },
-            process.env.JWT_REFRESH_SECRET,
-            { expiresIn: '7d' }
-        );
-
-        // Update session
-        const deviceFingerprint = generateFingerprint(req);
-        await User.updateSession(user._id.toString(), newRefreshToken, deviceFingerprint);
-
+        // Reuse refresh token (it's valid until expiry or version bump)
+        // We don't rotate refresh tokens to avoid write conflicts
         res.json({
             success: true,
             tokens: {
                 accessToken: newAccessToken,
-                refreshToken: newRefreshToken
+                refreshToken: refreshToken // Send back same refresh token (optional but clean)
             }
         });
     } catch (error) {
         console.error('Refresh token error:', error);
-        res.status(401).json({
+        return res.status(401).json({
             success: false,
-            message: 'Invalid or expired refresh token',
-            code: 'SESSION_EXPIRED',
-            error: error.message
+            message: 'Invalid refresh token',
+            code: 'SESSION_EXPIRED'
         });
     }
 };
 
-// Logout
+// Logout (Invalidate current session version)
 const logout = async (req, res) => {
     try {
         const userId = req.user.userId;
+        // Increment version to invalidate all tokens for this user
+        await User.incrementTokenVersion(userId);
+
+        // Also clear legacy session fields if present (cleanup)
         await User.clearSession(userId);
 
-        res.json({
-            success: true,
-            message: 'Logged out successfully'
-        });
+        res.json({ success: true, message: 'Logged out successfully' });
     } catch (error) {
         console.error('Logout error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Logout failed',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Logout failed' });
     }
 };
 

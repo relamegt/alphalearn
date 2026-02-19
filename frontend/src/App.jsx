@@ -277,9 +277,19 @@ function App() {
                             }
                         />
                         <Route
+                            path="/student/contest/:contestId/practice"
+                            element={
+                                <ProtectedRoute allowedRoles={['student']}>
+                                    <ExtensionCheck>
+                                        <ContestInterface isPractice={true} />
+                                    </ExtensionCheck>
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
                             path="/student/contest/:contestId/leaderboard"
                             element={
-                                <ProtectedRoute allowedRoles={['student', 'instructor']}>
+                                <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']}>
                                     <Leaderboard />
                                 </ProtectedRoute>
                             }

@@ -49,6 +49,7 @@ class User {
                 },
                 education: userData.education || null,
                 skills: userData.skills || [],
+                tokenVersion: 0,
                 alphacoins: 0,
                 createdAt: new Date(),
                 lastLogin: null
@@ -120,29 +121,15 @@ class User {
         );
     }
 
-    // Update active session (SINGLE LOGIN ENFORCEMENT)
-    static async updateActiveSession(userId, sessionToken, deviceFingerprint) {
-        return await collections.users.updateOne(
+    // Increment token version (Invalidate all existing sessions)
+    static async incrementTokenVersion(userId) {
+        return await collections.users.findOneAndUpdate(
             { _id: new ObjectId(userId) },
             {
-                $set: {
-                    activeSessionToken: sessionToken,
-                    deviceFingerprint: deviceFingerprint,
-                    lastLogin: new Date()
-                }
-            }
-        );
-    }
-
-    // Update last login
-    static async updateLastLogin(userId) {
-        return await collections.users.updateOne(
-            { _id: new ObjectId(userId) },
-            {
-                $set: {
-                    lastLogin: new Date()
-                }
-            }
+                $inc: { tokenVersion: 1 },
+                $set: { lastLogin: new Date() }
+            },
+            { returnDocument: 'after' }
         );
     }
 

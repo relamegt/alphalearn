@@ -3,18 +3,19 @@ import { useAuth } from '../../contexts/AuthContext';
 import contestService from '../../services/contestService';
 import adminService from '../../services/adminService';
 import ContestCreator from './ContestCreator';
-import { Trophy, Calendar, Plus, List, ArrowLeft, Clock, Grid, Layers, Search, Filter } from 'lucide-react';
+import { Trophy, Calendar, Plus, List, ArrowLeft, Clock, Grid, Layers, Search, Filter, Trash2, Edit } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 
 const ContestManager = () => {
     const { user } = useAuth();
-    const [view, setView] = useState('list'); // 'list', 'create', 'details'
+    const [view, setView] = useState('list'); // 'list', 'create'
     const [contests, setContests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all'); // all, upcoming, active, past
     const [batches, setBatches] = useState([]);
     const [selectedBatchId, setSelectedBatchId] = useState('all');
+    const [editingContest, setEditingContest] = useState(null);
 
     // Fetch batches and contests on mount
     useEffect(() => {
@@ -69,8 +70,27 @@ const ContestManager = () => {
 
     const handleCreateSuccess = () => {
         setView('list');
+        setEditingContest(null);
         fetchContests();
-        toast.success("Contest created!");
+        toast.success(editingContest ? "Contest updated!" : "Contest created!");
+    };
+
+    const handleEditContest = (contest) => {
+        setEditingContest(contest);
+        setView('create');
+    };
+
+    const handleDeleteContest = async (contestId) => {
+        if (window.confirm("Are you sure you want to delete this contest? ALL associated data including student submissions and leaderboard rankings will be permanently deleted. This action cannot be undone.")) {
+            try {
+                await contestService.deleteContest(contestId);
+                toast.success("Contest deleted successfully");
+                fetchContests();
+            } catch (error) {
+                console.error("Delete contest error", error);
+                toast.error("Failed to delete contest");
+            }
+        }
     };
 
     const filteredContests = contests.filter(c => {
@@ -90,82 +110,67 @@ const ContestManager = () => {
         <div className="min-h-screen bg-gray-50/50 p-6 pb-20">
             <div className="max-w-7xl mx-auto space-y-6">
 
-                {/* Header Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
-                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                                {view === 'create' ? <Plus size={24} /> : <Trophy size={24} />}
-                            </div>
-                            {view === 'create' ? 'Create Contest' : 'Internal Contests'}
-                        </h1>
-                        <p className="text-gray-500 mt-1 ml-1">
-                            {view === 'create'
-                                ? 'Design a new challenge for your students.'
-                                : 'Manage and view all internal coding contests.'}
-                        </p>
-                    </div>
-
-                    <div className="flex gap-3">
-                        {view === 'create' ? (
-                            <button
-                                onClick={() => setView('list')}
-                                className="btn-secondary flex items-center gap-2"
-                            >
-                                <ArrowLeft size={18} /> Back to List
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setView('create')}
-                                className="btn-primary flex items-center gap-2 shadow-lg shadow-indigo-200"
-                            >
-                                <Plus size={18} /> Create New Contest
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {/* Content Area */}
                 <div className="animate-fade-in-up">
                     {view === 'create' ? (
-                        <ContestCreator onSuccess={handleCreateSuccess} batches={batches} />
+                        <ContestCreator
+                            onSuccess={handleCreateSuccess}
+                            batches={batches}
+                            onBack={() => { setView('list'); setEditingContest(null); }}
+                            initialData={editingContest}
+                        />
                     ) : (
                         <div className="space-y-6">
 
-                            {/* Filters Bar */}
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                            {/* Header & Filters Combined Bar */}
+                            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 
-                                {/* Status Filter */}
-                                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                                    {['all', 'active', 'upcoming', 'past'].map(f => (
-                                        <button
-                                            key={f}
-                                            onClick={() => setFilter(f)}
-                                            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all whitespace-nowrap ${filter === f
-                                                ? 'bg-indigo-50 text-indigo-700'
-                                                : 'text-gray-600 hover:bg-gray-50'
-                                                }`}
-                                        >
-                                            {f}
-                                        </button>
-                                    ))}
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full xl:w-auto">
+                                    <h1 className="text-xl font-bold text-gray-900 hidden md:block mr-2">Contests</h1>
+
+                                    {/* Status Filter */}
+                                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
+                                        {['all', 'active', 'upcoming', 'past'].map(f => (
+                                            <button
+                                                key={f}
+                                                onClick={() => setFilter(f)}
+                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-all whitespace-nowrap ${filter === f
+                                                    ? 'bg-indigo-50 text-indigo-700'
+                                                    : 'text-gray-600 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                {f}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
-                                {/* Batch Filter */}
-                                <div className="flex items-center gap-2 w-full sm:w-auto">
-                                    <Filter size={18} className="text-gray-400" />
-                                    <select
-                                        value={selectedBatchId}
-                                        onChange={(e) => setSelectedBatchId(e.target.value)}
-                                        className="form-select block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
+                                    {/* Batch Filter */}
+                                    <div className="flex items-center gap-2">
+                                        <Filter size={16} className="text-gray-400" />
+                                        <select
+                                            value={selectedBatchId}
+                                            onChange={(e) => setSelectedBatchId(e.target.value)}
+                                            className="form-select block w-full pl-2 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-lg"
+                                        >
+                                            <option value="all">All Batches</option>
+                                            {batches.map(batch => (
+                                                <option key={batch._id} value={batch._id}>
+                                                    {batch.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+
+                                    {/* Create Button */}
+                                    <button
+                                        onClick={() => { setEditingContest(null); setView('create'); }}
+                                        className="btn-primary flex items-center justify-center gap-2 shadow-md shadow-indigo-100 py-1.5"
                                     >
-                                        <option value="all">All Batches</option>
-                                        {batches.map(batch => (
-                                            <option key={batch._id} value={batch._id}>
-                                                {batch.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        <Plus size={16} /> <span className="whitespace-nowrap">New Contest</span>
+                                    </button>
                                 </div>
                             </div>
 
@@ -183,7 +188,7 @@ const ContestManager = () => {
                                     </p>
                                     {filter === 'all' && (
                                         <button
-                                            onClick={() => setView('create')}
+                                            onClick={() => { setEditingContest(null); setView('create'); }}
                                             className="mt-4 btn-primary inline-flex items-center gap-2"
                                         >
                                             <Plus size={16} /> Create Contest
@@ -199,51 +204,89 @@ const ContestManager = () => {
                                         const isActive = now >= start && now <= end;
                                         const isUpcoming = now < start;
 
+                                        // Calculate Duration
+                                        const durationMs = end - start;
+                                        const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                                        const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                                        const durationStr = `${hours}h ${minutes > 0 ? `${minutes}m` : ''}`;
+
                                         return (
-                                            <div key={contest._id} className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col h-full">
-                                                <div className="p-5 flex-1">
+                                            <div key={contest._id} className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all duration-300 overflow-hidden flex flex-col h-full relative">
+                                                {isActive && (
+                                                    <div className="absolute top-3 right-3 z-10">
+                                                        <span className="relative flex h-3 w-3">
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                <div className="p-6 flex-1 flex flex-col">
                                                     <div className="flex justify-between items-start mb-4">
-                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isActive ? 'bg-green-100 text-green-700' :
-                                                            isUpcoming ? 'bg-amber-100 text-amber-700' :
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isActive ? 'bg-green-100 text-green-700 ring-1 ring-green-200' :
+                                                            isUpcoming ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100' :
                                                                 'bg-gray-100 text-gray-600'
                                                             }`}>
-                                                            {isActive ? 'Active' : isUpcoming ? 'Upcoming' : 'Ended'}
+                                                            {isActive && <div className="w-1.5 h-1.5 rounded-full bg-green-600 animate-pulse"></div>}
+                                                            {isActive ? 'Live Now' : isUpcoming ? 'Upcoming' : 'Ended'}
                                                         </span>
                                                     </div>
 
-                                                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">
-                                                        {contest.title}
+                                                    <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 leading-tight group-hover:text-indigo-600 transition-colors" title={contest.title}>
+                                                        <Link to={`/student/contest/${contest._id}/leaderboard`} className="hover:underline focus:outline-none">
+                                                            {contest.title}
+                                                        </Link>
                                                     </h3>
 
-                                                    <p className="text-sm text-gray-500 line-clamp-2 mb-4">
+                                                    <p className="text-sm text-gray-500 line-clamp-2 mb-5 h-10">
                                                         {contest.description || 'No description provided.'}
                                                     </p>
 
-                                                    <div className="space-y-2.5">
-                                                        <div className="flex items-center text-sm text-gray-600">
-                                                            <Calendar size={16} className="text-gray-400 mr-2.5" />
-                                                            {new Date(contest.startTime).toLocaleDateString()}
+                                                    <div className="flex items-center gap-4 text-xs font-medium text-gray-500 mt-auto bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                                        <div className="flex items-center gap-1.5" title="Duration">
+                                                            <Clock size={14} className="text-gray-400" />
+                                                            <span>{durationStr}</span>
                                                         </div>
-                                                        <div className="flex items-center text-sm text-gray-600">
-                                                            <Clock size={16} className="text-gray-400 mr-2.5" />
-                                                            {new Date(contest.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        <div className="w-px h-3 bg-gray-300"></div>
+                                                        <div className="flex items-center gap-1.5" title="Problem Count">
+                                                            <Layers size={14} className="text-gray-400" />
+                                                            <span>{contest.problems?.length || 0} Problems</span>
                                                         </div>
-                                                        <div className="flex items-center text-sm text-gray-600">
-                                                            <Layers size={16} className="text-gray-400 mr-2.5" />
-                                                            {contest.problems?.length || 0} Problems
-                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
+                                                        <span className="flex items-center gap-1">
+                                                            <Calendar size={12} />
+                                                            {start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                        </span>
+                                                        <span>
+                                                            {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
                                                     </div>
                                                 </div>
 
-                                                <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex gap-3">
+                                                <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                                                    <button
+                                                        onClick={() => handleEditContest(contest)}
+                                                        className="flex-1 py-2 px-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center gap-2 shadow-sm"
+                                                    >
+                                                        <Edit size={14} />
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteContest(contest._id)}
+                                                        className="p-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all flex items-center justify-center gap-2 shadow-sm"
+                                                        title="Delete Contest"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
                                                     <Link
                                                         to={`/student/contest/${contest._id}/leaderboard`}
-                                                        className="flex-1 btn-white text-center text-sm py-2"
-                                                        target="_blank"
+                                                        className="flex-1 py-2 px-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center gap-2 shadow-sm"
                                                     >
+                                                        <Trophy size={14} className={isActive ? "text-yellow-500" : "text-gray-400"} />
                                                         Leaderboard
                                                     </Link>
-
                                                 </div>
                                             </div>
                                         );

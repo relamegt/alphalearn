@@ -62,9 +62,9 @@ class Contest {
     }
 
     // Find multiple contests with query
-    static async find(query = {}, projection = {}) {
+    static async find(query = {}, options = {}) {
         try {
-            return await collections.contests.find(query, { projection }).toArray();
+            return await collections.contests.find(query, options).toArray();
         } catch (error) {
             console.error('Find contests error:', error);
             throw error;

@@ -48,7 +48,6 @@ const ContestList = () => {
     }
 
     const activeContests = contests.filter(c => getContestStatus(c) === 'active');
-    const upcomingContests = contests.filter(c => getContestStatus(c) === 'upcoming');
     const pastContests = contests.filter(c => getContestStatus(c) === 'past');
 
     return (
@@ -88,21 +87,6 @@ const ContestList = () => {
                     </section>
                 )}
 
-                {/* Upcoming Contests Section */}
-                {upcomingContests.length > 0 && (
-                    <section>
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-1.5 h-6 bg-amber-500 rounded-full"></div>
-                            <h2 className="text-xl font-bold text-gray-900">Upcoming Challenges</h2>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {upcomingContests.map(contest => (
-                                <ContestCard key={contest._id} contest={contest} status="upcoming" />
-                            ))}
-                        </div>
-                    </section>
-                )}
-
                 {/* Past Contests Section */}
                 <section>
                     <div className="flex items-center gap-3 mb-6">
@@ -129,13 +113,22 @@ const ContestList = () => {
 
 const ContestCard = ({ contest, status }) => {
     const isLive = status === 'active';
-    const isUpcoming = status === 'upcoming';
     const isSubmitted = contest.isSubmitted;
+
+    const formatDate = (dateString) => {
+        return new Date(dateString).toLocaleString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
 
     return (
         <div className={`group relative bg-white rounded-2xl border transition-all duration-300 overflow-hidden flex flex-col h-full ${isLive
-                ? 'border-green-200 shadow-xl shadow-green-50 ring-1 ring-green-100'
-                : 'border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-100'
+            ? 'border-green-200 shadow-xl shadow-green-50 ring-1 ring-green-100'
+            : 'border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-100'
             }`}>
             {/* Status Strip */}
             {isLive && (
@@ -154,28 +147,29 @@ const ContestCard = ({ contest, status }) => {
                     )}
                 </div>
 
-                <p className="text-sm text-gray-500 line-clamp-2 mb-6 flex-1">
-                    {contest.description || 'No description provided for this contest.'}
-                </p>
+                {contest.description && (
+                    <p className="text-sm text-gray-500 line-clamp-2 mb-6 flex-1">
+                        {contest.description}
+                    </p>
+                )}
 
-                <div className="space-y-3 text-sm text-gray-600 bg-gray-50/50 p-4 rounded-xl border border-gray-50">
-                    <div className="flex items-center gap-3">
-                        <Calendar size={16} className={isLive ? "text-green-600" : "text-gray-400"} />
-                        <span className="font-medium">{new Date(contest.startTime).toLocaleDateString(undefined, {
-                            weekday: 'short', month: 'short', day: 'numeric'
-                        })}</span>
+                <div className="space-y-3 text-sm text-gray-600 bg-gray-50/50 p-4 rounded-xl border border-gray-50 mt-auto">
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            <Calendar size={12} /> Start
+                        </div>
+                        <div className="font-medium text-gray-800 ml-5">
+                            {formatDate(contest.startTime)}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <Clock size={16} className={isLive ? "text-green-600" : "text-gray-400"} />
-                        <span>
-                            {new Date(contest.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            {' - '}
-                            {new Date(contest.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <ArrowRight size={16} className={isLive ? "text-green-600" : "text-gray-400"} />
-                        <span>{contest.problems?.length || 0} Problems</span>
+
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            <Clock size={12} /> End
+                        </div>
+                        <div className="font-medium text-gray-800 ml-5">
+                            {formatDate(contest.endTime)}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -198,17 +192,21 @@ const ContestCard = ({ contest, status }) => {
                             View Live Leaderboard
                         </Link>
                     )
-                ) : isUpcoming ? (
-                    <button disabled className="flex-1 btn-secondary justify-center opacity-75 cursor-not-allowed bg-gray-50 text-gray-400 border-gray-200 py-2.5">
-                        Starts Soon
-                    </button>
                 ) : (
-                    <Link
-                        to={`/student/contest/${contest._id}/leaderboard`}
-                        className="flex-1 btn-white justify-center text-gray-700 hover:text-indigo-600 hover:border-indigo-200 py-2.5"
-                    >
-                        View Leaderboard
-                    </Link>
+                    <div className="flex gap-2 w-full">
+                        <Link
+                            to={`/student/contest/${contest._id}/practice`}
+                            className="flex-1 btn-white justify-center text-gray-700 hover:text-indigo-600 hover:border-indigo-200 py-2.5"
+                        >
+                            Practice
+                        </Link>
+                        <Link
+                            to={`/student/contest/${contest._id}/leaderboard`}
+                            className="flex-1 btn-white justify-center text-gray-700 hover:text-indigo-600 hover:border-indigo-200 py-2.5"
+                        >
+                            Leaderboard
+                        </Link>
+                    </div>
                 )}
             </div>
         </div>

@@ -36,14 +36,25 @@ const verifyToken = async (req, res, next) => {
             });
         }
 
-        // SINGLE SESSION ENFORCEMENT: Verify active session
-        // Check if the access token belongs to the current active session
-        // Note: We compare refresh tokens stored in DB, not access tokens
-        // Access tokens are short-lived and not stored
-        if (user.activeSessionToken) {
-            // If user has an active session, we allow the request
-            // The refresh token comparison happens during token refresh
-            // Access token is validated by JWT signature and expiry
+
+        // SINGLE SESSION ENFORCEMENT: Verify Token Version
+        // If the token version in the payload is different from the user's current version,
+        // it means a new login (or logout) occurred, invalidating this token.
+        if (decoded.tokenVersion !== undefined && user.tokenVersion !== decoded.tokenVersion) {
+            return res.status(401).json({
+                success: false,
+                message: 'Session expired. Please login again.',
+                code: 'SESSION_REPLACED'
+            });
+        }
+
+        // Backward compatibility: If user has a version > 0 but token has none, invalidate
+        if ((user.tokenVersion > 0) && decoded.tokenVersion === undefined) {
+            return res.status(401).json({
+                success: false,
+                message: 'Session expired (Legacy). Please login again.',
+                code: 'SESSION_REPLACED'
+            });
         }
 
         // Attach user info to request

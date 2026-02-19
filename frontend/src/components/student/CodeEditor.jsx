@@ -265,7 +265,7 @@ const ExecutionProgress = ({ isRunning, isSubmitting, total }) => {
 // ─── Timer Component ────────────────────────────────────────────────────────
 const ProblemTimer = () => {
     const [seconds, setSeconds] = useState(0);
-    const [isRunning, setIsRunning] = useState(true);
+    const [isRunning, setIsRunning] = useState(false);
 
     useEffect(() => {
         let interval;
