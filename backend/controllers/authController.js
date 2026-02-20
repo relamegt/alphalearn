@@ -329,6 +329,7 @@ const getCurrentUser = async (req, res) => {
                 isActive: user.isActive,
                 profileCompleted: user.profileCompleted || false,
                 isFirstLogin: user.isFirstLogin || false,
+                isSpotUser: req.user.isSpotUser || false,
                 createdAt: user.createdAt,
                 lastLogin: user.lastLogin
             }

@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
                     setUser(userData);
                     setIsAuthenticated(true);
 
-                    if (userData.isFirstLogin && window.location.pathname !== '/complete-profile') {
+                    if (userData.isFirstLogin && !userData.isSpotUser && window.location.pathname !== '/complete-profile') {
                         navigate('/complete-profile');
                     }
                 }
@@ -89,6 +89,13 @@ export const AuthProvider = ({ children }) => {
 
             throw error;
         }
+    };
+
+    const loginAsSpotUser = (userData, token) => {
+        authService.spotLogin(userData, token);
+        setUser(userData);
+        setIsAuthenticated(true);
+        toast.success('Joined contest successfully!');
     };
 
     const completeProfile = async (profileData) => {
@@ -162,6 +169,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         isAuthenticated,
         login,
+        loginAsSpotUser,
         logout,
         completeProfile,
         updateUser,

@@ -654,7 +654,7 @@ const ContestInterface = ({ isPractice = false }) => {
 
         // Dynamic headers for problems
         const problemHeaders = contest?.problems?.map((p, i) => `P${i + 1} (${p.title})`) || [];
-        const headers = ['Rank', 'Student', ...problemHeaders, 'Solved', 'Time', 'Status', 'Score'];
+        const headers = ['Rank', 'Username', 'Full Name', 'Roll Number', 'Branch', ...problemHeaders, 'Solved', 'Time', 'Status', 'Score'];
 
         const rows = sortedLeaderboardData.map((entry, index) => {
             // Problem statuses
@@ -670,6 +670,9 @@ const ContestInterface = ({ isPractice = false }) => {
             return [
                 index + 1,
                 entry.username,
+                entry.fullName !== 'N/A' ? entry.fullName : entry.username,
+                entry.rollNumber || 'N/A',
+                entry.branch || 'N/A',
                 ...problemStatuses,
                 solvedCell,
                 entry.time,
@@ -1461,8 +1464,8 @@ const ContestInterface = ({ isPractice = false }) => {
                                                 <th className="p-4 font-bold w-20 text-center cursor-pointer hover:bg-gray-50 sticky left-0 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleSort('rank')}>
                                                     Rank {sortConfig.key === 'rank' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
-                                                <th className="p-4 font-bold cursor-pointer hover:bg-gray-50 sticky left-20 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-48" onClick={() => handleSort('username')}>
-                                                    Student {sortConfig.key === 'username' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                <th className="p-4 font-bold cursor-pointer hover:bg-gray-50 sticky left-20 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[250px]" onClick={() => handleSort('username')}>
+                                                    Student Details {sortConfig.key === 'username' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
 
                                                 {/* Problem Columns — in contest order */}
@@ -1502,8 +1505,16 @@ const ContestInterface = ({ isPractice = false }) => {
                                                             {index + 1}
                                                         </div>
                                                     </td>
-                                                    <td className="p-4 sticky left-20 bg-inherit z-10 border-r border-gray-100 max-w-[200px] truncate" title={entry.username}>
-                                                        <span className="font-semibold text-gray-900">{entry.username}</span>
+                                                    <td className="p-4 sticky left-20 bg-inherit z-10 border-r border-gray-100 min-w-[250px]">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-semibold text-gray-900 truncate" title={entry.fullName !== 'N/A' ? entry.fullName : entry.username}>
+                                                                {entry.fullName !== 'N/A' ? entry.fullName : entry.username}
+                                                            </span>
+                                                            <div className="flex gap-2 text-xs text-gray-500 truncate">
+                                                                {(entry.rollNumber && entry.rollNumber !== 'N/A') && <span>Roll: <span className="font-mono text-gray-700">{entry.rollNumber}</span></span>}
+                                                                {(entry.branch && entry.branch !== 'N/A') && <span>Branch: <span className="font-medium text-gray-700">{entry.branch}</span></span>}
+                                                            </div>
+                                                        </div>
                                                     </td>
 
                                                     {/* Problem Cells — order matches contest.problems */}

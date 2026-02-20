@@ -15,7 +15,7 @@ class Contest {
             proctoringEnabled: contestData.proctoringEnabled !== false,
             tabSwitchLimit: contestData.tabSwitchLimit || 3,
             maxViolations: contestData.maxViolations || 5,
-            batchId: new ObjectId(contestData.batchId),
+            batchId: contestData.batchId ? new ObjectId(contestData.batchId) : null,
             createdAt: new Date()
         };
 
@@ -58,7 +58,12 @@ class Contest {
         return await collections.contests.find({
             batchId: new ObjectId(batchId),
             endTime: { $lt: now }
-        }).sort({ endTime: -1 }).toArray();
+        }).sort({ startTime: -1 }).toArray();
+    }
+
+    // Find ALL contests globally (Admin/Instructor)
+    static async findAll() {
+        return await collections.contests.find({}).sort({ startTime: -1 }).toArray();
     }
 
     // Find multiple contests with query
@@ -89,8 +94,25 @@ class Contest {
         );
     }
 
-    // Delete contest
+    // Delete contest and its transient data
     static async delete(contestId) {
+        // Also clean up any spot users who were tied to this contest's lifecycle
+        const ContestSubmission = require('./ContestSubmission');
+        const User = require('./User');
+        
+        // Find all submissions to know who participated
+        const submissions = await ContestSubmission.findByContest(contestId);
+        const participantIds = [...new Set(submissions.map(s => s.studentId.toString()))];
+        
+        // Delete spot users exclusively
+        for (const pid of participantIds) {
+            const user = await User.findById(pid);
+            if (user && user.role === 'student' && user.batchId === null && user.email.startsWith('spot_')) {
+                await User.delete(pid);
+            }
+        }
+        
+        // Finally, cleanly delete the contest itself (submissions are deleted externally)
         return await collections.contests.deleteOne({ _id: new ObjectId(contestId) });
     }
 

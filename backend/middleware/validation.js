@@ -80,7 +80,7 @@ const validateContestCreation = [
     body('startTime').isISO8601().withMessage('Valid start time is required'),
     body('endTime').isISO8601().withMessage('Valid end time is required'),
     body('problems').isArray({ min: 1 }).withMessage('At least one problem is required'),
-    body('batchId').notEmpty().withMessage('Batch ID is required'),
+    body('batchId').optional({ nullable: true }),
     handleValidationErrors
 ];
 
@@ -102,7 +102,13 @@ const validateProfileUpdate = [
 
 // ID parameter validation
 const validateObjectId = (paramName = 'id') => [
-    param(paramName).isMongoId().withMessage('Invalid ID format'),
+    param(paramName).custom((value) => {
+        if (value === 'all' || value === 'global') return true;
+        if (!/^[0-9a-fA-F]{24}$/.test(value)) {
+            throw new Error('Invalid ID format');
+        }
+        return true;
+    }),
     handleValidationErrors
 ];
 

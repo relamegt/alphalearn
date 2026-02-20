@@ -62,7 +62,8 @@ const verifyToken = async (req, res, next) => {
             userId: decoded.userId,
             email: decoded.email,
             role: decoded.role,
-            batchId: user.batchId
+            batchId: user.batchId,
+            isSpotUser: decoded.isSpotUser || false
         };
 
         next();
@@ -127,8 +128,8 @@ const requireProfileCompletion = async (req, res, next) => {
     try {
         const userId = req.user.userId;
 
-        // Admins and instructors do not require profile completion checks
-        if (req.user.role === 'admin' || req.user.role === 'instructor') {
+        // Admins, instructors, and spot users do not require profile completion checks
+        if (req.user.role === 'admin' || req.user.role === 'instructor' || req.user.isSpotUser) {
             return next();
         }
 

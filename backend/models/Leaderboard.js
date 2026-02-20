@@ -181,6 +181,11 @@ class Leaderboard {
     const user = await User.findById(studentId);
     if (!user) return null;
 
+    // Spot users do not participate in the global Leaderboard collection
+    if (user.batchId === null && user.email.startsWith('spot_')) {
+      return null;
+    }
+
     // 1. Calculate Practice Score (AlphaLearn Basic)
     const solvedCounts = await Submission.getSolvedCountByDifficulty(studentId);
     const practiceScore =

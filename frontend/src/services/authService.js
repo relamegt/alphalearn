@@ -35,6 +35,14 @@ const authService = {
         }
     },
 
+    // Spot Login (For Global Contests)
+    spotLogin: (user, token) => {
+        Cookies.set('accessToken', token, { expires: 1 }); // 24 hours
+        // No refresh token for spot users
+        localStorage.setItem('user', JSON.stringify(user));
+        return { success: true, user };
+    },
+
     // Complete first login profile
     completeFirstLoginProfile: async (profileData) => {
         try {

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
 
@@ -38,11 +38,12 @@ import ProfessionalDetails from './components/student/settings/ProfessionalDetai
 import CodingProfiles from './components/student/settings/CodingProfiles';
 import SecuritySettings from './components/student/settings/SecuritySettings';
 import ContestInterface from './components/student/ContestInterface';
-
+import ContestJoin from './components/student/ContestJoin';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles, hideNavbar = false }) => {
     const { user, loading } = useAuth();
+    const location = useLocation();
 
     if (loading) {
         return (
@@ -53,6 +54,13 @@ const ProtectedRoute = ({ children, allowedRoles, hideNavbar = false }) => {
     }
 
     if (!user) {
+        if (location.pathname.startsWith('/student/contest/')) {
+            const parts = location.pathname.split('/');
+            const contestId = parts[3];
+            if (contestId && !location.pathname.includes('/leaderboard')) {
+                return <Navigate to={`/join/${contestId}`} replace />;
+            }
+        }
         return <Navigate to="/login" replace />;
     }
 
@@ -131,6 +139,10 @@ function App() {
                             }
                         />
                         {/* Complete Profile Route (First Login) */}
+                        <Route
+                            path="/join/:contestId"
+                            element={<ContestJoin />}
+                        />
                         <Route
                             path="/complete-profile"
                             element={

@@ -7,6 +7,10 @@ const { instructorOrAdmin, studentOnly, requireRole } = require('../middleware/r
 const { validateSubmission, validateObjectId, validateContestCreation } = require('../middleware/validation');
 const { codeExecutionLimiter } = require('../middleware/rateLimiter');
 
+// Public contest joining routes BEFORE verifyToken
+router.get('/public/:contestId', validateObjectId('contestId'), contestController.getPublicContestInfo);
+router.post('/register-spot', contestController.registerSpotUser);
+
 router.use(verifyToken);
 
 // Public contest routes

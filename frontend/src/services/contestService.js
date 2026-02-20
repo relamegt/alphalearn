@@ -22,6 +22,28 @@ apiClient.interceptors.request.use((config) => {
 
 const contestService = {
     // ============================================
+    // PUBLIC ROUTES (Unauthenticated)
+    // ============================================
+
+    getPublicContestInfo: async (contestId) => {
+        try {
+            const response = await apiClient.get(`/contest/public/${contestId}`);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to fetch public contest info' };
+        }
+    },
+
+    registerSpotUser: async (data) => {
+        try {
+            const response = await apiClient.post(`/contest/register-spot`, data);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to register spot user' };
+        }
+    },
+
+    // ============================================
     // PUBLIC ROUTES (All authenticated users)
     // ============================================
 

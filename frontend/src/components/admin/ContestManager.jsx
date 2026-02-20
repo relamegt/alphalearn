@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import contestService from '../../services/contestService';
 import adminService from '../../services/adminService';
 import ContestCreator from './ContestCreator';
-import { Trophy, Calendar, Plus, List, ArrowLeft, Clock, Grid, Layers, Search, Filter, Trash2, Edit } from 'lucide-react';
+import { Trophy, Calendar, Plus, List, ArrowLeft, Clock, Grid, Layers, Search, Filter, Trash2, Edit, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 
@@ -91,6 +91,14 @@ const ContestManager = () => {
                 toast.error("Failed to delete contest");
             }
         }
+    };
+
+    const handleCopyLink = (e, contestId) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const url = `${window.location.origin}/join/${contestId}`;
+        navigator.clipboard.writeText(url);
+        toast.success("Global Contest link copied!");
     };
 
     const filteredContests = contests.filter(c => {
@@ -287,6 +295,15 @@ const ContestManager = () => {
                                                         <Trophy size={14} className={isActive ? "text-yellow-500" : "text-gray-400"} />
                                                         Leaderboard
                                                     </Link>
+                                                    {!contest.batchId && (
+                                                        <button
+                                                            onClick={(e) => handleCopyLink(e, contest._id)}
+                                                            className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg text-sm font-medium text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-all flex items-center justify-center gap-2 shadow-sm"
+                                                            title="Copy Global Contest Link"
+                                                        >
+                                                            <Copy size={16} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         );

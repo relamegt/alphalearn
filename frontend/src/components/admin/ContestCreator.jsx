@@ -82,7 +82,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                 description: initialData.description || '',
                 startTime: initialData.startTime ? new Date(initialData.startTime).toISOString().slice(0, 16) : '',
                 endTime: initialData.endTime ? new Date(initialData.endTime).toISOString().slice(0, 16) : '',
-                batchId: initialData.batchId || '',
+                batchId: initialData.batchId || 'global',
                 existingProblemIds: initialData.problems || [], // Assuming problems is array of IDs
                 proctoringEnabled: initialData.proctoringEnabled !== undefined ? initialData.proctoringEnabled : true,
                 tabSwitchLimit: initialData.tabSwitchLimit || 3,
@@ -136,7 +136,10 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
 
 
     // Prepare dropdown options
-    const batchOptions = batches.map(b => ({ value: b._id, label: b.name }));
+    const batchOptions = [
+        { value: 'global', label: '🌐 Global Contest (Link Sharing)' },
+        ...batches.map(b => ({ value: b._id, label: b.name }))
+    ];
     const difficultyOptions = [
         { value: 'all', label: 'All Difficulties' },
         { value: 'Easy', label: 'Easy' },
@@ -158,7 +161,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
         }
 
         if (!formData.batchId) {
-            toast.error('Please select a target batch');
+            toast.error('Please select a target batch or Global Contest');
             return;
         }
 
@@ -166,6 +169,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
         try {
             const payload = {
                 ...formData,
+                batchId: formData.batchId === 'global' ? null : formData.batchId,
                 problems: [...formData.existingProblemIds, ...newProblems]
             };
 

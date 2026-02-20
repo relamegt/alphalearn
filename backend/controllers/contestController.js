@@ -99,7 +99,7 @@ const getContestsByBatch = async (req, res) => {
             if (req.user.role === 'student') {
                 return res.status(403).json({ success: false, message: 'Access denied' });
             }
-            contests = await Contest.find({}).sort({ startTime: -1 });
+            contests = await Contest.findAll();
         } else if (status === 'active') {
             contests = await Contest.findActiveContests(batchId);
         } else if (status === 'upcoming') {
@@ -796,6 +796,112 @@ const logViolation = async (req, res) => {
     }
 };
 
+// --- NEW FUNCTIONS FOR SPOT USERS ---
+const getPublicContestInfo = async (req, res) => {
+    try {
+        const { contestId } = req.params;
+        const contest = await Contest.findById(contestId);
+
+        if (!contest) {
+            return res.status(404).json({ success: false, message: 'Contest not found' });
+        }
+
+        // Check if it's already ended
+        const now = new Date();
+        if (now > new Date(contest.endTime)) {
+            return res.status(400).json({ success: false, message: 'Contest has already ended', status: 'ended' });
+        }
+
+        // Return only public details
+        res.json({
+            success: true,
+            contest: {
+                _id: contest._id,
+                title: contest.title,
+                description: contest.description,
+                startTime: contest.startTime,
+                endTime: contest.endTime,
+                isGlobal: contest.batchId === null // Treat it as global if batchId is null
+            }
+        });
+    } catch (error) {
+        console.error('Get public contest info error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch contest info' });
+    }
+};
+
+const registerSpotUser = async (req, res) => {
+    try {
+        const { contestId, name, rollNumber, branch } = req.body;
+
+        const contest = await Contest.findById(contestId);
+        if (!contest) return res.status(404).json({ success: false, message: 'Contest not found' });
+
+        if (contest.batchId !== null) {
+            return res.status(403).json({ success: false, message: 'This is not a global contest. Login required.' });
+        }
+
+        const { ObjectId } = require('bson');
+        const User = require('../models/User');
+        const jwt = require('jsonwebtoken');
+
+        // Check if they already exist (very rudimentary, they're temporary anyway)
+        const spotEmail = `spot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@temporary.com`;
+
+        // We DO create a temporary User in the database so that leaderboard resolves correctly.
+        // It's a single User document. Astra DB limits total models/collections, NOT rows.
+        const user = await User.create({
+            email: spotEmail,
+            // Random secure password since they will never login with it
+            password: Math.random().toString(36),
+            firstName: name,
+            lastName: '',
+            role: 'student', // so middleware treats them correctly
+            batchId: null, // Global user
+            education: {
+                rollNumber: rollNumber || 'N/A',
+                branch: branch || 'N/A'
+            },
+            profile: {
+                phone: null,
+                whatsapp: null,
+            }
+        });
+
+        // Set isSpotUser flag in their token so we can distinguish if needed
+        const token = jwt.sign(
+            {
+                userId: user._id.toString(),
+                role: 'student',
+                isSpotUser: true,
+                tokenVersion: user.tokenVersion || 0 // Required by auth middleware
+            },
+            process.env.JWT_ACCESS_SECRET || 'fallback_secret',
+            { expiresIn: '24h' }
+        );
+
+        user.activeSessionToken = token;
+        await User.updateSession(user._id.toString(), token, 'spot-fingerprint');
+
+        res.json({
+            success: true,
+            token,
+            user: {
+                userId: user._id.toString(),
+                name: name,
+                role: 'student',
+                isSpotUser: true,
+                rollNumber: rollNumber || 'N/A',
+                branch: branch || 'N/A'
+            }
+        });
+    } catch (error) {
+        console.error('Register spot user error:', error);
+        res.status(500).json({ success: false, message: 'Failed to register. ' + error.message });
+    }
+};
+
+
 module.exports = {
     createContest,
     getContestsByBatch,
@@ -809,5 +915,7 @@ module.exports = {
     getStudentContestSubmissions,
     getContestStatistics,
     getProctoringViolations,
-    logViolation // Export it
+    logViolation, // Export it
+    getPublicContestInfo,
+    registerSpotUser
 };
