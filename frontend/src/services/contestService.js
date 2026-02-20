@@ -153,15 +153,20 @@ const contestService = {
             throw error.response?.data || { message: 'Failed to fetch statistics' };
         }
     },
-    finishContest: async (contestId) => {
+    // Finish Contest → POST /contest/:contestId/finish
+    // finalViolations: { tabSwitchCount, tabSwitchDuration, fullscreenExits, pasteAttempts }
+    finishContest: async (contestId, finalViolations = null) => {
         try {
-            const response = await apiClient.post(`/contest/${contestId}/finish`);
+            const response = await apiClient.post(`/contest/${contestId}/finish`, {
+                finalViolations: finalViolations || undefined
+            });
             return response.data;
         } catch (error) {
             const message = error.response?.data?.message || 'Failed to finish contest';
             throw { message, ...error.response?.data };
         }
     },
+
 };
 
 export default contestService;

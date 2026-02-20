@@ -11,30 +11,70 @@ const getBatchLeaderboard = async (req, res) => {
     try {
         const { batchId } = req.params;
 
+        // Get practice leaderboard entries (only students with practice submissions)
         const leaderboard = await Leaderboard.getBatchLeaderboard(batchId);
 
         // Fetch ONLY contests for this specific batch
         const allContests = await Contest.findByBatchId(batchId);
         allContests.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-        const contestMap = {};
-        allContests.forEach(c => contestMap[c._id] = c);
+        const batchContestIds = new Set(allContests.map(c => c._id.toString()));
 
-        // Enrich with user data (branch, section) AND detailed stats
+        // FIXED: Get ALL students in batch — not just those with practice submissions
+        const allBatchStudents = await User.getStudentsByBatch(batchId);
+
+        // Build lookup map: studentId -> leaderboard entry
+        const leaderboardMap = new Map();
+        leaderboard.forEach(entry => leaderboardMap.set(entry.studentId.toString(), entry));
+
+        // Build map of studentId -> { contestId -> baseScore }
+        // Compute the actual leaderboard for all contests in this batch so we have their actual dynamic scores.
+        const contestScoresByStudent = new Map(); // studentId -> Map(contestId -> score)
+
+        await Promise.all(allContests.map(async (contest) => {
+            const cid = contest._id.toString();
+            try {
+                const cLeaderboard = await ContestSubmission.getLeaderboard(cid);
+                cLeaderboard.forEach(ce => {
+                    // Check if they actually participated
+                    const participated = ce.isCompleted || (ce.problems && Object.values(ce.problems).some(p => p.tries > 0));
+                    if (participated) {
+                        const sidStr = ce.studentId.toString();
+                        if (!contestScoresByStudent.has(sidStr)) {
+                            contestScoresByStudent.set(sidStr, new Map());
+                        }
+                        contestScoresByStudent.get(sidStr).set(cid, ce.score);
+                    }
+                });
+            } catch (e) {
+                console.error(`Failed to fetch leaderboard for contest ${cid}:`, e.message);
+            }
+        }));
+
+        // Process every student in the batch
         const enrichedLeaderboard = (await Promise.all(
-            leaderboard.map(async (entry) => {
-                const user = await User.findById(entry.studentId);
+            allBatchStudents.map(async (batchUser) => {
+                const user = batchUser;
+                const studentId = batchUser._id.toString();
 
-                // Exclude non-students (instructors, admins)
-                if (!user || user.role !== 'student') {
-                    return null;
-                }
+                // Get leaderboard entry or use stub for contest-only participants
+                const entry = leaderboardMap.get(studentId) || {
+                    studentId,
+                    rank: 9999,
+                    globalRank: 9999,
+                    rollNumber: user.education?.rollNumber || 'N/A',
+                    username: user.username || user.email?.split('@')[0] || 'N/A',
+                    overallScore: 0,
+                    alphaCoins: user.alphacoins || 0,
+                    alphaLearnBasicScore: 0,
+                    externalScores: {},
+                    lastUpdated: user.createdAt
+                };
 
-                const externalProfiles = await ExternalProfile.findByStudent(entry.studentId);
+                const externalProfiles = await ExternalProfile.findByStudent(studentId);
 
                 // Detailed Stats Builder
                 const detailedStats = {};
                 const platforms = ['leetcode', 'codechef', 'codeforces', 'hackerrank', 'interviewbit'];
-
                 platforms.forEach(p => {
                     const profile = externalProfiles.find(ep => ep.platform === p);
                     if (profile) {
@@ -49,41 +89,29 @@ const getBatchLeaderboard = async (req, res) => {
                 });
 
                 // Internal Contests Data - ONLY for this batch
-                const contestSubmissions = await ContestSubmission.findByStudent(entry.studentId);
                 const internalContestsData = {};
                 let internalTotalScore = 0;
 
-                // Create a Set of valid contest IDs for this batch
-                const batchContestIds = new Set(allContests.map(c => c._id.toString()));
-
-                // Filter submissions to only include contests from this batch
-                const batchContestSubmissions = contestSubmissions.filter(cs =>
-                    batchContestIds.has(cs.contestId.toString())
-                );
-
-                // Get unique contest IDs from batch-specific submissions
-                const uniqueContestIds = [...new Set(batchContestSubmissions.map(cs => cs.contestId.toString()))];
-
-                for (const cid of uniqueContestIds) {
-                    // Get best score for this contest
-                    const submission = batchContestSubmissions
-                        .filter(cs => cs.contestId.toString() === cid)
-                        .sort((a, b) => b.score - a.score)[0]; // Best submission
-
-                    if (submission) {
-                        internalContestsData[cid] = submission.score;
-                        internalTotalScore += submission.score;
+                const studentContestMap = contestScoresByStudent.get(studentId);
+                if (studentContestMap) {
+                    for (const cid of batchContestIds) {
+                        if (studentContestMap.has(cid)) {
+                            const score = studentContestMap.get(cid);
+                            internalContestsData[cid] = score;
+                            internalTotalScore += score;
+                        }
                     }
                 }
 
                 return {
                     rank: entry.rank,
                     globalRank: entry.globalRank,
-                    rollNumber: user?.education?.rollNumber || entry.rollNumber || 'N/A', // Prioritize User profile
+                    rollNumber: user?.education?.rollNumber || entry.rollNumber || 'N/A',
                     name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || entry.username,
-                    username: entry.username,
-                    overallScore: entry.overallScore || 0, // Now includes contests from DB
-                    alphaCoins: entry.alphaCoins || entry.alphaLearnBasicScore || 0, // From DB
+                    username: entry.username || user.username || 'N/A',
+                    overallScore: entry.overallScore || 0,
+                    alphaCoins: entry.alphaCoins || entry.alphaLearnBasicScore || user.alphacoins || 0,
+                    alphaLearnBasicScore: entry.alphaLearnBasicScore || 0,
                     externalScores: entry.externalScores || {},
                     detailedStats: detailedStats,
                     internalContests: internalContestsData,
@@ -93,9 +121,8 @@ const getBatchLeaderboard = async (req, res) => {
             })
         )).filter(item => item !== null);
 
-        // Re-sort if overall score changed due to internal contests?
-        // Leaderboard model stores `overallScore` WITHOUT internal contests (currently).
-        // If we want to sort by the NEW overall score (including internal), we must sort here.
+
+        // Sort by overall score descending
         enrichedLeaderboard.sort((a, b) => b.overallScore - a.overallScore);
 
         // Re-assign ranks
@@ -103,15 +130,14 @@ const getBatchLeaderboard = async (req, res) => {
             item.rank = index + 1;
         });
 
-        // Calculate max score for each contest
+        // Calculate max score for each contest across all students
         const contestsWithMaxScore = allContests.map(c => {
             const contestId = c._id.toString();
             let maxScore = 0;
 
-            // Find max score for this contest across all students
             enrichedLeaderboard.forEach(entry => {
                 const score = entry.internalContests?.[contestId];
-                if (score && score > maxScore) {
+                if (score !== undefined && score > maxScore) {
                     maxScore = score;
                 }
             });
@@ -132,7 +158,7 @@ const getBatchLeaderboard = async (req, res) => {
             success: true,
             count: enrichedLeaderboard.length,
             batchName: batch?.name || 'Batch Leaderboard',
-            contests: contestsWithMaxScore, // Include dates and max scores
+            contests: contestsWithMaxScore,
             leaderboard: enrichedLeaderboard
         });
     } catch (error) {
@@ -143,6 +169,7 @@ const getBatchLeaderboard = async (req, res) => {
             error: error.message
         });
     }
+
 };
 
 // Get ALL EXTERNAL DATA (ALL PLATFORMS, ALL CONTESTS) - FETCH ONCE
@@ -262,6 +289,10 @@ const getInternalContestLeaderboard = async (req, res) => {
                     time: entry.time,
                     problemsSolved: entry.problemsSolved,
                     problems: entry.problems,
+                    tabSwitchCount: entry.tabSwitchCount || 0,
+                    tabSwitchDuration: entry.tabSwitchDuration || 0,
+                    fullscreenExits: entry.fullscreenExits || 0,
+                    pasteAttempts: entry.pasteAttempts || 0,
                     violations: {
                         tabSwitches: entry.tabSwitchCount || 0,
                         tabSwitchDuration: entry.tabSwitchDuration || 0,

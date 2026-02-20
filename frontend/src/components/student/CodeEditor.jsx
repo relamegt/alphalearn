@@ -895,24 +895,24 @@ const CodeEditor = () => {
                         </div>
 
                         {!showSidebar && (
-                            <div className="absolute inset-0 flex flex-col items-center py-6 gap-6 bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => setShowSidebar(true)}>
-                                <div className="p-2 rounded-lg bg-white border border-gray-200 shadow-sm text-gray-500 mt-1">
-                                    <PanelLeft size={20} />
-                                </div>
-                                <div style={{ writingMode: 'vertical-rl' }} className="text-xs font-bold text-gray-500 tracking-widest uppercase select-none flex items-center gap-2">
+                            <div
+                                className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors"
+                                onClick={() => setShowSidebar(true)}
+                            >
+                                <div style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-bold text-gray-400 tracking-widest uppercase select-none">
                                     <span className="rotate-180">Problem List</span>
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    {/* Toggle Arrow at Top */}
+                    {/* Toggle Tab — vertically centered on right edge, matching contest style */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
-                        className="absolute -right-3 top-6 z-50 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-md text-gray-500 hover:text-primary-600 hover:border-primary-200 transition-all hover:scale-110"
+                        className="absolute -right-[14px] top-1/2 -translate-y-1/2 z-50 w-[14px] h-14 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md flex items-center justify-center text-gray-400 hover:text-primary-600 hover:bg-gray-50 transition-colors"
                         title={showSidebar ? "Collapse Sidebar" : "Expand Sidebar"}
                     >
-                        {showSidebar ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+                        {showSidebar ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
                     </button>
                 </div>
 
@@ -1483,14 +1483,29 @@ const CodeEditor = () => {
                                                                     }
                                                                 </div>
 
-                                                                {/* Input + Expected side by side */}
+                                                                {/* Input */}
+                                                                <div>
+                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
+                                                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
+                                                                        {visibleResults[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Your Output + Expected side by side */}
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                    {/* Your Output */}
                                                                     <div>
-                                                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
-                                                                            {visibleResults[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
+                                                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Your Output</p>
+                                                                        <div className={`rounded-lg p-3 text-xs font-mono whitespace-pre-wrap border min-h-[48px]
+                                                                            ${visibleResults[activeResultCase].passed
+                                                                                ? 'bg-green-50/40 border-green-200 text-gray-900'
+                                                                                : 'bg-red-50/40 border-red-200 text-gray-900'
+                                                                            }`}
+                                                                        >
+                                                                            {visibleResults[activeResultCase].actualOutput || <span className="text-gray-400 italic">No output</span>}
                                                                         </div>
                                                                     </div>
+                                                                    {/* Expected Output */}
                                                                     {/* Show expected output whenever it's available (standard cases always have it, custom cases have it if solution ran) */}
                                                                     {visibleResults[activeResultCase].expectedOutput &&
                                                                         visibleResults[activeResultCase].expectedOutput !== '(No reference solution available)' ? (
@@ -1508,20 +1523,6 @@ const CodeEditor = () => {
                                                                             </div>
                                                                         </div>
                                                                     ) : null}
-                                                                </div>
-
-
-                                                                {/* Your Output */}
-                                                                <div>
-                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Your Output</p>
-                                                                    <div className={`rounded-lg p-3 text-xs font-mono whitespace-pre-wrap border min-h-[48px]
-                                                                        ${visibleResults[activeResultCase].passed
-                                                                            ? 'bg-green-50/40 border-green-200 text-gray-900'
-                                                                            : 'bg-red-50/40 border-red-200 text-gray-900'
-                                                                        }`}
-                                                                    >
-                                                                        {visibleResults[activeResultCase].actualOutput || <span className="text-gray-400 italic">No output</span>}
-                                                                    </div>
                                                                 </div>
 
                                                                 {/* Runtime error / stderr */}

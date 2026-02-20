@@ -195,20 +195,11 @@ class Leaderboard {
         const batchContests = await Contest.findByBatchId(user.batchId);
         if (batchContests && batchContests.length > 0) {
           const batchContestIds = new Set(batchContests.map(c => c._id.toString()));
-          const contestSubmissions = await ContestSubmission.findByStudent(studentId);
 
-          const relevantSubmissions = contestSubmissions.filter(cs => batchContestIds.has(cs.contestId.toString()));
-
-          const bestScores = {};
-          relevantSubmissions.forEach(sub => {
-            const cid = sub.contestId.toString();
-            // Use max score per contest
-            if (bestScores[cid] === undefined || sub.score > bestScores[cid]) {
-              bestScores[cid] = sub.score;
-            }
-          });
-
-          contestScore = Object.values(bestScores).reduce((sum, s) => sum + s, 0);
+          for (const cid of batchContestIds) {
+            const scoreData = await ContestSubmission.calculateScore(studentId, cid);
+            contestScore += (scoreData.score || 0);
+          }
         }
       } catch (err) {
         console.error('Error calculating contest score:', err);

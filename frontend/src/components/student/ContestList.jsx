@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import contestService from '../../services/contestService';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { Trophy, Calendar, Clock, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
+import { Trophy, Calendar, Clock, ArrowRight, CheckCircle, ChevronDown, ChevronUp, BookOpen, BarChart2 } from 'lucide-react';
 
 const ContestList = () => {
     const { user } = useAuth();
@@ -69,7 +69,7 @@ const ContestList = () => {
                     </div>
                 </div>
 
-                {/* Active Contests Section - Highlighted */}
+                {/* Active Contests Section */}
                 {activeContests.length > 0 && (
                     <section className="animate-fade-in-up">
                         <div className="flex items-center gap-3 mb-6">
@@ -113,7 +113,9 @@ const ContestList = () => {
 
 const ContestCard = ({ contest, status }) => {
     const isLive = status === 'active';
+    const isPast = status === 'past';
     const isSubmitted = contest.isSubmitted;
+    const [expanded, setExpanded] = useState(false);
 
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleString(undefined, {
@@ -122,6 +124,14 @@ const ContestCard = ({ contest, status }) => {
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
+        });
+    };
+
+    const formatShortDate = (dateString) => {
+        return new Date(dateString).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
         });
     };
 
@@ -134,15 +144,28 @@ const ContestCard = ({ contest, status }) => {
             {isLive && (
                 <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-green-400 via-emerald-500 to-green-400 animate-gradient-x"></div>
             )}
+            {isPast && (
+                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500"></div>
+            )}
 
             <div className="p-6 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-4 gap-4">
-                    <Link
-                        to={isLive ? (!isSubmitted ? `/student/contest/${contest._id}` : `/student/contest/${contest._id}/leaderboard`) : `/student/contest/${contest._id}/practice`}
-                        className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight hover:text-indigo-600 transition-colors"
-                    >
-                        {contest.title}
-                    </Link>
+                    {/* Title — for past contests this is clickable to expand the actions */}
+                    {isPast ? (
+                        <button
+                            onClick={() => setExpanded(prev => !prev)}
+                            className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight hover:text-indigo-600 transition-colors text-left flex-1"
+                        >
+                            {contest.title}
+                        </button>
+                    ) : (
+                        <Link
+                            to={isLive ? (!isSubmitted ? `/student/contest/${contest._id}` : `/student/contest/${contest._id}/leaderboard`) : `/student/contest/${contest._id}/practice`}
+                            className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight hover:text-indigo-600 transition-colors"
+                        >
+                            {contest.title}
+                        </Link>
+                    )}
                     {isSubmitted && (
                         <span className="flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                             <CheckCircle size={12} className="mr-1" /> Submitted
@@ -177,38 +200,78 @@ const ContestCard = ({ contest, status }) => {
                 </div>
             </div>
 
-            <div className="p-4 bg-white border-t border-gray-100 flex gap-3">
+            {/* Bottom action area */}
+            <div className="border-t border-gray-100">
                 {isLive ? (
-                    !isSubmitted ? (
-                        <Link
-                            to={`/student/contest/${contest._id}`}
-                            className="flex-1 flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all py-3 gap-2 text-sm transform hover:-translate-y-0.5"
-                        >
-                            Enter Contest <ArrowRight size={16} />
-                        </Link>
-                    ) : (
-                        <Link
-                            to={`/student/contest/${contest._id}/leaderboard`}
-                            target="_blank"
-                            className="flex-1 btn-white justify-center text-gray-700 hover:text-indigo-600 hover:border-indigo-200 py-2.5"
-                        >
-                            View Live Leaderboard
-                        </Link>
-                    )
+                    <div className="p-4">
+                        {!isSubmitted ? (
+                            <Link
+                                to={`/student/contest/${contest._id}`}
+                                className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all py-3 gap-2 text-sm transform hover:-translate-y-0.5"
+                            >
+                                Enter Contest <ArrowRight size={16} />
+                            </Link>
+                        ) : (
+                            <Link
+                                to={`/student/contest/${contest._id}/leaderboard`}
+                                target="_blank"
+                                className="flex w-full items-center justify-center rounded-xl border border-gray-200 text-gray-700 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all py-2.5 text-sm font-medium gap-2"
+                            >
+                                View Live Leaderboard
+                            </Link>
+                        )}
+                    </div>
                 ) : (
-                    <div className="flex gap-2 w-full">
-                        <Link
-                            to={`/student/contest/${contest._id}/practice`}
-                            className="flex-1 btn-white justify-center text-gray-700 hover:text-indigo-600 hover:border-indigo-200 py-2.5"
+                    /* Past contest: toggle to reveal Practice + Leaderboard buttons */
+                    <div>
+                        {/* Toggle header */}
+                        <button
+                            onClick={() => setExpanded(prev => !prev)}
+                            className="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
                         >
-                            Practice
-                        </Link>
-                        <Link
-                            to={`/student/contest/${contest._id}/leaderboard`}
-                            className="flex-1 btn-white justify-center text-gray-700 hover:text-indigo-600 hover:border-indigo-200 py-2.5"
-                        >
-                            Leaderboard
-                        </Link>
+                            <span>{expanded ? 'Hide options' : 'View options'}</span>
+                            {expanded
+                                ? <ChevronUp size={16} className="text-indigo-400" />
+                                : <ChevronDown size={16} className="text-indigo-400" />
+                            }
+                        </button>
+
+                        {/* Expanded panel — Practice on top, Leaderboard below */}
+                        {expanded && (
+                            <div className="border-t border-indigo-50 bg-indigo-50/50 animate-in slide-in-from-top-2 duration-200">
+                                {/* Practice button */}
+                                <Link
+                                    to={`/student/contest/${contest._id}/practice`}
+                                    className="flex items-center gap-3 w-full px-5 py-3.5 border-b border-indigo-100 hover:bg-indigo-100/60 transition-colors group/practice"
+                                >
+                                    <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg group-hover/practice:bg-emerald-200 transition-colors shrink-0">
+                                        <BookOpen size={16} />
+                                    </div>
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <div className="text-sm font-bold text-gray-900">Practice</div>
+                                        <div className="text-xs text-gray-500 mt-0.5 truncate">Retry problems at your own pace</div>
+                                    </div>
+                                    <ArrowRight size={14} className="text-gray-400 group-hover/practice:text-emerald-600 shrink-0 transition-colors" />
+                                </Link>
+
+                                {/* Leaderboard button */}
+                                <Link
+                                    to={`/student/contest/${contest._id}/leaderboard`}
+                                    className="flex items-center gap-3 w-full px-5 py-3.5 hover:bg-indigo-100/60 transition-colors group/lb"
+                                >
+                                    <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg group-hover/lb:bg-indigo-200 transition-colors shrink-0">
+                                        <BarChart2 size={16} />
+                                    </div>
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <div className="text-sm font-bold text-gray-900">Leaderboard</div>
+                                        <div className="text-xs text-gray-500 mt-0.5 truncate">
+                                            Final rankings · {formatShortDate(contest.startTime)}
+                                        </div>
+                                    </div>
+                                    <ArrowRight size={14} className="text-gray-400 group-hover/lb:text-indigo-600 shrink-0 transition-colors" />
+                                </Link>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

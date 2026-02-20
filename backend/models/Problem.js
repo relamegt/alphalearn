@@ -38,10 +38,14 @@ class Problem {
         return await collections.problems.findOne({ _id: new ObjectId(problemId) });
     }
 
-    // Find problems by IDs
+    // Find problems by IDs — preserves input order (critical for leaderboard columns)
     static async findByIds(problemIds) {
         const objectIds = problemIds.map(id => new ObjectId(id));
-        return await collections.problems.find({ _id: { $in: objectIds } }).toArray();
+        const problems = await collections.problems.find({ _id: { $in: objectIds } }).toArray();
+        // Sort to match the original problemIds order
+        const idOrder = problemIds.map(id => id.toString());
+        problems.sort((a, b) => idOrder.indexOf(a._id.toString()) - idOrder.indexOf(b._id.toString()));
+        return problems;
     }
 
     // Find all problems (practice problems only)

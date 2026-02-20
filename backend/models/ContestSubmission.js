@@ -8,7 +8,7 @@ class ContestSubmission {
             _id: new ObjectId(),
             contestId: new ObjectId(submissionData.contestId),
             studentId: new ObjectId(submissionData.studentId),
-            // problemId is null for contest-completion markers
+            // problemId is null for contest-completion markers / violation logs
             problemId: submissionData.problemId ? new ObjectId(submissionData.problemId) : null,
             code: submissionData.code || '',
             language: submissionData.language || '',
@@ -21,8 +21,9 @@ class ContestSubmission {
             pasteAttempts: submissionData.pasteAttempts || 0,
             fullscreenExits: submissionData.fullscreenExits || 0,
             isAutoSubmit: submissionData.isAutoSubmit || false,
-            // Marker to identify if this record represents finishing the contest
-            isFinalContestSubmission: submissionData.isFinalContestSubmission || false
+            isFinalContestSubmission: submissionData.isFinalContestSubmission || false,
+            // Flag to distinguish dedicated violation event logs
+            isViolationLog: submissionData.isViolationLog || false
         };
 
         const result = await collections.contestSubmissions.insertOne(submission);
@@ -50,17 +51,21 @@ class ContestSubmission {
         return !!submission;
     }
 
-    // --- FIXED: Mark contest completed by adding a marker record ---
-    static async markContestCompleted(studentId, contestId, score, violations) {
+    // Mark contest completed — stores final violation snapshot as the single source of truth
+    // violations param: { tabSwitchCount, tabSwitchDuration, fullscreenExits, pasteAttempts }
+    static async markContestCompleted(studentId, contestId, score, violations = {}) {
         return await this.create({
             studentId,
             contestId,
             verdict: 'COMPLETED',
             isFinalContestSubmission: true,
             code: `Final Score: ${score}`,
-            tabSwitchCount: violations.totalTabSwitches || 0,
-            pasteAttempts: violations.totalPasteAttempts || 0,
-            fullscreenExits: violations.totalFullscreenExits || 0
+            // Store the final aggregated violation snapshot from the live frontend state
+            // This is the ground truth for post-contest leaderboard display
+            tabSwitchCount:    violations.tabSwitchCount    || 0,
+            tabSwitchDuration: violations.tabSwitchDuration || 0,
+            fullscreenExits:   violations.fullscreenExits   || 0,
+            pasteAttempts:     violations.pasteAttempts     || 0,
         });
     }
 
@@ -179,22 +184,49 @@ class ContestSubmission {
     }
 
     static async getProctoringViolations(studentId, contestId) {
-        const submissions = await collections.contestSubmissions
+        // Strategy:
+        // 1. If the student has a COMPLETED final submission that stores a violation snapshot,
+        //    use it as the authoritative source (stored when finish was called).
+        // 2. Otherwise, fall back to summing individual isViolationLog=true event records
+        //    (in-progress contest or legacy data without snapshot).
+
+        // Check for final submission with violation snapshot
+        const finalSub = await collections.contestSubmissions.findOne({
+            studentId: new ObjectId(studentId),
+            contestId: new ObjectId(contestId),
+            isFinalContestSubmission: true
+        });
+
+        if (finalSub && (finalSub.tabSwitchCount > 0 || finalSub.fullscreenExits > 0 ||
+            finalSub.tabSwitchDuration > 0 || finalSub.pasteAttempts > 0)) {
+            // Use the snapshot stored at contest completion time
+            return {
+                totalTabSwitches:      finalSub.tabSwitchCount    || 0,
+                totalTabSwitchDuration: finalSub.tabSwitchDuration || 0,
+                totalPasteAttempts:    finalSub.pasteAttempts     || 0,
+                totalFullscreenExits:  finalSub.fullscreenExits   || 0
+            };
+        }
+
+        // Fall back: sum from individual violation log events
+        const violationLogs = await collections.contestSubmissions
             .find({
                 studentId: new ObjectId(studentId),
-                contestId: new ObjectId(contestId)
+                contestId: new ObjectId(contestId),
+                isViolationLog: true
             })
             .toArray();
 
         const violations = { totalTabSwitches: 0, totalTabSwitchDuration: 0, totalPasteAttempts: 0, totalFullscreenExits: 0 };
-        submissions.forEach(sub => {
-            violations.totalTabSwitches += sub.tabSwitchCount || 0;
-            violations.totalTabSwitchDuration += sub.tabSwitchDuration || 0;
-            violations.totalPasteAttempts += sub.pasteAttempts || 0;
-            violations.totalFullscreenExits += sub.fullscreenExits || 0;
+        violationLogs.forEach(log => {
+            violations.totalTabSwitches      += log.tabSwitchCount    || 0;
+            violations.totalTabSwitchDuration += log.tabSwitchDuration || 0;
+            violations.totalPasteAttempts    += log.pasteAttempts     || 0;
+            violations.totalFullscreenExits  += log.fullscreenExits   || 0;
         });
         return violations;
     }
+
 
     static async deleteByContest(contestId) {
         return await collections.contestSubmissions.deleteMany({ contestId: new ObjectId(contestId) });
@@ -206,13 +238,28 @@ class ContestSubmission {
         const Contest = require('./Contest');
 
         const submissions = await this.findByContest(contestId);
-        const participantIds = [...new Set(submissions.map(s => s.studentId.toString()))];
 
-        // Fetch all contest problems once (reliable source of problem IDs + titles)
+        // Include ALL students from the contest's batch, not just those with submissions
         const contest = await Contest.findById(contestId);
+        let participantIds = [...new Set(submissions.map(s => s.studentId.toString()))];
+
+        if (contest && contest.batchId) {
+            try {
+                const batchStudents = await User.getStudentsByBatch(contest.batchId.toString());
+                const batchStudentIds = batchStudents.map(u => u._id.toString());
+                // Union of submitters + all batch students
+                const allIds = new Set([...participantIds, ...batchStudentIds]);
+                participantIds = [...allIds];
+            } catch (e) {
+                // If batch fetch fails, fall back to submission-based list
+                console.error('[getLeaderboard] Failed to fetch batch students:', e.message);
+            }
+        }
+
+        // Reuse already-fetched contest to get problem IDs + titles
         let contestProblems = [];
         if (contest && contest.problems) {
-             contestProblems = await Problem.findByIds(contest.problems);
+            contestProblems = await Problem.findByIds(contest.problems);
         }
 
         const leaderboardData = await Promise.all(

@@ -581,6 +581,8 @@ const finishContest = async (req, res) => {
     try {
         const { contestId } = req.params;
         const studentId = req.user.userId;
+        // Frontend sends current tracked violation counts as the definitive snapshot
+        const { finalViolations } = req.body || {};
 
         // Check if already submitted
         const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
@@ -593,13 +595,34 @@ const finishContest = async (req, res) => {
 
         // Calculate final score
         const scoreData = await ContestSubmission.calculateScore(studentId, contestId);
-        const violations = await ContestSubmission.getProctoringViolations(studentId, contestId);
-        const totalViolations = violations.totalTabSwitches + violations.totalFullscreenExits;
 
-        // Mark contest as completed
-        await ContestSubmission.markContestCompleted(studentId, contestId, scoreData.score, totalViolations);
+        // Build violation snapshot — prefer frontend's live count; fall back to DB logs
+        let violationSnapshot = finalViolations || {};
+        if (!finalViolations) {
+            // No snapshot from frontend — aggregate from existing violation log records
+            const dbViolations = await ContestSubmission.getProctoringViolations(studentId, contestId);
+            violationSnapshot = {
+                tabSwitchCount: dbViolations.totalTabSwitches,
+                tabSwitchDuration: dbViolations.totalTabSwitchDuration,
+                fullscreenExits: dbViolations.totalFullscreenExits,
+                pasteAttempts: dbViolations.totalPasteAttempts
+            };
+        }
+        const totalViolations = (violationSnapshot.tabSwitchCount || 0) + (violationSnapshot.fullscreenExits || 0);
 
-        // Update leaderboard
+        // Mark contest as completed — stores violation snapshot on the COMPLETED record
+        await ContestSubmission.markContestCompleted(studentId, contestId, scoreData.score, violationSnapshot);
+
+        // Recalculate and sync global leaderboard scores for this student.
+        // This ensures the internal contest score gets added to their overallScore & alphacoins immediately
+        try {
+            const Leaderboard = require('../models/Leaderboard');
+            await Leaderboard.recalculateScores(studentId);
+        } catch (scoreErr) {
+            console.error('Failed to recalculate score after contest:', scoreErr);
+        }
+
+        // Update live leaderboard
         try {
             const leaderboard = await ContestSubmission.getLeaderboard(contestId);
             notifyLeaderboardUpdate(contestId, leaderboard);
@@ -624,6 +647,7 @@ const finishContest = async (req, res) => {
     }
 };
 
+
 // Get contest leaderboard with real-time support
 const getContestLeaderboard = async (req, res) => {
     try {
@@ -632,15 +656,26 @@ const getContestLeaderboard = async (req, res) => {
         const leaderboard = await ContestSubmission.getLeaderboard(contestId);
         const contest = await Contest.findById(contestId);
 
-        // Populate problem titles manually (not Mongoose — custom Astra DB class)
+        // Populate problem titles manually keeping original order
         if (contest && contest.problems) {
             const problems = await Problem.findByIds(contest.problems);
             contest.problems = problems.map(p => ({ _id: p._id, title: p.title }));
         }
 
+        // Count total enrolled students for this contest's batch
+        let totalParticipants = leaderboard.length;
+        if (contest?.batchId) {
+            try {
+                const User = require('../models/User');
+                const batchStudents = await User.getStudentsByBatch(contest.batchId.toString());
+                totalParticipants = batchStudents.length;
+            } catch (e) { /* silent fallback */ }
+        }
+
         res.json({
             success: true,
             count: leaderboard.length,
+            totalParticipants,
             leaderboard,
             contest,
             timestamp: new Date().toISOString()
@@ -742,6 +777,15 @@ const logViolation = async (req, res) => {
         const violations = req.body;
 
         await ContestSubmission.logViolation(studentId, contestId, violations);
+
+        // Broadcast leaderboard update so violations appear live during contest
+        try {
+            const { notifyLeaderboardUpdate } = require('../config/websocket');
+            const leaderboard = await ContestSubmission.getLeaderboard(contestId);
+            notifyLeaderboardUpdate(contestId, leaderboard);
+        } catch (wsError) {
+            console.error('WebSocket notification error in logViolation:', wsError);
+        }
 
         res.json({ success: true, message: 'Violation logged' });
     } catch (error) {
