@@ -62,10 +62,10 @@ class ContestSubmission {
             code: `Final Score: ${score}`,
             // Store the final aggregated violation snapshot from the live frontend state
             // This is the ground truth for post-contest leaderboard display
-            tabSwitchCount:    violations.tabSwitchCount    || 0,
+            tabSwitchCount: violations.tabSwitchCount || 0,
             tabSwitchDuration: violations.tabSwitchDuration || 0,
-            fullscreenExits:   violations.fullscreenExits   || 0,
-            pasteAttempts:     violations.pasteAttempts     || 0,
+            fullscreenExits: violations.fullscreenExits || 0,
+            pasteAttempts: violations.pasteAttempts || 0,
         });
     }
 
@@ -201,10 +201,10 @@ class ContestSubmission {
             finalSub.tabSwitchDuration > 0 || finalSub.pasteAttempts > 0)) {
             // Use the snapshot stored at contest completion time
             return {
-                totalTabSwitches:      finalSub.tabSwitchCount    || 0,
+                totalTabSwitches: finalSub.tabSwitchCount || 0,
                 totalTabSwitchDuration: finalSub.tabSwitchDuration || 0,
-                totalPasteAttempts:    finalSub.pasteAttempts     || 0,
-                totalFullscreenExits:  finalSub.fullscreenExits   || 0
+                totalPasteAttempts: finalSub.pasteAttempts || 0,
+                totalFullscreenExits: finalSub.fullscreenExits || 0
             };
         }
 
@@ -219,10 +219,10 @@ class ContestSubmission {
 
         const violations = { totalTabSwitches: 0, totalTabSwitchDuration: 0, totalPasteAttempts: 0, totalFullscreenExits: 0 };
         violationLogs.forEach(log => {
-            violations.totalTabSwitches      += log.tabSwitchCount    || 0;
+            violations.totalTabSwitches += log.tabSwitchCount || 0;
             violations.totalTabSwitchDuration += log.tabSwitchDuration || 0;
-            violations.totalPasteAttempts    += log.pasteAttempts     || 0;
-            violations.totalFullscreenExits  += log.fullscreenExits   || 0;
+            violations.totalPasteAttempts += log.pasteAttempts || 0;
+            violations.totalFullscreenExits += log.fullscreenExits || 0;
         });
         return violations;
     }
@@ -265,6 +265,8 @@ class ContestSubmission {
         const leaderboardData = await Promise.all(
             participantIds.map(async (studentId) => {
                 const user = await User.findById(studentId);
+                if (!user || user.role !== 'student') return null;
+
                 const scoreData = await this.calculateScore(studentId, contestId);
                 const violations = await this.getProctoringViolations(studentId, contestId);
 
@@ -329,9 +331,10 @@ class ContestSubmission {
             })
         );
 
-        leaderboardData.sort((a, b) => (b.score !== a.score) ? b.score - a.score : a.time - b.time);
-        leaderboardData.forEach((entry, index) => { entry.rank = index + 1; });
-        return leaderboardData;
+        let finalLeaderboard = leaderboardData.filter(entry => entry !== null);
+        finalLeaderboard.sort((a, b) => (b.score !== a.score) ? b.score - a.score : a.time - b.time);
+        finalLeaderboard.forEach((entry, index) => { entry.rank = index + 1; });
+        return finalLeaderboard;
     }
 }
 

@@ -3,12 +3,12 @@ const router = express.Router();
 const submissionController = require('../controllers/submissionController');
 const profileController = require('../controllers/profileController');
 const { verifyToken, requireProfileCompletion } = require('../middleware/auth');
-const { studentOnly, requireBatch } = require('../middleware/roleGuard');
+const { studentOnly, requireBatch, requireRole } = require('../middleware/roleGuard');
 const { validateSubmission, validateExternalProfile, validateProfileUpdate, validateObjectId } = require('../middleware/validation');
 const { codeExecutionLimiter, profileSyncLimiter } = require('../middleware/rateLimiter');
 
 // All routes require authentication
-router.use(verifyToken, studentOnly);
+router.use(verifyToken, requireRole('student', 'instructor', 'admin'));
 
 // Most routes require profile completion (except profile update)
 router.use((req, res, next) => {

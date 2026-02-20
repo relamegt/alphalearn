@@ -5,6 +5,7 @@ import { CiCircleList } from 'react-icons/ci';
 import { FaRegFolder, FaRegFolderOpen } from "react-icons/fa6";
 import problemService from '../../services/problemService';
 import sectionService from '../../services/sectionService';
+import { useAuth } from '../../contexts/AuthContext';
 
 const DIFF_COLORS = {
     Easy: { text: 'text-green-700', bg: 'bg-green-100', dot: 'bg-green-500' },
@@ -15,6 +16,8 @@ const DIFF_COLORS = {
 const ProblemSidebar = () => {
     const navigate = useNavigate();
     const { problemId } = useParams();
+    const { user } = useAuth();
+    const basePath = user?.role === 'admin' ? '/admin' : user?.role === 'instructor' ? '/instructor' : '/student';
     const [problems, setProblems] = useState([]);
     const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -236,7 +239,7 @@ const ProblemSidebar = () => {
                                                         problem={problem}
                                                         active={isActive(problem.id)}
                                                         indent="pl-12"
-                                                        onClick={() => navigate(`/student/problem/${problem.id}`)}
+                                                        onClick={() => navigate(`${basePath}/problem/${problem.id}`)}
                                                     />
                                                 ))}
                                             </div>
@@ -265,7 +268,7 @@ const ProblemSidebar = () => {
                                     problem={problem}
                                     active={isActive(problem.id)}
                                     indent="pl-4"
-                                    onClick={() => navigate(`/student/problem/${problem.id}`)}
+                                    onClick={() => navigate(`${basePath}/problem/${problem.id}`)}
                                 />
                             ))}
                         </div>

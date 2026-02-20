@@ -615,11 +615,13 @@ const finishContest = async (req, res) => {
 
         // Recalculate and sync global leaderboard scores for this student.
         // This ensures the internal contest score gets added to their overallScore & alphacoins immediately
-        try {
-            const Leaderboard = require('../models/Leaderboard');
-            await Leaderboard.recalculateScores(studentId);
-        } catch (scoreErr) {
-            console.error('Failed to recalculate score after contest:', scoreErr);
+        if (req.user.role === 'student') {
+            try {
+                const Leaderboard = require('../models/Leaderboard');
+                await Leaderboard.recalculateScores(studentId);
+            } catch (scoreErr) {
+                console.error('Failed to recalculate score after contest:', scoreErr);
+            }
         }
 
         // Update live leaderboard

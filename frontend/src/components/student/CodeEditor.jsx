@@ -557,7 +557,10 @@ const CodeEditor = () => {
             .catch(() => {
                 if (!mounted) return;
                 toast.error('Failed to load problem');
-                navigate('/student/problems');
+                const target = user?.role === 'admin' ? '/admin/problems-workspace' :
+                    user?.role === 'instructor' ? '/instructor/problems-workspace' :
+                        '/student/problems';
+                navigate(target);
             })
             .finally(() => { if (mounted) setLoading(false); });
         return () => { mounted = false; };

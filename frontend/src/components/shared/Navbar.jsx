@@ -46,13 +46,14 @@ const Navbar = () => {
                 { to: '/admin/sections', label: 'Sections', icon: Icons.Leaderboard },
                 { to: '/admin/contests', label: 'Contests', icon: Icons.Contest },
                 { to: '/admin/reports', label: 'Reports', icon: Icons.Dashboard },
+                { to: '/admin/problems-workspace', label: 'Problems Workspace', icon: Icons.Practice, newTab: true },
             ],
             // ...
             instructor: [
                 { to: '/instructor/dashboard', label: 'Dashboard', icon: Icons.Dashboard },
                 { to: '/instructor/contests', label: 'Contests', icon: Icons.Contest },
                 { to: '/instructor/reports', label: 'Reports', icon: Icons.Dashboard },
-                { to: '/student/problems', label: 'All Problems', icon: Icons.Practice }, // Instructor access to problems
+                { to: '/instructor/problems-workspace', label: 'Problems Workspace', icon: Icons.Practice, newTab: true },
                 { to: '/instructor/reset-profile', label: 'Reset Profile', icon: Icons.Profile },
             ],
             student: [

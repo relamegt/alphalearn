@@ -240,7 +240,7 @@ const submitCode = async (req, res) => {
         let isFirstSolve = false;
 
         // Award coins only on Accepted verdict
-        if (result.verdict === 'Accepted') {
+        if (result.verdict === 'Accepted' && req.user.role === 'student') {
             // Check if problem was ALREADY in progress before this submission
             // Progress.updateProblemsSolved is called AFTER this block, so if the
             // problemId is already in progress.problemsSolved it was solved before
@@ -273,7 +273,9 @@ const submitCode = async (req, res) => {
         }
 
         // Get updated coin total for the user
-        totalCoins = await User.getCoins(studentId);
+        if (req.user.role === 'student') {
+            totalCoins = await User.getCoins(studentId);
+        }
 
         // Map results, masking hidden test cases
         const mappedResults = result.results.map(r => ({

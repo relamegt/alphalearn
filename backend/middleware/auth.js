@@ -127,6 +127,11 @@ const requireProfileCompletion = async (req, res, next) => {
     try {
         const userId = req.user.userId;
 
+        // Admins and instructors do not require profile completion checks
+        if (req.user.role === 'admin' || req.user.role === 'instructor') {
+            return next();
+        }
+
         const user = await User.findById(userId);
 
         if (!user) {

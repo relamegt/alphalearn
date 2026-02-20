@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import problemService from '../../services/problemService';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ProblemList = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -15,7 +17,8 @@ const ProblemList = () => {
                 if (problems.length > 0) {
                     // Find first unsolved problem, or default to the first one
                     const nextProblem = problems.find(p => !p.isSolved) || problems[0];
-                    navigate(`/student/problem/${nextProblem.id}`, { replace: true });
+                    const basePath = user?.role === 'admin' ? '/admin' : user?.role === 'instructor' ? '/instructor' : '/student';
+                    navigate(`${basePath}/problem/${nextProblem.id}`, { replace: true });
                 } else {
                     setLoading(false); // Only stop loading if no problems found
                 }
@@ -25,8 +28,10 @@ const ProblemList = () => {
             }
         };
 
-        redirectToProblem();
-    }, [navigate]);
+        if (user) {
+            redirectToProblem();
+        }
+    }, [navigate, user]);
 
     if (loading) {
         return (

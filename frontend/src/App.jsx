@@ -196,6 +196,24 @@ function App() {
                                 </ProtectedRoute>
                             }
                         />
+                        <Route
+                            path="/admin/problems-workspace"
+                            element={
+                                <ProtectedRoute allowedRoles={['admin']}>
+                                    <ProblemList />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/admin/problem/:problemId"
+                            element={
+                                <ProtectedRoute allowedRoles={['admin']}>
+                                    <ExtensionCheck>
+                                        <CodeEditor />
+                                    </ExtensionCheck>
+                                </ProtectedRoute>
+                            }
+                        />
 
                         {/* Instructor Routes */}
                         <Route
@@ -230,6 +248,24 @@ function App() {
                                 </ProtectedRoute>
                             }
                         />
+                        <Route
+                            path="/instructor/problems-workspace"
+                            element={
+                                <ProtectedRoute allowedRoles={['instructor']}>
+                                    <ProblemList />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/instructor/problem/:problemId"
+                            element={
+                                <ProtectedRoute allowedRoles={['instructor']}>
+                                    <ExtensionCheck>
+                                        <CodeEditor />
+                                    </ExtensionCheck>
+                                </ProtectedRoute>
+                            }
+                        />
 
                         {/* Student Routes */}
                         <Route
@@ -243,7 +279,7 @@ function App() {
                         <Route
                             path="/student/problems"
                             element={
-                                <ProtectedRoute allowedRoles={['student', 'instructor']}>
+                                <ProtectedRoute allowedRoles={['student']}>
                                     <ProblemList />
                                 </ProtectedRoute>
                             }
@@ -251,7 +287,7 @@ function App() {
                         <Route
                             path="/student/problem/:problemId"
                             element={
-                                <ProtectedRoute allowedRoles={['student', 'instructor']}>
+                                <ProtectedRoute allowedRoles={['student']}>
                                     <ExtensionCheck>
                                         <CodeEditor />
                                     </ExtensionCheck>
