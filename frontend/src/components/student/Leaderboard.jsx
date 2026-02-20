@@ -1312,10 +1312,10 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[60px]" onClick={() => handleInternalSort('rank')}>
                                                         Rank {internalSortConfig.key === 'rank' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                     </th>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[60px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[110px]" onClick={() => handleInternalSort('rollNumber')}>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[60px] bg-gray-50 z-20 border-r border-gray-200 min-w-[110px]" onClick={() => handleInternalSort('rollNumber')}>
                                                         Roll No {internalSortConfig.key === 'rollNumber' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                     </th>
-                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 min-w-[140px]" onClick={() => handleInternalSort('fullName')}>
+                                                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[170px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-200 min-w-[140px]" onClick={() => handleInternalSort('fullName')}>
                                                         Full Name {internalSortConfig.key === 'fullName' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                     </th>
                                                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 min-w-[120px]" onClick={() => handleInternalSort('username')}>
@@ -1351,7 +1351,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                 {sortedInternalData.map((entry, index) => (
                                                     <tr
                                                         key={`${entry.studentId}-${index}`}
-                                                        className={`hover:bg-gray-50 transition-colors ${entry.rollNumber === user?.education?.rollNumber
+                                                        className={`hover:bg-gray-50 transition-colors bg-white ${entry.rollNumber === user?.education?.rollNumber
                                                             ? 'bg-blue-50/60 ring-1 ring-blue-100'
                                                             : ''
                                                             }`}
@@ -1372,7 +1372,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         {/* Roll No - sticky */}
                                                         <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
                                                         {/* Full Name */}
-                                                        <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] truncate" title={entry.fullName}>{entry.fullName}</td>
+                                                        <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={entry.fullName}>{entry.fullName}</td>
                                                         {/* Username */}
                                                         <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={entry.username}>{entry.username}</td>
                                                         {/* Branch */}

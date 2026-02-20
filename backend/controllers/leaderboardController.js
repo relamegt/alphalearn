@@ -4,6 +4,7 @@ const ContestSubmission = require('../models/ContestSubmission');
 const Contest = require('../models/Contest');
 const User = require('../models/User');
 const Batch = require('../models/Batch');
+const Problem = require('../models/Problem');
 
 // Get FULL batch leaderboard (NO FILTERS)
 const getBatchLeaderboard = async (req, res) => {
@@ -240,6 +241,11 @@ const getInternalContestLeaderboard = async (req, res) => {
 
         const leaderboard = await ContestSubmission.getLeaderboard(contestId);
 
+        let problems = [];
+        if (contest.problems && contest.problems.length > 0) {
+            problems = await Problem.findByIds(contest.problems);
+        }
+
         // Enrich with user data
         const enrichedLeaderboard = await Promise.all(
             leaderboard.map(async (entry) => {
@@ -248,13 +254,14 @@ const getInternalContestLeaderboard = async (req, res) => {
                     rank: entry.rank,
                     studentId: entry.studentId,
                     rollNumber: entry.rollNumber,
+                    fullName: entry.fullName,
                     username: entry.username,
                     branch: user?.education?.branch || 'N/A',
                     section: user?.profile?.section || 'N/A',
                     score: entry.score,
                     time: entry.time,
                     problemsSolved: entry.problemsSolved,
-                    problemDetails: entry.problemDetails,
+                    problems: entry.problems,
                     violations: {
                         tabSwitches: entry.tabSwitchCount || 0,
                         tabSwitchDuration: entry.tabSwitchDuration || 0,
@@ -278,7 +285,8 @@ const getInternalContestLeaderboard = async (req, res) => {
                 proctoringEnabled: contest.proctoringEnabled,
                 tabSwitchLimit: contest.tabSwitchLimit,
                 maxViolations: contest.maxViolations,
-                totalProblems: contest.problems.length
+                totalProblems: contest.problems.length,
+                problems: problems
             },
             count: enrichedLeaderboard.length,
             leaderboard: enrichedLeaderboard
