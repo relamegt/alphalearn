@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import Cookies from 'js-cookie';
 import { CiLock } from 'react-icons/ci';
+import { IoCloseCircleOutline } from 'react-icons/io5';
 import {
     Play,
     CheckCircle,
@@ -149,6 +150,7 @@ const ContestInterface = ({ isPractice = false }) => {
 
     // Data State
     const [contest, setContest] = useState(null);
+    const [contestError, setContestError] = useState(null); // null | 'not_found' | 'error'
     const [selectedProblem, setSelectedProblem] = useState(null);
     const [userCodeMap, setUserCodeMap] = useState({});
     const [userSubmissions, setUserSubmissions] = useState({});
@@ -325,8 +327,8 @@ const ContestInterface = ({ isPractice = false }) => {
                     return;
                 }
                 if (now >= start && now <= end) setContestActive(true);
-                else if (now > end) { 
-                    toast.error('Contest has ended'); 
+                else if (now > end) {
+                    toast.error('Contest has ended');
                     if (user?.isSpotUser) setShowLeaderboard(true);
                     else navigate('/student/contests');
                 }
@@ -341,7 +343,18 @@ const ContestInterface = ({ isPractice = false }) => {
                     || contestData.contest.problems[0];
                 handleProblemChange(initialProblem, true);
             }
-        } catch (error) { console.error(error); toast.error('Failed to load contest'); }
+        } catch (error) {
+            console.error(error);
+            // Detect 404 / not-found vs generic error
+            const msg = error?.message?.toLowerCase() || '';
+            const status = error?.response?.status || error?.status;
+            if (status === 404 || msg.includes('not found') || msg.includes('contest not found')) {
+                setContestError('not_found');
+            } else {
+                setContestError('error');
+                toast.error('Failed to load contest');
+            }
+        }
     };
 
     useEffect(() => {
@@ -351,12 +364,12 @@ const ContestInterface = ({ isPractice = false }) => {
         initSecurityFeatures();
     }, [contestId]);
 
-    // Leaderboard: fetch only when opened (no auto-refresh — use manual refresh button inside modal)
+    // Leaderboard: fetch on open + auto-refresh every 15s while open
     useEffect(() => {
         if (!showLeaderboard) return;
         let cancelled = false;
-        const fetchLb = async () => {
-            setLoadingLeaderboard(true);
+        const fetchLb = async (showSpinner = false) => {
+            if (showSpinner) setLoadingLeaderboard(true);
             try {
                 const d = await contestService.getContestLeaderboard(contestId);
                 if (!cancelled) {
@@ -365,11 +378,13 @@ const ContestInterface = ({ isPractice = false }) => {
                     if (d.totalParticipants) setTotalParticipants(d.totalParticipants);
                 }
             } finally {
-                if (!cancelled) setLoadingLeaderboard(false);
+                if (!cancelled && showSpinner) setLoadingLeaderboard(false);
             }
         };
-        fetchLb();
-        return () => { cancelled = true; };
+        fetchLb(true);
+        // Live refresh every 15s
+        const lbInterval = setInterval(() => fetchLb(false), 15000);
+        return () => { cancelled = true; clearInterval(lbInterval); };
     }, [contestId, showLeaderboard]);
 
     useEffect(() => {
@@ -695,7 +710,7 @@ const ContestInterface = ({ isPractice = false }) => {
             // Fix for "1/2" turning into date: wrap in ="..." formula for Excel or prepend '
             const solvedCount = `${entry.problemsSolved}/${contest?.problems?.length || 0}`;
             const solvedCell = `="${solvedCount}"`;
-            
+
             const baseRow = [
                 index + 1,
                 entry.rollNumber || 'N/A',
@@ -706,14 +721,14 @@ const ContestInterface = ({ isPractice = false }) => {
                 solvedCell,
                 entry.time
             ];
-            
+
             const proctoringRow = [];
             if (contest?.proctoringEnabled) {
                 const ts = entry.tabSwitchCount || 0;
                 const fse = entry.fullscreenExits || 0;
                 proctoringRow.push(ts, fse, ts + fse);
             }
-            
+
             const tailRow = [
                 entry.isCompleted ? 'Finished' : 'In Progress',
                 entry.score
@@ -733,35 +748,48 @@ const ContestInterface = ({ isPractice = false }) => {
         document.body.removeChild(link);
     };
 
-    /* ─── Drag Logic ─── */
-    const startDrag = (type, e) => {
-        e.preventDefault();
-        setIsResizing(true);
-        dragging.current = { type, startX: e.clientX, startY: e.clientY, startVal: type === 'desc' ? descW : editorTopH };
-        document.body.style.cursor = type === 'editorH' ? 'row-resize' : 'col-resize';
-        document.body.style.userSelect = 'none';
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
-    };
-
-    const onMouseMove = useCallback((e) => {
-        if (!dragging.current || !containerRef.current) return;
+    /* ─── Drag Logic (useEffect-based for smooth resize like CodeEditor) ─── */
+    const onMouseMoveResize = useCallback((e) => {
+        const d = dragging.current;
+        if (!d || !containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
-        if (dragging.current.type === 'desc') {
-            setDescW(Math.min(60, Math.max(20, dragging.current.startVal + (e.clientX - dragging.current.startX) / rect.width * 100)));
+        if (d.type === 'desc') {
+            setDescW(Math.min(60, Math.max(20, d.startVal + (e.clientX - d.startX) / rect.width * 100)));
         } else {
-            setEditorTopH(Math.min(85, Math.max(15, dragging.current.startVal + (e.clientY - dragging.current.startY) / rect.height * 100)));
+            setEditorTopH(Math.min(85, Math.max(15, d.startVal + (e.clientY - d.startY) / rect.height * 100)));
         }
     }, []);
 
-    const onMouseUp = useCallback(() => {
+    const onMouseUpResize = useCallback(() => {
         dragging.current = null;
         setIsResizing(false);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
-    }, [onMouseMove]);
+    }, []);
+
+    useEffect(() => {
+        if (isResizing) {
+            window.addEventListener('mousemove', onMouseMoveResize);
+            window.addEventListener('mouseup', onMouseUpResize);
+        }
+        return () => {
+            window.removeEventListener('mousemove', onMouseMoveResize);
+            window.removeEventListener('mouseup', onMouseUpResize);
+        };
+    }, [isResizing, onMouseMoveResize, onMouseUpResize]);
+
+    const startDrag = (type, e) => {
+        e.preventDefault();
+        setIsResizing(true);
+        document.body.style.cursor = type === 'editorH' ? 'row-resize' : 'col-resize';
+        document.body.style.userSelect = 'none';
+        dragging.current = {
+            type,
+            startX: e.clientX,
+            startY: e.clientY,
+            startVal: type === 'desc' ? descW : editorTopH,
+        };
+    };
 
     const formatTime = (s) => {
         const h = Math.floor(s / 3600);
@@ -771,12 +799,39 @@ const ContestInterface = ({ isPractice = false }) => {
     };
 
     // Render Helpers
-    if (!contest) return (
-        <div className="flex flex-col h-screen items-center justify-center bg-gray-50 text-gray-600 gap-3">
-            <Loader2 className="animate-spin text-blue-600" size={32} />
-            <p className="font-medium animate-pulse">Loading Contest Environment...</p>
-        </div>
-    );
+    if (!contest) {
+        // Show "not found" or generic error when fetch has completed
+        if (contestError) {
+            return (
+                <div className="flex flex-col h-screen items-center justify-center bg-gray-50">
+                    <div className="bg-white p-10 rounded-2xl shadow-lg border border-gray-100 max-w-md w-full mx-4 text-center">
+                        <AlertTriangle className="w-14 h-14 text-red-400 mx-auto mb-4" />
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                            {contestError === 'not_found' ? 'Contest Not Found' : 'Unable to Load Contest'}
+                        </h2>
+                        <p className="text-gray-500 mb-6 text-sm">
+                            {contestError === 'not_found'
+                                ? 'This contest does not exist or may have been removed.'
+                                : 'Something went wrong while loading the contest. Please try again.'}
+                        </p>
+                        <button
+                            onClick={() => navigate('/student/contests')}
+                            className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium text-sm"
+                        >
+                            Back to Contests
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+        // Still loading
+        return (
+            <div className="flex flex-col h-screen items-center justify-center bg-gray-50 text-gray-600 gap-3">
+                <Loader2 className="animate-spin text-blue-600" size={32} />
+                <p className="font-medium">Loading Contest Environment...</p>
+            </div>
+        );
+    }
 
     const isProblemLocked = selectedProblem && lockedProblems.has(selectedProblem._id);
     const violationSummary = getViolationSummary();
@@ -864,9 +919,9 @@ const ContestInterface = ({ isPractice = false }) => {
                             </span>
                             <button
                                 onClick={() => navigate('/student/contests')}
-                                className="group flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-red-50 text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-200 rounded-lg transition-all duration-200 text-xs font-bold shadow-sm"
+                                className="group flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-red-50 text-red-400 hover:text-red-600 border border-red-100 hover:border-red-300 rounded-lg transition-all duration-200 text-xs font-bold shadow-sm"
                             >
-                                <LogOut size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+                                <IoCloseCircleOutline size={16} className="group-hover:scale-110 transition-transform" />
                                 Exit Practice
                             </button>
                         </div>
@@ -1481,8 +1536,8 @@ const ContestInterface = ({ isPractice = false }) => {
                                     <Loader2 size={14} className={loadingLeaderboard ? 'animate-spin' : ''} />
                                 </button>
                                 {!user?.isSpotUser && (
-                                    <button onClick={() => setShowLeaderboard(false)} className="bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors text-gray-500">
-                                        <LogOut size={16} className="rotate-180" />
+                                    <button onClick={() => setShowLeaderboard(false)} className="p-2 rounded-full bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 transition-colors" title="Close leaderboard">
+                                        <IoCloseCircleOutline size={20} />
                                     </button>
                                 )}
                             </div>
@@ -1553,102 +1608,103 @@ const ContestInterface = ({ isPractice = false }) => {
                                                 const index = (currentPage - 1) * itemsPerPage + pageIndex;
                                                 const isCurrentUser = entry.studentId === user?.userId;
                                                 return (
-                                                <tr key={index} className={`hover:bg-gray-50 transition ${isCurrentUser ? 'bg-blue-50/60 ring-1 ring-blue-100' : 'bg-white'}`}>
-                                                    <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-inherit z-10 border-r border-gray-100">
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold text-xs ${index === 0 ? 'bg-yellow-100 text-yellow-700 text-2xl' :
-                                                            index === 1 ? 'bg-gray-100 text-gray-700 text-2xl' :
-                                                                index === 2 ? 'bg-orange-100 text-orange-700 text-2xl' : 'text-gray-500'
-                                                            }`}>
-                                                            {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                                                        </div>
-                                                    </td>
-                                                    {/* Roll No - sticky */}
-                                                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
-                                                    {/* Full Name - sticky */}
-                                                    <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={entry.fullName !== 'N/A' ? entry.fullName : entry.username}>
-                                                        {entry.fullName !== 'N/A' ? entry.fullName : entry.username}
-                                                    </td>
-                                                    {/* Username */}
-                                                    <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={entry.username}>{entry.username}</td>
-                                                    {/* Branch */}
-                                                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
+                                                    <tr key={index} className={`hover:bg-gray-50 transition ${isCurrentUser ? 'bg-blue-50/60 ring-1 ring-blue-100' : 'bg-white'}`}>
+                                                        <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-inherit z-10 border-r border-gray-100">
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold text-xs ${index === 0 ? 'bg-yellow-100 text-yellow-700 text-2xl' :
+                                                                index === 1 ? 'bg-gray-100 text-gray-700 text-2xl' :
+                                                                    index === 2 ? 'bg-orange-100 text-orange-700 text-2xl' : 'text-gray-500'
+                                                                }`}>
+                                                                {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                                                            </div>
+                                                        </td>
+                                                        {/* Roll No - sticky */}
+                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
+                                                        {/* Full Name - sticky */}
+                                                        <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={entry.fullName !== 'N/A' ? entry.fullName : entry.username}>
+                                                            {entry.fullName !== 'N/A' ? entry.fullName : entry.username}
+                                                        </td>
+                                                        {/* Username */}
+                                                        <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={entry.username}>{entry.username}</td>
+                                                        {/* Branch */}
+                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
 
-                                                    {/* Problem Cells — order matches contest.problems */}
-                                                    {contest?.problems?.map(prob => {
-                                                        const pData = entry.problems?.[prob._id];
-                                                        const status = pData?.status || 'Not Attempted';
-                                                        let cellClass = 'bg-gray-50 text-gray-400';
-                                                        let icon = null;
+                                                        {/* Problem Cells — order matches contest.problems */}
+                                                        {contest?.problems?.map(prob => {
+                                                            const pData = entry.problems?.[prob._id];
+                                                            const status = pData?.status || 'Not Attempted';
+                                                            let cellClass = 'bg-gray-50 text-gray-400';
+                                                            let icon = null;
 
-                                                        if (status === 'Accepted') {
-                                                            cellClass = 'bg-green-50 text-green-700 font-semibold';
-                                                            icon = '✓';
-                                                        } else if (status === 'Wrong Answer') {
-                                                            cellClass = 'bg-red-50 text-red-600';
-                                                            icon = '✗';
-                                                        }
+                                                            if (status === 'Accepted') {
+                                                                cellClass = 'bg-green-50 text-green-700 font-semibold';
+                                                                icon = '✓';
+                                                            } else if (status === 'Wrong Answer') {
+                                                                cellClass = 'bg-red-50 text-red-600';
+                                                                icon = '✗';
+                                                            }
 
-                                                        return (
-                                                            <td key={prob._id} className="p-2 text-center border-r border-gray-50">
-                                                                <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
-                                                                    {icon && <span className="font-bold">{icon}</span>}
-                                                                    {status === 'Not Attempted' ? '—' : status === 'Accepted' ? 'Accepted' : 'Wrong'}
-                                                                </div>
-                                                            </td>
-                                                        );
-                                                    })}
-
-                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{entry.time}m</td>
-                                                    <td className="px-3 py-2 whitespace-nowrap text-center">
-                                                        <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
-                                                            {entry.problemsSolved}/{contest?.problems?.length || 0}
-                                                        </span>
-                                                    </td>
-                                                    {contest?.proctoringEnabled && (() => {
-                                                        const ts = entry.tabSwitchCount || 0;
-                                                        const fse = entry.fullscreenExits || 0;
-                                                        const totalV = ts + fse;
-                                                        const limit = contest?.maxViolations || 5;
-                                                        const pct = Math.min(100, Math.round((totalV / limit) * 100));
-                                                        return (
-                                                            <>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                    <span className={ts > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                        {ts}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                    <span className={fse > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                        {fse}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-center">
-                                                                    <div className="flex flex-col items-center gap-1">
-                                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${totalV === 0 ? 'bg-green-100 text-green-800'
-                                                                            : pct >= 100 ? 'bg-red-100 text-red-800'
-                                                                                : 'bg-yellow-100 text-yellow-800'
-                                                                            }`}>{totalV}/{limit}</span>
+                                                            return (
+                                                                <td key={prob._id} className="p-2 text-center border-r border-gray-50">
+                                                                    <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
+                                                                        {icon && <span className="font-bold">{icon}</span>}
+                                                                        {status === 'Not Attempted' ? '—' : status === 'Accepted' ? 'Accepted' : 'Wrong'}
                                                                     </div>
                                                                 </td>
-                                                            </>
-                                                        );
-                                                    })()}
-                                                    <td className="p-4 text-center">
-                                                        {entry.isCompleted ? (
-                                                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">Finished</span>
-                                                        ) : (
-                                                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">In Progress</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-4 text-center font-bold text-blue-600 sticky right-0 bg-inherit z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-gray-100">{entry.score}</td>
-                                                </tr>
-                                            )})}
+                                                            );
+                                                        })}
+
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{entry.time}m</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-center">
+                                                            <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
+                                                                {entry.problemsSolved}/{contest?.problems?.length || 0}
+                                                            </span>
+                                                        </td>
+                                                        {contest?.proctoringEnabled && (() => {
+                                                            const ts = entry.tabSwitchCount || 0;
+                                                            const fse = entry.fullscreenExits || 0;
+                                                            const totalV = ts + fse;
+                                                            const limit = contest?.maxViolations || 5;
+                                                            const pct = Math.min(100, Math.round((totalV / limit) * 100));
+                                                            return (
+                                                                <>
+                                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                        <span className={ts > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                            {ts}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                        <span className={fse > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                            {fse}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 whitespace-nowrap text-center">
+                                                                        <div className="flex flex-col items-center gap-1">
+                                                                            <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${totalV === 0 ? 'bg-green-100 text-green-800'
+                                                                                : pct >= 100 ? 'bg-red-100 text-red-800'
+                                                                                    : 'bg-yellow-100 text-yellow-800'
+                                                                                }`}>{totalV}/{limit}</span>
+                                                                        </div>
+                                                                    </td>
+                                                                </>
+                                                            );
+                                                        })()}
+                                                        <td className="p-4 text-center">
+                                                            {entry.isCompleted ? (
+                                                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">Finished</span>
+                                                            ) : (
+                                                                <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">In Progress</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-4 text-center font-bold text-blue-600 sticky right-0 bg-inherit z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-gray-100">{entry.score}</td>
+                                                    </tr>
+                                                )
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
                             )}
                         </div>
-                        
+
                         {/* Pagination Controls */}
                         {totalPages > 1 && !loadingLeaderboard && leaderboardData.length > 0 && (
                             <div className="bg-white border-t border-gray-100 p-4 flex items-center justify-between mt-auto shrink-0 w-full z-20 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.05)]">

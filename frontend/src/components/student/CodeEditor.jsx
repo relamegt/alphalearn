@@ -38,6 +38,7 @@ import { initSecurityFeatures } from '../../utils/disableInspect';
 import toast from 'react-hot-toast';
 import ProblemSidebar from './ProblemSidebar';
 import SubmissionsTab from './SubmissionsTab';
+import EditorialRenderer from './EditorialRenderer';
 import { GoSidebarCollapse, GoSidebarExpand } from 'react-icons/go';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
@@ -1014,45 +1015,16 @@ const CodeEditor = () => {
 
                         {/* ── Editorial ── */}
                         {leftTab === 'editorial' && (
-                            <div className="p-6 space-y-6">
-                                {problem.editorial?.approach ? (
-                                    <>
-                                        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                                            <h3 className="font-bold text-gray-900 mb-3">Approach</h3>
-                                            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                                                {problem.editorial.approach}
-                                            </p>
-                                        </div>
-                                        {problem.editorial.solution && (
-                                            <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                                                <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 uppercase flex items-center gap-2">
-                                                    <Code2 size={12} /> Solution
-                                                </div>
-                                                <div className="h-56">
-                                                    <Editor
-                                                        height="100%"
-                                                        language={language}
-                                                        value={problem.editorial.solution}
-                                                        theme="vs-light"
-                                                        options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12, padding: { top: 12 } }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
-                                        {problem.editorial.complexity && (
-                                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                                                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Complexity</h3>
-                                                <p className="text-sm text-gray-700">{problem.editorial.complexity}</p>
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-                                        <BookOpenIcon size={48} className="opacity-20 mb-3" />
-                                        <p className="text-sm">Editorial not available yet.</p>
-                                    </div>
-                                )}
-                            </div>
+                            <EditorialRenderer
+                                problem={problem}
+                                isAdmin={user?.role === 'admin'}
+                                onUpdateLinks={async (editorialLink, videoUrl) => {
+                                    await problemService.updateProblem(problemId, { editorialLink, videoUrl });
+                                    // Refresh problem data
+                                    const data = await problemService.getProblemById(problemId);
+                                    if (data?.problem) setProblem(data.problem);
+                                }}
+                            />
                         )}
 
                         {/* ── Submissions ── */}

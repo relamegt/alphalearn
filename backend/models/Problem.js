@@ -20,6 +20,8 @@ class Problem {
                 solution: null,
                 complexity: null
             },
+            editorialLink: problemData.editorialLink || null,
+            videoUrl: problemData.videoUrl || null,
             // Admin-provided reference solution per language (used for custom test case expected output)
             solutionCode: problemData.solutionCode || {},
             isContestProblem: problemData.isContestProblem || false,
@@ -116,6 +118,8 @@ class Problem {
             testCases: p.testCases || [],
             timeLimit: p.timeLimit || 2000,
             editorial: p.editorial || { approach: null, solution: null, complexity: null },
+            editorialLink: p.editorialLink || null,
+            videoUrl: p.videoUrl || null,
             isContestProblem: p.isContestProblem || false,
             contestId: p.contestId ? new ObjectId(p.contestId) : null,
             createdBy: new ObjectId(createdBy),

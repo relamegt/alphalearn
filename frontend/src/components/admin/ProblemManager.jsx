@@ -19,7 +19,9 @@ import {
     FileText,
     List,
     Clock,
-    Award
+    Award,
+    Link,
+    Youtube
 } from 'lucide-react';
 
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
@@ -63,6 +65,8 @@ const ProblemManager = () => {
             solution: '',
             complexity: '',
         },
+        editorialLink: '',
+        videoUrl: '',
     });
 
     const [bulkFile, setBulkFile] = useState(null);
@@ -209,6 +213,8 @@ const ProblemManager = () => {
                 testCases: p.testCases || [{ input: '', output: '', isHidden: false }],
                 timeLimit: p.timeLimit || 2000,
                 editorial: p.editorial || { approach: '', solution: '', complexity: '' },
+                editorialLink: p.editorialLink || '',
+                videoUrl: p.videoUrl || '',
             });
             setShowEditModal(true);
         } catch (error) {
@@ -228,6 +234,8 @@ const ProblemManager = () => {
             testCases: [{ input: '', output: '', isHidden: false }],
             timeLimit: 2000,
             editorial: { approach: '', solution: '', complexity: '' },
+            editorialLink: '',
+            videoUrl: '',
         });
     };
 
@@ -292,6 +300,8 @@ const ProblemManager = () => {
                     solution: 'def twoSum(nums, target): ...',
                     complexity: 'O(n)',
                 },
+                editorialLink: 'https://github.com/user/repo/blob/main/editorial.md',
+                videoUrl: 'https://www.youtube.com/watch?v=...',
             },
         ];
 
@@ -613,6 +623,39 @@ const ProblemManager = () => {
                                             </label>
                                         </div>
                                     ))}
+                                </div>
+
+                                {/* Editorial Links */}
+                                <div className="space-y-3 pt-4 border-t border-gray-100">
+                                    <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                        <Link size={16} /> Editorial Links
+                                    </label>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
+                                            <Link size={12} className="text-gray-400" /> GitHub Editorial URL
+                                        </label>
+                                        <input
+                                            type="url"
+                                            value={formData.editorialLink}
+                                            onChange={(e) => setFormData({ ...formData, editorialLink: e.target.value })}
+                                            className="input-field w-full font-mono text-sm"
+                                            placeholder="https://github.com/user/repo/blob/main/editorial.md"
+                                        />
+                                        <p className="text-[10px] text-gray-400 mt-1">Raw or blob GitHub URL — will be fetched and rendered as markdown.</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
+                                            <Youtube size={13} className="text-red-500" /> YouTube Video URL (optional)
+                                        </label>
+                                        <input
+                                            type="url"
+                                            value={formData.videoUrl}
+                                            onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                                            className="input-field w-full font-mono text-sm"
+                                            placeholder="https://www.youtube.com/watch?v=..."
+                                        />
+                                        <p className="text-[10px] text-gray-400 mt-1">Video will appear above the editorial when available.</p>
+                                    </div>
                                 </div>
                             </form>
                         </div>

@@ -3,7 +3,8 @@ import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'rec
 
 const PlatformRatingCard = ({ platform, stats, color = '#4F46E5', icon }) => {
     // Process stats
-    const { rating = 0, maxRating = 0, totalContests = 0, allContests = [] } = stats || {};
+    const { rating = 0, maxRating: apiMaxRating = 0, totalContests = 0, allContests = [] } = stats || {};
+    const maxRating = allContests.length > 0 ? Math.max(...allContests.map(c => c.rating)) : (apiMaxRating || rating);
 
     // Calculate chart data with diffs
     const chartData = useMemo(() => {

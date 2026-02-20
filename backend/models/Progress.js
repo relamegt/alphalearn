@@ -121,11 +121,11 @@ class Progress {
         let newStreak = progress.streakDays;
 
         if (daysDiff === 0) {
-            // Same day, no change
-            newStreak = progress.streakDays;
+            // Same day, ensure it's at least 1 if they submitted
+            newStreak = Math.max(1, progress.streakDays || 0);
         } else if (daysDiff === 1) {
             // Consecutive day, increment streak
-            newStreak = progress.streakDays + 1;
+            newStreak = Math.max(2, (progress.streakDays || 0) + 1);
         } else {
             // Streak broken, reset to 1
             newStreak = 1;

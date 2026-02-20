@@ -297,3 +297,31 @@ body.secure-mode {
         transform: translate(var(--tx, 30px), var(--ty, -80px)) scale(0.3);
     }
 }
+
+/* ── Countdown tick flip animation ── */
+@keyframes countdown-tick {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    49% {
+        transform: translateY(-6px);
+        opacity: 0;
+    }
+
+    50% {
+        transform: translateY(6px);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ── Countdown segment pulse (for seconds) ── */
+.countdown-element.seconds {
+    animation: countdown-tick 1s steps(1) infinite;
+}

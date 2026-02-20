@@ -263,44 +263,53 @@ const deleteContest = async (req, res) => {
     try {
         const { contestId } = req.params;
 
-        // Fetch contest to verify if it is global and exists
+        // Fetch contest to verify it exists
         const contest = await Contest.findById(contestId);
         if (!contest) {
             return res.status(404).json({ success: false, message: 'Contest not found' });
         }
 
-        // If it's a global contest, wipe out ALL temporary spot users completely
+        // If it's a global contest (batchId === null), clean up spot users
+        // Spot users are ONLY identified by the registeredForContest tag set during registerSpotUser.
+        // Normal registered users who participated never get this tag, so they are NEVER touched.
         if (contest.batchId === null) {
             const User = require('../models/User');
             const { collections } = require('../config/astra');
             const { ObjectId } = require('bson');
 
-            // 1. Find all submissions to catch older spot users without the registeredForContest tag
-            const submissions = await ContestSubmission.findByContest(contestId);
-            const submitterIds = submissions.map(s => s.studentId.toString());
+            // Find ONLY users tagged as registered for THIS specific contest.
+            // This field is exclusively set in registerSpotUser — normal users never have it.
+            const spotUsers = await collections.users.find({
+                registeredForContest: new ObjectId(contestId)
+            }).toArray();
 
-            // 2. Find all newly tagged spot users who registered for exactly this contest
-            const newlyTaggedUsers = await collections.users.find({ registeredForContest: new ObjectId(contestId) }).toArray();
-            const taggedIds = newlyTaggedUsers.map(u => u._id.toString());
-
-            // Extract universally distinct IDs
-            const allTargetIds = [...new Set([...submitterIds, ...taggedIds])];
-
-            for (const pid of allTargetIds) {
-                const user = await User.findById(pid);
-                if (user && user.role === 'student' && user.batchId === null && user.email.startsWith('spot_')) {
-                    await User.delete(pid); // Completer delete alias
+            for (const spotUser of spotUsers) {
+                // Double-safety check: only delete if the email pattern confirms it's a spot user.
+                // This prevents any edge-case where a normal user somehow has the tag.
+                if (
+                    spotUser.email &&
+                    spotUser.email.startsWith('spot_') &&
+                    spotUser.role === 'student'
+                ) {
+                    await User.delete(spotUser._id.toString());
+                } else {
+                    console.warn(
+                        `[deleteContest] Skipping user ${spotUser._id} — ` +
+                        `has registeredForContest tag but does not look like a spot user (email: ${spotUser.email})`
+                    );
                 }
             }
+
+            console.log(`[deleteContest] Deleted ${spotUsers.length} spot user(s) for contest ${contestId}`);
         }
 
-        // Delete contest submissions
+        // Delete all contest submissions (for all users, normal + spot)
         await ContestSubmission.deleteByContest(contestId);
 
         // Delete contest-specific problems
         await Problem.deleteContestProblems(contestId);
 
-        // Delete contest
+        // Delete the contest itself
         await Contest.delete(contestId);
 
         res.json({
@@ -316,6 +325,7 @@ const deleteContest = async (req, res) => {
         });
     }
 };
+
 
 // Submit code in contest with all features
 const submitContestCode = async (req, res) => {
