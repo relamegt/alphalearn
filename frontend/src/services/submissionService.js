@@ -22,10 +22,14 @@ apiClient.interceptors.request.use((config) => {
 
 const submissionService = {
     // Run Code (Sample Test Cases) → POST /student/code/run
-    runCode: async (problemId, code, language, customInput) => {
+    runCode: async (problemId, code, language, customInput, customInputs) => {
         try {
             const payload = { problemId, code, language };
-            if (customInput !== undefined && customInput !== null) {
+            if (customInputs !== undefined && customInputs !== null) {
+                // Array of { input, expectedOutput } objects — multi-case run
+                payload.customInputs = customInputs;
+            } else if (customInput !== undefined && customInput !== null) {
+                // Single custom input string (legacy)
                 payload.customInput = customInput;
             }
             const response = await apiClient.post('/student/code/run', payload);

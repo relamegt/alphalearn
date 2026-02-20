@@ -33,7 +33,7 @@ import submissionService from '../../services/submissionService';
 import problemService from '../../services/problemService';
 import useCodeExecution from '../../hooks/useCodeExecution';
 import { useAuth } from '../../contexts/AuthContext';
-import { initPasteDetection } from '../../utils/pasteDetector';
+
 import { initSecurityFeatures } from '../../utils/disableInspect';
 import toast from 'react-hot-toast';
 import ProblemSidebar from './ProblemSidebar';
@@ -55,10 +55,10 @@ const PopParticle = ({ style }) => (
     }} />
 );
 
-const SuccessPopOverlay = ({ result, points, onClose }) => {
+const SuccessPopOverlay = ({ result, onClose }) => {
     const [visible, setVisible] = useState(false);
-    // Show earned coins, or fallback to problem points (for re-solves/testing visual)
-    const coins = (result?.coinsEarned && result.coinsEarned > 0) ? result.coinsEarned : (points || 0);
+    // Only show coins that were actually earned — no fallback to problem points
+    const coins = result?.coinsEarned ?? 0;
 
     useEffect(() => {
         requestAnimationFrame(() => setVisible(true));
@@ -519,7 +519,7 @@ const CodeEditor = () => {
 
     // ── ui misc ──
     const [isFullScreen, setIsFullScreen] = useState(false);
-    const [pasteAttempts, setPasteAttempts] = useState(0);
+
     const [testCases, setTestCases] = useState([]);
     const [activeResultCase, setActiveResultCase] = useState(0); // result tab index
 
@@ -637,13 +637,7 @@ const CodeEditor = () => {
         return cleanup;
     }, []);
 
-    useEffect(() => {
-        if (!editorRef.current) return;
-        return initPasteDetection(editorRef, (n) => {
-            setPasteAttempts(n);
-            toast.error(`Paste blocked! Attempts: ${n}`);
-        });
-    }, [editorRef.current]);
+
 
     // ───── auto-switch to results tab + trigger success pop ────────────────────
     useEffect(() => {
@@ -651,8 +645,8 @@ const CodeEditor = () => {
             setBottomTab('results');
             if (activeResultCase === undefined || activeResultCase === null) setActiveResultCase(0);
         }
-        // Show success overlay on accepted submission
-        if (submitResult?.verdict === 'Accepted') {
+        // Show success overlay ONLY on first solve (coins were actually awarded)
+        if (submitResult?.verdict === 'Accepted' && submitResult?.isFirstSolve === true) {
             const timer = setTimeout(() => {
                 setSuccessResult(submitResult);
                 setShowSuccessPop(true);
@@ -660,6 +654,18 @@ const CodeEditor = () => {
             return () => clearTimeout(timer);
         }
     }, [runResult, submitResult, execError]);
+
+    // ───── debug: log runResult on change ────────────────────────────────────
+    useEffect(() => {
+        if (runResult) {
+            console.log('[CodeEditor] runResult updated:',
+                'total=', runResult.results?.length,
+                'custom=', runResult.results?.filter(r => r.isCustom).length,
+                'std=', runResult.results?.filter(r => !r.isCustom).length
+            );
+        }
+    }, [runResult]);
+
 
     // ───── compilation error markers ─────────────────────────────────────────
     const activeResult = submitResult || runResult;
@@ -765,40 +771,35 @@ const CodeEditor = () => {
         setResultsAnimKey(k => k + 1);
         setActiveResultCase(0);
 
-        let customInput = undefined;
-
-        // Logic:
-        // If active tab is Custom -> Run that custom input
-        // If active tab is Standard -> Run All Standard (default behavior) OR run specific?
-        // Let's stick to default "Run All Standard" if on standard tab, unless we want to isolate.
-        // But for consistency "Run" usually implies running the check.
-        // User might expect "Run this case".
-        // If I pass the standard case input as customInput, it runs ONLY that case.
-        // Let's do that for consistency if the user is focused on a specific case tab!
-        // Wait, standard run returns multiple results (verdict for all).
-        // Custom run returns ONE result.
-        // If I run specific standard case as custom input, I get ONE result.
-        // This breaks the "Results" UI which expects multiple results for standard run.
-        // So: If Standard Tab -> Run All (ignore specific tab selection for execution).
-        // If Custom Tab -> Run specific custom input.
-
-        if (activeTestCaseId.startsWith('custom-')) {
-            const cCase = customTestCases.find(c => `custom-${c.id}` === activeTestCaseId);
-            if (cCase) customInput = cCase.input;
-        } else if (activeTestCaseId.startsWith('case-')) {
-            // If a specific standard test case is selected, run it as custom input
-            const caseIndex = parseInt(activeTestCaseId.split('-')[1], 10);
-            if (!isNaN(caseIndex) && testCases[caseIndex]) {
-                customInput = testCases[caseIndex].input;
-            }
-        }
-
         const monaco = monacoRef.current;
         const editor = editorRef.current;
         if (monaco && editor) monaco.editor.setModelMarkers(editor.getModel(), 'owner', []);
         if (!code.trim()) return toast.error('Code cannot be empty');
-        await runCode(problemId, code, language, customInput);
+
+        // Build the combined list of test cases to run:
+        // Standard cases (with known expectedOutput) + User-added custom cases (input only)
+        const allCasesToRun = [
+            // Standard (non-hidden) cases — include expectedOutput for comparison
+            ...testCases.map(tc => ({
+                input: tc.input,
+                expectedOutput: tc.output ?? null,
+                isCustom: false
+            })),
+            // User-added custom cases — no expected output (backend derives via solution)
+            ...customTestCases.map(cc => ({
+                input: cc.input,
+                expectedOutput: null,
+                isCustom: true
+            }))
+        ];
+
+        console.log('[handleRun] testCases count:', testCases.length);
+        console.log('[handleRun] customTestCases count:', customTestCases.length);
+        console.log('[handleRun] allCasesToRun:', JSON.stringify(allCasesToRun));
+
+        await runCode(problemId, code, language, undefined, allCasesToRun);
     };
+
 
     const handleSubmit = async () => {
         setBottomTab('results');
@@ -857,6 +858,8 @@ const CodeEditor = () => {
 
     // Determine executing state
     const isExecuting = running || submitting;
+    // For submit: use all problem test cases (from backend). For run: standard + user-added custom cases.
+    const runTotalCases = testCases.length + customTestCases.length || 1;
     const totalTestCasesForProgress = problem?.testCases?.length || testCases.length || 3;
 
     return (
@@ -1062,12 +1065,12 @@ const CodeEditor = () => {
 
                     {/* ── Code Editor ── */}
                     <div
+
                         style={{
                             height: `${editorTopH}%`,
                             transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)'
                         }}
                         className="flex flex-col overflow-hidden"
-                        onPaste={handleEditorPaste}
                     >
                         {showSettings && (
                             <SettingsModal
@@ -1100,11 +1103,7 @@ const CodeEditor = () => {
 
                             {/* Right: Actions */}
                             <div className="flex items-center gap-2">
-                                {pasteAttempts > 0 && (
-                                    <span className="text-xs text-red-500 font-medium hidden lg:flex items-center gap-1 mr-2" title={`${pasteAttempts} paste attempts blocked`}>
-                                        <AlertTriangle size={14} /> <span className="hidden xl:inline">Paste Limit:</span> {pasteAttempts}
-                                    </span>
-                                )}
+
 
                                 <button
                                     onClick={() => setShowSettings(true)}
@@ -1157,15 +1156,31 @@ const CodeEditor = () => {
                                     editorRef.current = editor;
                                     monacoRef.current = monaco;
 
-                                    // Block Paste
-                                    editor.onDidPaste((e) => {
-                                        if (e.range) {
-                                            // Ideally we want to allow internal paste but it's hard.
-                                            // The user asked "allow no copy paste from outside".
-                                            // Simple way: prevent default on container is handled.
-                                            // Monaco catches it too. We can force clear if needed or rely on container capture.
+                                    // ── Block paste inside Monaco editor ──────────────────
+                                    // Override Ctrl+V / Cmd+V at the Monaco command level
+                                    editor.addCommand(
+                                        monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV,
+                                        () => {
+                                            toast.error('Paste is disabled in the code editor', { icon: '🚫', id: 'paste-blocked' });
                                         }
-                                    });
+                                    );
+                                    // Also block Shift+Insert (alternate paste shortcut)
+                                    editor.addCommand(
+                                        monaco.KeyMod.Shift | monaco.KeyCode.Insert,
+                                        () => {
+                                            toast.error('Paste is disabled in the code editor', { icon: '🚫', id: 'paste-blocked' });
+                                        }
+                                    );
+                                    // Block paste from right-click context menu
+                                    editor.onContextMenu(() => { });
+                                    const editorDomNode = editor.getDomNode();
+                                    if (editorDomNode) {
+                                        editorDomNode.addEventListener('paste', (e) => {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            toast.error('Paste is disabled in the code editor', { icon: '🚫', id: 'paste-blocked' });
+                                        }, true);
+                                    }
                                 }}
                                 theme={editorSettings.theme}
                                 options={{
@@ -1339,7 +1354,7 @@ const CodeEditor = () => {
                                         <ExecutionProgress
                                             isRunning={running}
                                             isSubmitting={submitting}
-                                            total={submitting ? totalTestCasesForProgress : testCases.length || 3}
+                                            total={submitting ? totalTestCasesForProgress : runTotalCases}
                                         />
                                     )}
 
@@ -1381,16 +1396,19 @@ const CodeEditor = () => {
                                                                     <h2 className={`text-lg font-bold ${vc.text}`}>
                                                                         {displayResult.verdict}
                                                                     </h2>
-                                                                    {/* LeetCode-style: X / Y testcases passed */}
+                                                                    {/* X / Y testcases passed — always shown */}
                                                                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                                                                         <span className={`text-sm font-medium ${vc.text}`}>
-                                                                            {displayResult.isCustomInput
-                                                                                ? 'Custom Input'
-                                                                                : `${displayResult.testCasesPassed} / ${displayResult.totalTestCases} testcases passed`
-                                                                            }
+                                                                            {displayResult.testCasesPassed} / {displayResult.totalTestCases} testcases passed
                                                                         </span>
-                                                                        {displayResult.isSubmitMode && !displayResult.isCustomInput && (
+                                                                        {displayResult.isSubmitMode && (
                                                                             <span className="text-xs text-gray-500">All Test Cases</span>
+                                                                        )}
+                                                                        {/* Show custom case count badge if custom cases were run */}
+                                                                        {!displayResult.isSubmitMode && displayResult.results?.some(r => r.isCustom) && (
+                                                                            <span className="text-xs bg-blue-50 border border-blue-200 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                                                                                {displayResult.results.filter(r => r.isCustom).length} custom
+                                                                            </span>
                                                                         )}
                                                                     </div>
                                                                 </div>
@@ -1418,26 +1436,26 @@ const CodeEditor = () => {
                                             {/* ── Test Case Tabs (LeetCode style) ── */}
                                             {visibleResults.length > 0 && (
                                                 <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0 bg-white">
-                                                    {visibleResults.map((r, i) => (
-                                                        <button
-                                                            key={i}
-                                                            onClick={() => setActiveResultCase(i)}
-                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
-                                                                ${activeResultCase === i
-                                                                    ? `${r.passed
-                                                                        ? 'bg-green-50 border-green-300 text-green-700'
-                                                                        : 'bg-red-50 border-red-300 text-red-700'
-                                                                    } font-semibold`
-                                                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                                                                }`}
-                                                        >
-                                                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                            {displayResult.isSubmitMode && r.isHidden
-                                                                ? `Hidden ${i + 1}`
-                                                                : `Case ${i + 1}`
-                                                            }
-                                                        </button>
-                                                    ))}
+                                                    {visibleResults.map((r, i) => {
+                                                        const label = `Case ${i + 1}`;
+                                                        return (
+                                                            <button
+                                                                key={i}
+                                                                onClick={() => setActiveResultCase(i)}
+                                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
+                                                                        ${activeResultCase === i
+                                                                        ? `${r.passed
+                                                                            ? 'bg-green-50 border-green-300 text-green-700'
+                                                                            : 'bg-red-50 border-red-300 text-red-700'
+                                                                        } font-semibold`
+                                                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                                                    }`}
+                                                            >
+                                                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                                {label}
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
 
@@ -1473,20 +1491,8 @@ const CodeEditor = () => {
                                                                             {visibleResults[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
                                                                         </div>
                                                                     </div>
-                                                                    {/* Show expected output for normal test cases in grid */}
-                                                                    {(!displayResult.isCustomInput) && (
-                                                                        <div>
-                                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
-                                                                                {visibleResults[activeResultCase].expectedOutput ?? <span className="text-gray-400 italic">N/A</span>}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-
-                                                                {/* Custom input: expected output (no badge, clean display) */}
-                                                                {displayResult.isCustomInput && (
-                                                                    visibleResults[activeResultCase].expectedOutput &&
+                                                                    {/* Show expected output whenever it's available (standard cases always have it, custom cases have it if solution ran) */}
+                                                                    {visibleResults[activeResultCase].expectedOutput &&
                                                                         visibleResults[activeResultCase].expectedOutput !== '(No reference solution available)' ? (
                                                                         <div>
                                                                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
@@ -1494,8 +1500,15 @@ const CodeEditor = () => {
                                                                                 {visibleResults[activeResultCase].expectedOutput}
                                                                             </div>
                                                                         </div>
-                                                                    ) : null
-                                                                )}
+                                                                    ) : visibleResults[activeResultCase].isCustom ? (
+                                                                        <div>
+                                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
+                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-400 whitespace-pre-wrap min-h-[48px] italic">
+                                                                                No reference solution available for custom input
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : null}
+                                                                </div>
 
 
                                                                 {/* Your Output */}
@@ -1558,11 +1571,10 @@ const CodeEditor = () => {
                 </div>
             </div>
 
-            {/* ── Success Pop Overlay ── */}
+            {/* ── Success Pop Overlay (first solve only) ── */}
             {showSuccessPop && (
                 <SuccessPopOverlay
                     result={successResult}
-                    points={problem?.points}
                     onClose={() => { setShowSuccessPop(false); setSuccessResult(null); }}
                 />
             )}

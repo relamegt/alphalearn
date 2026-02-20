@@ -9,9 +9,12 @@ const { executeWithTestCases, validateCode } = require('../services/judge0Servic
 const runCode = async (req, res) => {
     console.log('\n📥 [API] POST /student/code/run');
     try {
-        const { problemId, code, language, customInput } = req.body;
+        const { problemId, code, language, customInput, customInputs } = req.body;
         const isCustom = customInput !== undefined && customInput !== null && customInput !== '';
-        console.log(`   Problem: ${problemId}, Lang: ${language}, CustomInput: ${isCustom}`);
+        const isMultiCustom = Array.isArray(customInputs) && customInputs.length > 0;
+        console.log(`   Problem: ${problemId}, Lang: ${language}, CustomInput: ${isCustom}, MultiCustom: ${isMultiCustom}`);
+        console.log(`   customInputs received: ${customInputs ? `Array(${customInputs.length}) → isCustom flags: [${customInputs.map(c => c.isCustom).join(', ')}]` : 'undefined/null'}`);
+
 
         // Validate code
         const validation = validateCode(code, language);
@@ -30,12 +33,80 @@ const runCode = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Problem not found' });
         }
 
+        // Helper: get solution code
+        const getSolutionCode = () => {
+            const solCode = problem.solutionCode?.[language] ||
+                Object.values(problem.solutionCode || {}).find(c => c);
+            const solLang = problem.solutionCode?.[language]
+                ? language
+                : Object.keys(problem.solutionCode || {}).find(k => problem.solutionCode[k]);
+            return { solCode, solLang };
+        };
+
         let results = [];
         let finalVerdict = 'Accepted';
         let totalPassed = 0;
 
-        if (isCustom) {
-            // ── Custom input mode ──────────────────────────────────────────
+        if (isMultiCustom) {
+            // ── Multi-case mode: array of { input, expectedOutput? } ────────────────
+            // Separate cases that have a known expectedOutput vs those that need solution
+            const casesNeedingSolution = customInputs.filter(c => c.expectedOutput === undefined || c.expectedOutput === null);
+
+            // Run user code against all inputs in one batch
+            const userTestCases = customInputs.map(c => ({ input: c.input, output: c.expectedOutput ?? undefined, isHidden: false }));
+            const userResult = await executeWithTestCases(language, code, userTestCases, problem.timeLimit);
+
+            // For cases that need expected output, run solution code once
+            let solOutputMap = {};
+            if (casesNeedingSolution.length > 0) {
+                const { solCode, solLang } = getSolutionCode();
+                if (solCode && solLang) {
+                    try {
+                        const solCases = casesNeedingSolution.map(c => ({ input: c.input, output: undefined, isHidden: false }));
+                        const solResult = await executeWithTestCases(solLang, solCode, solCases, problem.timeLimit);
+                        casesNeedingSolution.forEach((c, idx) => {
+                            solOutputMap[c.input] = solResult.results[idx]?.actualOutput ?? null;
+                        });
+                    } catch (solErr) {
+                        console.warn('   ⚠️ Solution code execution failed:', solErr.message);
+                    }
+                }
+            }
+
+            // Build final results
+            results = customInputs.map((c, i) => {
+                const userOut = userResult.results[i]?.actualOutput ?? '';
+                const userVerdict = userResult.results[i]?.verdict ?? userResult.verdict;
+                const userError = userResult.results[i]?.error ?? null;
+                const expectedOut = c.expectedOutput ?? solOutputMap[c.input] ?? null;
+                const passed = expectedOut !== null
+                    ? (userOut?.trim() === expectedOut?.trim())
+                    : (userVerdict === 'Accepted' || !userError);
+                return {
+                    input: c.input,
+                    expectedOutput: expectedOut ?? '(No reference solution available)',
+                    actualOutput: userOut,
+                    passed,
+                    verdict: passed ? 'Accepted' : (userError ? userVerdict : 'Wrong Answer'),
+                    error: userError,
+                    isHidden: false,
+                    isCustom: c.isCustom ?? false,
+                    hasSolution: expectedOut !== null
+                };
+            });
+
+            totalPassed = results.filter(r => r.passed).length;
+            finalVerdict = results.every(r => r.passed) ? 'Accepted'
+                : results.some(r => r.verdict === 'Compilation Error') ? 'Compilation Error'
+                    : results.some(r => r.verdict === 'Runtime Error') ? 'Runtime Error'
+                        : results.some(r => r.verdict === 'TLE') ? 'TLE'
+                            : 'Wrong Answer';
+
+            console.log(`   📋 [MultiCustom] Total results: ${results.length}, Custom: ${results.filter(r => r.isCustom).length}, Standard: ${results.filter(r => !r.isCustom).length}`);
+            console.log(`   Results map:`, results.map((r, i) => `[${i}] isCustom=${r.isCustom} passed=${r.passed} verdict=${r.verdict}`));
+
+        } else if (isCustom) {
+            // ── Single custom input mode ──────────────────────────────────────────
             // Run user code
             const userTestCase = [{ input: customInput, output: undefined, isHidden: false }];
             const userResult = await executeWithTestCases(language, code, userTestCase, problem.timeLimit);
@@ -45,17 +116,12 @@ const runCode = async (req, res) => {
 
             // Try to get expected output from solution code
             let expectedOutput = null;
-            const solutionCode = problem.solutionCode?.[language] ||
-                // Fallback: try any available language solution
-                Object.values(problem.solutionCode || {}).find(c => c);
-            const solutionLang = problem.solutionCode?.[language]
-                ? language
-                : Object.keys(problem.solutionCode || {}).find(k => problem.solutionCode[k]);
+            const { solCode, solLang } = getSolutionCode();
 
-            if (solutionCode && solutionLang) {
+            if (solCode && solLang) {
                 try {
                     const solResult = await executeWithTestCases(
-                        solutionLang, solutionCode,
+                        solLang, solCode,
                         [{ input: customInput, output: undefined, isHidden: false }],
                         problem.timeLimit
                     );
@@ -115,8 +181,8 @@ const runCode = async (req, res) => {
             testCasesPassed: totalPassed,
             totalTestCases: results.length,
             results,
-            error: results[0]?.error || null,
-            isCustomInput: isCustom
+            error: results.find(r => r.error)?.error || null,
+            isCustomInput: isCustom || isMultiCustom
         });
     } catch (error) {
         console.error('   ❌ Controller Error:', error);

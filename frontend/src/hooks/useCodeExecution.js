@@ -24,17 +24,17 @@ const useCodeExecution = () => {
     const [error, setError] = useState(null);
 
     // Run Code (Sample Test Cases)
-    const runCode = useCallback(async (problemId, code, language, customInput) => {
+    const runCode = useCallback(async (problemId, code, language, customInput, customInputs) => {
         setRunning(true);
         setRunResult(null);
         setError(null);
         setSubmitResult(null); // clear previous submit result
 
         try {
-            const response = await submissionService.runCode(problemId, code, language, customInput);
+            const response = await submissionService.runCode(problemId, code, language, customInput, customInputs);
 
             if (response.success) {
-                setRunResult({
+                const normalizedRunResult = {
                     verdict: response.verdict,
                     testCasesPassed: response.testCasesPassed ?? 0,
                     totalTestCases: response.totalTestCases ?? 0,
@@ -44,8 +44,14 @@ const useCodeExecution = () => {
                     totalCoins: 0,
                     isFirstSolve: false,
                     isSubmitMode: false,
-                    isCustomInput: customInput !== undefined && customInput !== null
-                });
+                    isCustomInput: (customInput !== undefined && customInput !== null) || (customInputs !== undefined && customInputs !== null)
+                };
+                console.log('[RunResult] Total results:', normalizedRunResult.results.length,
+                    '| Custom:', normalizedRunResult.results.filter(r => r.isCustom).length,
+                    '| Standard:', normalizedRunResult.results.filter(r => !r.isCustom).length
+                );
+                console.log('[RunResult] Full results:', JSON.stringify(normalizedRunResult.results, null, 2));
+                setRunResult(normalizedRunResult);
 
                 if (response.verdict === 'Accepted') {
                     toast.success('✓ All test cases passed!');
