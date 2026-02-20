@@ -57,7 +57,7 @@ const Navbar = () => {
             ],
             student: [
                 { to: '/student/dashboard', label: 'Dashboard', icon: Icons.Dashboard },
-                { to: '/student/problems', label: 'Practice', icon: Icons.Practice },
+                { to: '/student/problems', label: 'Practice', icon: Icons.Practice, newTab: true },
                 {
                     label: 'Contests',
                     icon: Icons.Contest,

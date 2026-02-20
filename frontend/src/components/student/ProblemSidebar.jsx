@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, CheckCircle } from 'lucide-react';
+import { ChevronRight, CheckCircle, Circle, ChevronDown, Search, X } from 'lucide-react';
 import { CiCircleList } from 'react-icons/ci';
 import { FaRegFolder, FaRegFolderOpen } from "react-icons/fa6";
 import problemService from '../../services/problemService';
 import sectionService from '../../services/sectionService';
 
 const DIFF_COLORS = {
-    Easy: { dot: '#10b981', text: '#065f46', bg: '#d1fae5' },
-    Medium: { dot: '#f59e0b', text: '#78350f', bg: '#fef3c7' },
-    Hard: { dot: '#ef4444', text: '#7f1d1d', bg: '#fee2e2' },
+    Easy: { text: 'text-green-700', bg: 'bg-green-100', dot: 'bg-green-500' },
+    Medium: { text: 'text-yellow-800', bg: 'bg-yellow-100', dot: 'bg-yellow-500' },
+    Hard: { text: 'text-red-800', bg: 'bg-red-100', dot: 'bg-red-500' },
 };
 
 const ProblemSidebar = () => {
@@ -21,6 +21,7 @@ const ProblemSidebar = () => {
     const [expandedSections, setExpandedSections] = useState({});
     const [expandedSubsections, setExpandedSubsections] = useState({});
     const [difficulty, setDifficulty] = useState('All');
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => { fetchData(); }, []);
 
@@ -39,6 +40,8 @@ const ProblemSidebar = () => {
             }
         }
     }, [problems, sections, problemId]);
+
+
 
     const fetchData = async () => {
         try {
@@ -70,7 +73,8 @@ const ProblemSidebar = () => {
                         return problemMap[pidStr];
                     })
                     .filter(p => !!p)
-                    .filter(p => difficulty === 'All' || p.difficulty === difficulty);
+                    .filter(p => difficulty === 'All' || p.difficulty === difficulty)
+                    .filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
                 return { ...subsection, problems: subsectionProblems };
             }).filter(sub => sub.problems.length > 0);
             return { ...section, subsections: mappedSubsections };
@@ -78,11 +82,28 @@ const ProblemSidebar = () => {
 
         const uncategorized = problems.filter(p =>
             !categorizedProblemIds.has(p.id) &&
-            (difficulty === 'All' || p.difficulty === difficulty)
+            (difficulty === 'All' || p.difficulty === difficulty) &&
+            p.title.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
         return { sections: mappedSections, uncategorized };
-    }, [problems, sections, difficulty]);
+    }, [problems, sections, difficulty, searchQuery]);
+
+    // Auto-expand on search
+    useEffect(() => {
+        if (searchQuery.trim() && structuredContent) {
+            const newExpSec = {};
+            const newExpSub = {};
+            structuredContent.sections.forEach(s => {
+                newExpSec[s._id] = true;
+                s.subsections.forEach(sub => {
+                    newExpSub[sub._id] = true;
+                });
+            });
+            setExpandedSections(prev => ({ ...prev, ...newExpSec }));
+            setExpandedSubsections(prev => ({ ...prev, ...newExpSub }));
+        }
+    }, [searchQuery, structuredContent]);
 
     const toggleSection = (id) => setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
     const toggleSubsection = (id) => setExpandedSubsections(prev => ({ ...prev, [id]: !prev[id] }));
@@ -90,70 +111,83 @@ const ProblemSidebar = () => {
 
     const solvedCount = problems.filter(p => p.isSolved).length;
     const progressPct = problems.length ? Math.round(solvedCount / problems.length * 100) : 0;
-    const circumference = 2 * Math.PI * 13;
+    const circumference = 2 * Math.PI * 16; // Increased radius
 
     if (loading) return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #e5e7eb', borderTopColor: '#2563eb', animation: 'spin 0.7s linear infinite' }} />
-            <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Loading problems…</span>
+        <div className="flex flex-col items-center justify-center h-full gap-4">
+            <div className="w-8 h-8 rounded-full border-4 border-gray-200 border-t-primary-600 animate-spin" />
+            <span className="text-sm font-medium text-gray-400">Loading problems…</span>
         </div>
     );
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', overflow: 'hidden' }}>
+        <div className="flex flex-col h-full bg-white overflow-hidden border-r border-gray-200">
 
             {/* ── Header ─────────────────────────────────────────────── */}
-            <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #f3f4f6', flexShrink: 0 }}>
+            <div className="shrink-0 p-4 border-b border-gray-100 bg-white z-10">
 
                 {/* Title row */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        {/* CiCircleList icon — bigger, neutral */}
-                        <CiCircleList style={{ fontSize: 22, color: '#6b7280', flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#111827', letterSpacing: '-0.01em' }}>
-                            Problem List
-                        </span>
-                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>
-                            {solvedCount}/{problems.length}
-                        </span>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <CiCircleList className="text-gray-500 text-2xl" />
+                        <div>
+                            <h2 className="text-base font-bold text-gray-900 leading-tight">Problem List</h2>
+                            <p className="text-xs font-medium text-gray-500 mt-0.5">{solvedCount} / {problems.length} Solved</p>
+                        </div>
                     </div>
 
-                    {/* Circular progress (blue only) */}
-                    <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
-                        <svg width="36" height="36" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
-                            <circle cx="18" cy="18" r="13" fill="none" stroke="#f3f4f6" strokeWidth="3" />
+                    {/* Circular progress */}
+                    <div className="relative w-10 h-10 shrink-0">
+                        <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                            <circle cx="18" cy="18" r="16" fill="none" className="stroke-gray-100" strokeWidth="3" />
                             <circle
-                                cx="18" cy="18" r="13" fill="none"
-                                stroke="#2563eb" strokeWidth="3"
+                                cx="18" cy="18" r="16" fill="none"
+                                className="stroke-blue-600 transition-all duration-500 ease-out"
+                                strokeWidth="3"
                                 strokeDasharray={circumference}
                                 strokeDashoffset={circumference * (1 - (problems.length ? solvedCount / problems.length : 0))}
                                 strokeLinecap="round"
-                                style={{ transition: 'stroke-dashoffset 0.5s ease' }}
                             />
                         </svg>
-                        <span style={{
-                            position: 'absolute', inset: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 9, fontWeight: 800, color: '#2563eb',
-                        }}>
-                            {progressPct}%
-                        </span>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-[10px] font-bold text-blue-600">{progressPct}%</span>
+                        </div>
                     </div>
                 </div>
 
+                {/* Search Bar */}
+                <div className="relative mb-3 group">
+                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                        <Search size={13} className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                    </div>
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search problems..."
+                        className="w-full bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg py-1.5 pl-8 pr-7 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 font-medium"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute inset-y-0 right-0 pr-2 flex items-center text-gray-400 hover:text-gray-600 cursor-pointer"
+                        >
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+
                 {/* Difficulty filter */}
-                <div style={{ display: 'flex', gap: 3, background: '#f9fafb', borderRadius: 8, padding: 3, border: '1px solid #f3f4f6' }}>
+                <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
                     {['All', 'Easy', 'Medium', 'Hard'].map(level => (
                         <button
                             key={level}
                             onClick={() => setDifficulty(level)}
-                            style={{
-                                flex: 1, padding: '4px 0', borderRadius: 6, border: 'none',
-                                fontSize: 10, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
-                                background: difficulty === level ? '#fff' : 'transparent',
-                                color: difficulty === level ? '#374151' : '#9ca3af',
-                                boxShadow: difficulty === level ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                            }}
+                            className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all duration-200
+                                ${difficulty === level
+                                    ? 'bg-white text-gray-800 shadow-sm ring-1 ring-gray-200'
+                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                }`}
                         >
                             {level}
                         </button>
@@ -162,10 +196,9 @@ const ProblemSidebar = () => {
             </div>
 
             {/* ── List ────────────────────────────────────────────────── */}
-            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-
+            <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
                 {structuredContent?.sections.map(section => (
-                    <div key={section._id}>
+                    <div key={section._id} className="border-b border-gray-50 last:border-0">
                         {/* Section header */}
                         <SectionHeader
                             title={section.title}
@@ -175,39 +208,34 @@ const ProblemSidebar = () => {
                         />
 
                         {expandedSections[section._id] && (
-                            <div style={{ background: '#fafafa' }}>
+                            <div className="bg-gray-50/50 pb-2">
                                 {section.subsections.map(sub => (
                                     <div key={sub._id}>
                                         {/* Subsection header */}
                                         <button
                                             onClick={() => toggleSubsection(sub._id)}
-                                            style={{
-                                                width: '100%', display: 'flex', alignItems: 'center', gap: 6,
-                                                padding: '7px 14px 7px 32px', border: 'none', cursor: 'pointer',
-                                                background: 'transparent', transition: 'background 0.12s',
-                                                borderBottom: '1px solid #f3f4f6',
-                                            }}
-                                            onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100/50 transition-colors group"
                                         >
-                                            <ChevronRight
-                                                size={11} color="#d1d5db"
-                                                style={{ transform: expandedSubsections[sub._id] ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}
-                                            />
-                                            <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', flex: 1, textAlign: 'left' }}>{sub.title}</span>
-                                            <span style={{ fontSize: 9, background: '#f3f4f6', color: '#9ca3af', borderRadius: 12, padding: '1px 6px', fontWeight: 700 }}>
+                                            <div className="w-6 flex justify-center shrink-0">
+                                                <ChevronRight
+                                                    size={16}
+                                                    className={`text-gray-400 transition-transform duration-200 ${expandedSubsections[sub._id] ? 'rotate-90 text-gray-600' : 'group-hover:text-gray-500'}`}
+                                                />
+                                            </div>
+                                            <span className="text-sm font-semibold text-gray-700 flex-1 text-left truncate">{sub.title}</span>
+                                            <span className="text-xs font-medium text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200 shadow-sm">
                                                 {sub.problems.length}
                                             </span>
                                         </button>
 
                                         {expandedSubsections[sub._id] && (
-                                            <div style={{ paddingBottom: 2 }}>
+                                            <div className="mb-2">
                                                 {sub.problems.map(problem => (
                                                     <ProblemRow
                                                         key={problem.id}
                                                         problem={problem}
                                                         active={isActive(problem.id)}
-                                                        indent={44}
+                                                        indent="pl-12"
                                                         onClick={() => navigate(`/student/problem/${problem.id}`)}
                                                     />
                                                 ))}
@@ -222,29 +250,31 @@ const ProblemSidebar = () => {
 
                 {/* Uncategorized */}
                 {structuredContent?.uncategorized.length > 0 && (
-                    <div>
+                    <div className="border-t border-gray-100">
                         <SectionHeader
                             title="Other Problems"
-                            expanded
+                            expanded={true}
                             count={structuredContent.uncategorized.length}
                             onClick={() => { }}
                             noToggle
                         />
-                        {structuredContent.uncategorized.map(problem => (
-                            <ProblemRow
-                                key={problem.id}
-                                problem={problem}
-                                active={isActive(problem.id)}
-                                indent={14}
-                                onClick={() => navigate(`/student/problem/${problem.id}`)}
-                            />
-                        ))}
+                        <div className="pb-2">
+                            {structuredContent.uncategorized.map(problem => (
+                                <ProblemRow
+                                    key={problem.id}
+                                    problem={problem}
+                                    active={isActive(problem.id)}
+                                    indent="pl-4"
+                                    onClick={() => navigate(`/student/problem/${problem.id}`)}
+                                />
+                            ))}
+                        </div>
                     </div>
                 )}
 
                 {!structuredContent?.sections.length && !structuredContent?.uncategorized.length && (
-                    <div style={{ padding: 32, textAlign: 'center', color: '#d1d5db', fontSize: 12 }}>
-                        No problems found.
+                    <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400">
+                        <p className="text-sm">No problems found matching filters.</p>
                     </div>
                 )}
             </div>
@@ -254,35 +284,34 @@ const ProblemSidebar = () => {
 
 // ── Section Header ──────────────────────────────────────────────────────────
 const SectionHeader = ({ title, expanded, count, onClick, noToggle }) => {
-    const [hover, setHover] = useState(false);
     return (
         <button
             onClick={onClick}
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-            style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                padding: '9px 14px', border: 'none', cursor: noToggle ? 'default' : 'pointer',
-                background: hover && !noToggle ? '#f9fafb' : '#fff',
-                borderBottom: '1px solid #f3f4f6',
-                transition: 'background 0.12s',
-            }}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200
+                ${expanded ? 'bg-white' : 'bg-white hover:bg-gray-50'}
+                ${!noToggle ? 'cursor-pointer' : 'cursor-default'}
+            `}
         >
-            {/* Folder icon — open/closed state */}
-            {expanded
-                ? <FaRegFolderOpen size={14} color="#9ca3af" style={{ flexShrink: 0 }} />
-                : <FaRegFolder size={14} color="#9ca3af" style={{ flexShrink: 0 }} />
-            }
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', flex: 1, textAlign: 'left', letterSpacing: '-0.01em' }}>
+            {/* Folder icon */}
+            <div className="shrink-0 text-gray-400">
+                {expanded
+                    ? <FaRegFolderOpen size={18} className="text-blue-500" />
+                    : <FaRegFolder size={18} />
+                }
+            </div>
+
+            <span className="text-sm font-bold text-gray-800 flex-1 text-left truncate leading-tight">
                 {title}
             </span>
-            <span style={{ fontSize: 9, background: '#f3f4f6', color: '#9ca3af', borderRadius: 12, padding: '1px 6px', fontWeight: 700 }}>
+
+            <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                 {count}
             </span>
+
             {!noToggle && (
                 <ChevronRight
-                    size={12} color="#d1d5db"
-                    style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}
+                    size={16}
+                    className={`text-gray-400 transition-transform duration-200 shrink-0 ${expanded ? 'rotate-90' : ''}`}
                 />
             )}
         </button>
@@ -291,38 +320,37 @@ const SectionHeader = ({ title, expanded, count, onClick, noToggle }) => {
 
 // ── Problem Row ──────────────────────────────────────────────────────────────
 const ProblemRow = ({ problem, active, indent, onClick }) => {
-    const [hover, setHover] = useState(false);
     const d = DIFF_COLORS[problem.difficulty] || DIFF_COLORS.Easy;
 
     return (
         <div
             onClick={onClick}
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-            style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: `7px 12px 7px ${indent}px`,
-                cursor: 'pointer', transition: 'all 0.12s',
-                background: active ? '#eff6ff' : hover ? '#f9fafb' : 'transparent',
-                borderLeft: active ? '2px solid #2563eb' : '2px solid transparent',
-                borderBottom: '1px solid #f9fafb',
-            }}
+            className={`
+                flex items-center gap-3 pr-4 py-2.5 my-0.5 cursor-pointer transition-all duration-150 border-l-[3px]
+                ${indent}
+                ${active
+                    ? 'bg-blue-50 border-l-blue-600'
+                    : 'border-l-transparent hover:bg-gray-100 hover:border-l-gray-300'
+                }
+            `}
         >
-            {problem.isSolved
-                ? <CheckCircle size={12} color="#10b981" style={{ flexShrink: 0 }} />
-                : <div style={{ width: 12, height: 12, borderRadius: '50%', border: '1.5px solid #e5e7eb', flexShrink: 0 }} />
-            }
-            <span style={{
-                flex: 1, fontSize: 12, fontWeight: active ? 700 : 500,
-                color: active ? '#1d4ed8' : hover ? '#111827' : '#4b5563',
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.4,
-            }}>
+            <div className="shrink-0">
+                {problem.isSolved
+                    ? <CheckCircle size={16} className="text-green-500 fill-green-50" />
+                    : <Circle size={16} className="text-gray-300" strokeWidth={2} />
+                }
+            </div>
+
+            <span className={`flex-1 text-sm truncate leading-snug
+                ${active ? 'font-semibold text-blue-700' : 'font-medium text-gray-600'}
+            `}>
                 {problem.title}
             </span>
-            <span style={{
-                fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 20, flexShrink: 0,
-                background: d.bg, color: d.text, lineHeight: 1.6,
-            }}>
+
+            <span className={`
+                text-[10px] uppercase font-bold px-2 py-0.5 rounded-full shrink-0 tracking-wide
+                ${d.bg} ${d.text}
+            `}>
                 {problem.difficulty === 'Medium' ? 'Med' : problem.difficulty}
             </span>
         </div>
