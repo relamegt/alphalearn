@@ -16,6 +16,7 @@ class User {
                 lastName: userData.lastName || null,
                 role: userData.role,
                 batchId: userData.batchId ? new ObjectId(userData.batchId) : null,
+                registeredForContest: userData.registeredForContest ? new ObjectId(userData.registeredForContest) : null,
                 assignedBatches: userData.batchId ? [new ObjectId(userData.batchId)] : [],
                 isActive: true,
                 isFirstLogin: true,

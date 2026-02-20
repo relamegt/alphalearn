@@ -184,47 +184,25 @@ class ContestSubmission {
     }
 
     static async getProctoringViolations(studentId, contestId) {
-        // Strategy:
-        // 1. If the student has a COMPLETED final submission that stores a violation snapshot,
-        //    use it as the authoritative source (stored when finish was called).
-        // 2. Otherwise, fall back to summing individual isViolationLog=true event records
-        //    (in-progress contest or legacy data without snapshot).
+        // Find the most recent submission or violation log which contains the cumulative snapshot
+        const latestLog = await collections.contestSubmissions.findOne(
+            {
+                studentId: new ObjectId(studentId),
+                contestId: new ObjectId(contestId)
+            },
+            { sort: { submittedAt: -1 } }
+        );
 
-        // Check for final submission with violation snapshot
-        const finalSub = await collections.contestSubmissions.findOne({
-            studentId: new ObjectId(studentId),
-            contestId: new ObjectId(contestId),
-            isFinalContestSubmission: true
-        });
-
-        if (finalSub && (finalSub.tabSwitchCount > 0 || finalSub.fullscreenExits > 0 ||
-            finalSub.tabSwitchDuration > 0 || finalSub.pasteAttempts > 0)) {
-            // Use the snapshot stored at contest completion time
+        if (latestLog) {
             return {
-                totalTabSwitches: finalSub.tabSwitchCount || 0,
-                totalTabSwitchDuration: finalSub.tabSwitchDuration || 0,
-                totalPasteAttempts: finalSub.pasteAttempts || 0,
-                totalFullscreenExits: finalSub.fullscreenExits || 0
+                totalTabSwitches: latestLog.tabSwitchCount || 0,
+                totalTabSwitchDuration: latestLog.tabSwitchDuration || 0,
+                totalPasteAttempts: latestLog.pasteAttempts || 0,
+                totalFullscreenExits: latestLog.fullscreenExits || 0
             };
         }
 
-        // Fall back: sum from individual violation log events
-        const violationLogs = await collections.contestSubmissions
-            .find({
-                studentId: new ObjectId(studentId),
-                contestId: new ObjectId(contestId),
-                isViolationLog: true
-            })
-            .toArray();
-
-        const violations = { totalTabSwitches: 0, totalTabSwitchDuration: 0, totalPasteAttempts: 0, totalFullscreenExits: 0 };
-        violationLogs.forEach(log => {
-            violations.totalTabSwitches += log.tabSwitchCount || 0;
-            violations.totalTabSwitchDuration += log.tabSwitchDuration || 0;
-            violations.totalPasteAttempts += log.pasteAttempts || 0;
-            violations.totalFullscreenExits += log.fullscreenExits || 0;
-        });
-        return violations;
+        return { totalTabSwitches: 0, totalTabSwitchDuration: 0, totalPasteAttempts: 0, totalFullscreenExits: 0 };
     }
 
 
@@ -277,7 +255,9 @@ class ContestSubmission {
                 );
 
                 // Determine completion status
-                const isCompleted = await this.hasSubmittedContest(studentId, contestId);
+                const isContestEnded = contest && (new Date() > new Date(contest.endTime));
+                const hasSubmitted = await this.hasSubmittedContest(studentId, contestId);
+                const isCompleted = hasSubmitted || isContestEnded;
 
                 // Build per-problem status using reliable problem IDs from Problem collection
                 const problemsStatus = {};

@@ -263,6 +263,37 @@ const deleteContest = async (req, res) => {
     try {
         const { contestId } = req.params;
 
+        // Fetch contest to verify if it is global and exists
+        const contest = await Contest.findById(contestId);
+        if (!contest) {
+            return res.status(404).json({ success: false, message: 'Contest not found' });
+        }
+
+        // If it's a global contest, wipe out ALL temporary spot users completely
+        if (contest.batchId === null) {
+            const User = require('../models/User');
+            const { collections } = require('../config/astra');
+            const { ObjectId } = require('bson');
+
+            // 1. Find all submissions to catch older spot users without the registeredForContest tag
+            const submissions = await ContestSubmission.findByContest(contestId);
+            const submitterIds = submissions.map(s => s.studentId.toString());
+
+            // 2. Find all newly tagged spot users who registered for exactly this contest
+            const newlyTaggedUsers = await collections.users.find({ registeredForContest: new ObjectId(contestId) }).toArray();
+            const taggedIds = newlyTaggedUsers.map(u => u._id.toString());
+
+            // Extract universally distinct IDs
+            const allTargetIds = [...new Set([...submitterIds, ...taggedIds])];
+
+            for (const pid of allTargetIds) {
+                const user = await User.findById(pid);
+                if (user && user.role === 'student' && user.batchId === null && user.email.startsWith('spot_')) {
+                    await User.delete(pid); // Completer delete alias
+                }
+            }
+        }
+
         // Delete contest submissions
         await ContestSubmission.deleteByContest(contestId);
 
@@ -858,6 +889,7 @@ const registerSpotUser = async (req, res) => {
             lastName: '',
             role: 'student', // so middleware treats them correctly
             batchId: null, // Global user
+            registeredForContest: contestId,
             education: {
                 rollNumber: rollNumber || 'N/A',
                 branch: branch || 'N/A'
