@@ -4,6 +4,7 @@ import profileService from '../../../services/profileService';
 import uploadService from '../../../services/uploadService';
 import authService from '../../../services/authService';
 import toast from 'react-hot-toast';
+import CustomDropdown from '../../shared/CustomDropdown';
 
 const PersonalDetails = () => {
     const { updateUser } = useAuth();
@@ -183,31 +184,31 @@ const PersonalDetails = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                        <select
+                        <CustomDropdown
+                            options={[
+                                { value: '', label: 'Select Gender' },
+                                { value: 'Male', label: 'Male' },
+                                { value: 'Female', label: 'Female' },
+                                { value: 'Other', label: 'Other' }
+                            ]}
                             value={personalData.gender}
-                            onChange={(e) => setPersonalData({ ...personalData, gender: e.target.value })}
-                            className="input-field"
-                        >
-                            <option value="">Select Gender</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                        </select>
+                            onChange={(val) => setPersonalData({ ...personalData, gender: val })}
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">T-shirt Size</label>
-                        <select
+                        <CustomDropdown
+                            options={[
+                                { value: '', label: 'Select Size' },
+                                { value: 'S', label: 'S' },
+                                { value: 'M', label: 'M' },
+                                { value: 'L', label: 'L' },
+                                { value: 'XL', label: 'XL' },
+                                { value: 'XXL', label: 'XXL' }
+                            ]}
                             value={personalData.tshirtSize}
-                            onChange={(e) => setPersonalData({ ...personalData, tshirtSize: e.target.value })}
-                            className="input-field"
-                        >
-                            <option value="">Select Size</option>
-                            <option value="S">S</option>
-                            <option value="M">M</option>
-                            <option value="L">L</option>
-                            <option value="XL">XL</option>
-                            <option value="XXL">XXL</option>
-                        </select>
+                            onChange={(val) => setPersonalData({ ...personalData, tshirtSize: val })}
+                        />
                     </div>
                 </div>
 

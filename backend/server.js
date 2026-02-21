@@ -53,7 +53,7 @@ app.set('trust proxy', 1);
 app.get('/health', (req, res) => {
     res.json({
         success: true,
-        message: 'AlphaLearn API is running',
+        message: 'AlphaKnowledge API is running',
         timestamp: new Date().toISOString(),
         websocket: 'enabled'
     });
@@ -119,7 +119,7 @@ const startServer = async () => {
         server.listen(PORT, () => {
             console.log('');
             console.log('✅ ═══════════════════════════════════════════════════');
-            console.log(`✅ AlphaLearn API Server is running on port ${PORT}`);
+            console.log(`✅ AlphaKnowledge API Server is running on port ${PORT}`);
             console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
             console.log(`✅ Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
             console.log(`✅ WebSocket: Enabled on ws://localhost:${PORT}/ws`);

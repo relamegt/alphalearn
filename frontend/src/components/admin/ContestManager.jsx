@@ -6,6 +6,7 @@ import ContestCreator from './ContestCreator';
 import { Trophy, Calendar, Plus, List, ArrowLeft, Clock, Grid, Layers, Search, Filter, Trash2, Edit, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
+import CustomDropdown from '../shared/CustomDropdown';
 
 const ContestManager = () => {
     const { user } = useAuth();
@@ -93,10 +94,10 @@ const ContestManager = () => {
         }
     };
 
-    const handleCopyLink = (e, contestId) => {
+    const handleCopyLink = (e, contest) => {
         e.preventDefault();
         e.stopPropagation();
-        const url = `${window.location.origin}/join/${contestId}`;
+        const url = `${window.location.origin}/join/${contest.slug || contest._id}`;
         navigator.clipboard.writeText(url);
         toast.success("Global Contest link copied!");
     };
@@ -156,18 +157,16 @@ const ContestManager = () => {
                                     {/* Batch Filter */}
                                     <div className="flex items-center gap-2">
                                         <Filter size={16} className="text-gray-400" />
-                                        <select
-                                            value={selectedBatchId}
-                                            onChange={(e) => setSelectedBatchId(e.target.value)}
-                                            className="form-select block w-full pl-2 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-lg"
-                                        >
-                                            <option value="all">All Batches</option>
-                                            {batches.map(batch => (
-                                                <option key={batch._id} value={batch._id}>
-                                                    {batch.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <div className="w-48">
+                                            <CustomDropdown
+                                                options={[
+                                                    { value: 'all', label: 'All Batches' },
+                                                    ...batches.map(batch => ({ value: batch._id, label: batch.name }))
+                                                ]}
+                                                value={selectedBatchId}
+                                                onChange={(val) => setSelectedBatchId(val)}
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
@@ -241,7 +240,7 @@ const ContestManager = () => {
                                                     </div>
 
                                                     <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 leading-tight group-hover:text-indigo-600 transition-colors" title={contest.title}>
-                                                        <Link to={`/student/contest/${contest._id}/leaderboard`} className="hover:underline focus:outline-none">
+                                                        <Link to={`/contest/${contest.slug || contest._id}/leaderboard`} className="hover:underline focus:outline-none">
                                                             {contest.title}
                                                         </Link>
                                                     </h3>
@@ -289,7 +288,7 @@ const ContestManager = () => {
                                                         <Trash2 size={14} />
                                                     </button>
                                                     <Link
-                                                        to={`/student/contest/${contest._id}/leaderboard`}
+                                                        to={`/contest/${contest.slug || contest._id}/leaderboard`}
                                                         className="flex-1 py-2 px-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center gap-2 shadow-sm"
                                                     >
                                                         <Trophy size={14} className={isActive ? "text-yellow-500" : "text-gray-400"} />
@@ -297,7 +296,7 @@ const ContestManager = () => {
                                                     </Link>
                                                     {!contest.batchId && (
                                                         <button
-                                                            onClick={(e) => handleCopyLink(e, contest._id)}
+                                                            onClick={(e) => handleCopyLink(e, contest)}
                                                             className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg text-sm font-medium text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-all flex items-center justify-center gap-2 shadow-sm"
                                                             title="Copy Global Contest Link"
                                                         >

@@ -1,11 +1,14 @@
 const { ObjectId } = require('bson');
 const { collections } = require('../config/astra');
 
+const slugify = text => text ? text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : 'problem';
+
 class Problem {
     // Create new problem
     static async create(problemData) {
         const problem = {
             _id: new ObjectId(),
+            slug: slugify(problemData.title) + '-' + Math.floor(Math.random() * 10000), // Append random number to avoid collisions
             title: problemData.title,
             section: problemData.section,
             difficulty: problemData.difficulty, // 'Easy' | 'Medium' | 'Hard'
@@ -35,18 +38,46 @@ class Problem {
         return { ...problem, _id: result.insertedId };
     }
 
-    // Find problem by ID
+    // Find problem by ID or Slug
     static async findById(problemId) {
-        return await collections.problems.findOne({ _id: new ObjectId(problemId) });
+        try {
+            return await collections.problems.findOne({ _id: new ObjectId(problemId) });
+        } catch (e) {
+            // Not a valid ObjectId, search by slug
+            return await collections.problems.findOne({ slug: problemId });
+        }
     }
 
-    // Find problems by IDs — preserves input order (critical for leaderboard columns)
+    // Find problems by IDs — preserves input order 
     static async findByIds(problemIds) {
-        const objectIds = problemIds.map(id => new ObjectId(id));
-        const problems = await collections.problems.find({ _id: { $in: objectIds } }).toArray();
+        const objectIds = problemIds.filter(id => {
+            try { new ObjectId(id); return true; } catch { return false; }
+        }).map(id => new ObjectId(id));
+
+        const slugs = problemIds.filter(id => {
+            try { new ObjectId(id); return false; } catch { return true; }
+        });
+
+        const query = {};
+        if (objectIds.length > 0 && slugs.length > 0) {
+            query.$or = [{ _id: { $in: objectIds } }, { slug: { $in: slugs } }];
+        } else if (objectIds.length > 0) {
+            query._id = { $in: objectIds };
+        } else if (slugs.length > 0) {
+            query.slug = { $in: slugs };
+        } else {
+            return [];
+        }
+
+        const problems = await collections.problems.find(query).toArray();
         // Sort to match the original problemIds order
         const idOrder = problemIds.map(id => id.toString());
-        problems.sort((a, b) => idOrder.indexOf(a._id.toString()) - idOrder.indexOf(b._id.toString()));
+        problems.sort((a, b) => {
+            // Check both ID and slug when matching order
+            const idxA = Math.max(idOrder.indexOf(a._id.toString()), idOrder.indexOf(a.slug || ''));
+            const idxB = Math.max(idOrder.indexOf(b._id.toString()), idOrder.indexOf(b.slug || ''));
+            return idxA - idxB;
+        });
         return problems;
     }
 
@@ -85,15 +116,28 @@ class Problem {
             updateData.points = updateData.difficulty === 'Easy' ? 20 : updateData.difficulty === 'Medium' ? 50 : 100;
         }
 
+        let query = {};
+        try {
+            query._id = new ObjectId(problemId);
+        } catch (e) {
+            query.slug = problemId;
+        }
+
         return await collections.problems.updateOne(
-            { _id: new ObjectId(problemId) },
+            query,
             { $set: updateData }
         );
     }
 
     // Delete problem
     static async delete(problemId) {
-        return await collections.problems.deleteOne({ _id: new ObjectId(problemId) });
+        let query = {};
+        try {
+            query._id = new ObjectId(problemId);
+        } catch (e) {
+            query.slug = problemId;
+        }
+        return await collections.problems.deleteOne(query);
     }
 
     // Delete contest problems (when contest is deleted)
@@ -108,6 +152,7 @@ class Problem {
     static async bulkCreate(problemsData, createdBy) {
         const problems = problemsData.map(p => ({
             _id: new ObjectId(),
+            slug: slugify(p.title) + '-' + Math.floor(Math.random() * 10000),
             title: p.title,
             section: p.section,
             difficulty: p.difficulty,
@@ -193,8 +238,15 @@ class Problem {
 
     // Set admin solution code (per language) for custom test case expected output
     static async setSolutionCode(problemId, language, code) {
+        let query = {};
+        try {
+            query._id = new ObjectId(problemId);
+        } catch (e) {
+            query.slug = problemId;
+        }
+
         return await collections.problems.updateOne(
-            { _id: new ObjectId(problemId) },
+            query,
             { $set: { [`solutionCode.${language}`]: code } }
         );
     }

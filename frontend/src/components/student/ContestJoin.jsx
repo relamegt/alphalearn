@@ -137,11 +137,12 @@ const ContestJoin = () => {
         try {
             const response = await contestService.registerSpotUser({ contestId, ...formData });
             if (response.success) {
-                loginAsSpotUser(response.user, response.token);
-                if (statusRef.current === 'upcoming') {
+                const isUpcoming = statusRef.current === 'upcoming';
+                loginAsSpotUser(response.user, response.token, !isUpcoming);
+                if (isUpcoming) {
                     toast.success('Registered! Please wait for the contest to start.');
                 } else {
-                    navigate(`/student/contest/${contestId}`);
+                    navigate(`/contest/${contestId}`);
                 }
             }
         } catch (err) {
@@ -151,7 +152,9 @@ const ContestJoin = () => {
         }
     };
 
-    const handleEnterContest = () => navigate(`/student/contest/${contestId}`);
+    const handleEnterContest = () => {
+        navigate(`/contest/${contestId}`);
+    };
 
     // ── loading / error screens ───────────────────────────────────────────────
     if (loading) {
@@ -189,16 +192,18 @@ const ContestJoin = () => {
         <div className="h-screen bg-gray-50 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
             {/* Logo */}
             <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center transform rotate-3">
-                    <Terminal className="text-white w-5 h-5 transform -rotate-3" />
-                </div>
+                <img
+                    src="/alphalogo.png"
+                    alt="AlphaKnowledge"
+                    className="h-10 w-auto object-contain"
+                />
                 <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    AlphaLearn Info
+                    AlphaKnowledge
                 </span>
             </div>
 
             <div
-                className="bg-white max-w-2xl w-full rounded-2xl shadow-xl border border-gray-100 flex flex-col overflow-hidden"
+                className="bg-white max-w-lg w-full rounded-2xl shadow-xl border border-gray-100 flex flex-col overflow-hidden"
                 style={{ maxHeight: '85vh' }}
             >
                 {/* Banner */}
@@ -312,8 +317,8 @@ const ContestJoin = () => {
                                         onClick={handleEnterContest}
                                         disabled={status === 'upcoming'}
                                         className={`w-full flex items-center justify-center py-3 px-4 rounded-xl text-white font-medium transition ${status === 'upcoming'
-                                                ? 'bg-gray-400 cursor-not-allowed'
-                                                : 'bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg'
+                                            ? 'bg-gray-400 cursor-not-allowed'
+                                            : 'bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg'
                                             }`}
                                     >
                                         <Play className="w-5 h-5 mr-2" />
@@ -377,15 +382,6 @@ const ContestJoin = () => {
                                             </button>
                                         </div>
                                     </form>
-                                    <div className="mt-6 text-center text-sm text-gray-500">
-                                        Already have an account?{' '}
-                                        <span
-                                            className="text-indigo-600 font-medium cursor-pointer hover:underline"
-                                            onClick={() => navigate('/login')}
-                                        >
-                                            Login here
-                                        </span>
-                                    </div>
                                 </div>
                             )}
                         </div>

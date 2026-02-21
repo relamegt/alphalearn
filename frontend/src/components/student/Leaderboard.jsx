@@ -5,6 +5,7 @@ import leaderboardService from '../../services/leaderboardService';
 import contestService from '../../services/contestService';
 import toast from 'react-hot-toast';
 import { Calendar, Zap, Trophy } from 'lucide-react';
+import CustomDropdown from '../shared/CustomDropdown';
 
 const PLATFORMS = [
     { value: 'leetcode', label: 'LeetCode' },
@@ -466,34 +467,62 @@ const Leaderboard = ({ batchId, isBatchView }) => {
     const downloadInternalCSV = () => {
         if (!sortedInternalData.length) return;
 
-        // Dynamic problem headers (name + status + time per problem)
-        const problemHeaders = contestInfo?.problems?.flatMap((p, i) => [
-            `P${i + 1}: ${p.title} - Status`,
-            `P${i + 1}: ${p.title} - Sub Time`
-        ]) || [];
-        const headers = ['Rank', 'Roll No', 'Full Name', 'Username', 'Branch', ...problemHeaders, 'Total Time (min)', 'Solved', 'Tab Switches', 'FS Exits', 'Total Violations', 'Status', 'Score'];
+        // Escape helper: only quote cells that contain commas, quotes, or newlines
+        const escapeCell = (val) => {
+            const str = String(val ?? '');
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
 
-        const rows = sortedInternalData.map(entry => {
-            const problemCells = contestInfo?.problems?.flatMap(p => {
+        // Format raw minutes into '4m' or '1:01h'
+        const formatTime = (mins) => {
+            if (mins === null || mins === undefined) return '';
+            if (mins < 60) return `${mins}m`;
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return `${h}:${m.toString().padStart(2, '0')}h`;
+        };
+
+        // ONE column per problem — header is "P1: Title"
+        const problemHeaders = contestInfo?.problems?.map((p, i) =>
+            `P${i + 1}: ${p.title}`
+        ) || [];
+
+        const headers = [
+            'Rank', 'Roll No', 'Full Name', 'Username', 'Branch',
+            ...problemHeaders,
+            'Total Time (min)', 'Solved',
+            'Tab Switches', 'FS Exits', 'Total Violations',
+            'Status', 'Score'
+        ];
+
+        const totalProblems = contestInfo?.totalProblems || contestInfo?.problems?.length || 0;
+
+        const rows = sortedInternalData.map((entry, index) => {
+            // One cell per problem: "Accepted-3m" / "Wrong Answer-7m" / "Not Attempted"
+            const problemCells = contestInfo?.problems?.map(p => {
                 const pData = entry.problems?.[p._id];
                 const status = pData?.status || 'Not Attempted';
-                const subTime = pData?.submittedAt
-                    ? new Date(pData.submittedAt).toLocaleString()
-                    : '-';
-                return [status, subTime];
+                if (status === 'Not Attempted') return 'Not Attempted';
+                const subTimeStr = pData?.submittedAt !== undefined && pData?.submittedAt !== null
+                    ? `-${formatTime(pData.submittedAt)}`
+                    : '';
+                return `${status}${subTimeStr}`;  // e.g. "Accepted-3m" or "Wrong Answer-1:01h"
             }) || [];
 
-            const solvedCount = `${entry.problemsSolved}/${contestInfo?.totalProblems || contestInfo?.problems?.length || 0}`;
-            const solvedCell = `="${solvedCount}"`;
+            // Plain "1/2" – prefix with a tab so Excel treats it as text instead of converting to a date
+            const solvedCell = `\t${entry.problemsSolved}/${totalProblems}`;
 
             return [
-                entry.rank,
+                index + 1,
                 entry.rollNumber,
                 entry.fullName,
                 entry.username,
                 entry.branch,
                 ...problemCells,
-                entry.time,
+                formatTime(entry.time),
                 solvedCell,
                 entry.tabSwitchCount || 0,
                 entry.fullscreenExits || 0,
@@ -504,8 +533,8 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         });
 
         const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+            headers.map(escapeCell).join(','),
+            ...rows.map(row => row.map(escapeCell).join(','))
         ].join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -518,6 +547,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         link.click();
         document.body.removeChild(link);
     };
+
 
     // Handle platform change (CLIENT-SIDE filtering)
     const handlePlatformChange = (platform) => {
@@ -644,12 +674,12 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                     <div className="w-full mx-auto px-6 h-16 flex items-center justify-between relative">
                         {/* Left: Logo */}
                         <div className="flex items-center gap-2">
-                            <div className="bg-yellow-400 p-1 rounded-full">
-                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                            </div>
-                            <span className="text-lg font-bold text-gray-800 tracking-tight">AlphaLearn</span>
+                            <img
+                                src="/alphalogo.png"
+                                alt="AlphaKnowledge"
+                                className="h-6 w-auto object-contain"
+                            />
+                            <span className="text-lg font-bold text-gray-800 tracking-tight">AlphaKnowledge</span>
                         </div>
 
                         {/* Center: Batch Name + current filter indicator */}
@@ -837,7 +867,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider hidden lg:table-cell min-w-[120px]" rowSpan={viewMode === 'detailed' ? 2 : 1}>Username</th>
                                                 <th
                                                     className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 cursor-pointer hover:bg-gray-100 min-w-[180px]"
-                                                    onClick={() => handleSort('alphaLearnBasicScore')}
+                                                    onClick={() => handleSort('alphaKnowledgeBasicScore')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
                                                     <div>Alpha Coins</div>
@@ -941,7 +971,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                 {/* Contest link row */}
                                                                 <div className="flex items-center gap-1">
                                                                     <a
-                                                                        href={`/student/contest/${contest.id}/leaderboard`}
+                                                                        href={`/contest/${contest.id}/leaderboard`}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         onClick={e => e.stopPropagation()}
@@ -1036,7 +1066,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                             )}
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
-                                            {filteredPracticeLeaderboard.map((entry) => {
+                                            {filteredPracticeLeaderboard.map((entry, index) => {
                                                 const isCurrentUser = entry.rollNumber === user?.education?.rollNumber;
                                                 return (
                                                     <tr
@@ -1049,14 +1079,14 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         <td className={`px-4 py-3 whitespace-nowrap font-bold sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-center border-b border-gray-100 w-[90px] min-w-[90px] ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
                                                             }`}>
                                                             <div className="flex items-center justify-center w-8 h-8 mx-auto rounded-full font-bold text-sm">
-                                                                {entry.rank === 1 ? (
+                                                                {index === 0 ? (
                                                                     <span className="text-2xl">🥇</span>
-                                                                ) : entry.rank === 2 ? (
+                                                                ) : index === 1 ? (
                                                                     <span className="text-2xl">🥈</span>
-                                                                ) : entry.rank === 3 ? (
+                                                                ) : index === 2 ? (
                                                                     <span className="text-2xl">🥉</span>
                                                                 ) : (
-                                                                    <span className="text-gray-500">#{entry.rank}</span>
+                                                                    <span className="text-gray-500">#{index + 1}</span>
                                                                 )}
                                                             </div>
                                                         </td>
@@ -1075,7 +1105,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                             {entry.username}
                                                         </td>
                                                         <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-600 border-r border-gray-200 border-b border-gray-100 text-center">
-                                                            {entry.alphaLearnBasicScore || 0}
+                                                            {entry.alphaKnowledgeBasicScore || 0}
                                                         </td>
 
 
@@ -1191,36 +1221,27 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
-                                                <select
+                                                <CustomDropdown
+                                                    options={PLATFORMS}
                                                     value={selectedPlatform}
-                                                    onChange={(e) => handlePlatformChange(e.target.value)}
-                                                    className="input-field"
-                                                >
-                                                    {PLATFORMS.map((platform) => (
-                                                        <option key={platform.value} value={platform.value}>
-                                                            {platform.label}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                    onChange={(val) => handlePlatformChange(val)}
+                                                />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">Contest</label>
-                                                <select
+                                                <CustomDropdown
+                                                    options={
+                                                        availableContests.length === 0
+                                                            ? [{ value: '', label: 'No contests available' }]
+                                                            : availableContests.map((contest) => ({
+                                                                value: contest.contestName,
+                                                                label: `${contest.contestName} (${contest.participants} participants)`
+                                                            }))
+                                                    }
                                                     value={selectedContest || ''}
-                                                    onChange={(e) => setSelectedContest(e.target.value)}
-                                                    className="input-field"
+                                                    onChange={(val) => setSelectedContest(val)}
                                                     disabled={availableContests.length === 0}
-                                                >
-                                                    {availableContests.length === 0 ? (
-                                                        <option value="">No contests available</option>
-                                                    ) : (
-                                                        availableContests.map((contest) => (
-                                                            <option key={contest.contestName} value={contest.contestName}>
-                                                                {contest.contestName} ({contest.participants} participants)
-                                                            </option>
-                                                        ))
-                                                    )}
-                                                </select>
+                                                />
                                             </div>
                                         </div>
                                     </div>
@@ -1258,14 +1279,14 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                 <td className="px-3 py-2 whitespace-nowrap font-bold">
                                                                     <div className="flex items-center justify-start gap-2">
                                                                         <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm">
-                                                                            {entry.rank === 1 ? (
+                                                                            {index === 0 ? (
                                                                                 <span className="text-2xl">🥇</span>
-                                                                            ) : entry.rank === 2 ? (
+                                                                            ) : index === 1 ? (
                                                                                 <span className="text-2xl">🥈</span>
-                                                                            ) : entry.rank === 3 ? (
+                                                                            ) : index === 2 ? (
                                                                                 <span className="text-2xl">🥉</span>
                                                                             ) : (
-                                                                                <span className="text-gray-500">#{entry.rank}</span>
+                                                                                <span className="text-gray-500">#{index + 1}</span>
                                                                             )}
                                                                         </div>
                                                                     </div>
@@ -1298,25 +1319,22 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                 <div className="card">
                                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Internal Contest</h2>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Contest</label>
-                                    <select
+                                    <CustomDropdown
+                                        options={
+                                            internalContests.length === 0
+                                                ? [{ value: '', label: 'No contests available' }]
+                                                : [
+                                                    { value: '', label: 'Select a contest' },
+                                                    ...internalContests.map((contest) => ({
+                                                        value: contest._id,
+                                                        label: `${contest.title} - ${new Date(contest.startTime).toLocaleDateString()}`
+                                                    }))
+                                                ]
+                                        }
                                         value={selectedInternalContest || ''}
-                                        onChange={(e) => setSelectedInternalContest(e.target.value)}
-                                        className="input-field"
+                                        onChange={(val) => setSelectedInternalContest(val)}
                                         disabled={internalContests.length === 0}
-                                    >
-                                        {internalContests.length === 0 ? (
-                                            <option value="">No contests available</option>
-                                        ) : (
-                                            <>
-                                                <option value="">Select a contest</option>
-                                                {internalContests.map((contest) => (
-                                                    <option key={contest._id} value={contest._id}>
-                                                        {contest.title} - {new Date(contest.startTime).toLocaleDateString()}
-                                                    </option>
-                                                ))}
-                                            </>
-                                        )}
-                                    </select>
+                                    />
                                 </div>
                             )}
 
@@ -1435,14 +1453,14 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     >
                                                         <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-inherit z-10 border-r border-gray-100">
                                                             <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm">
-                                                                {entry.rank === 1 ? (
+                                                                {index === 0 ? (
                                                                     <span className="text-2xl">🥇</span>
-                                                                ) : entry.rank === 2 ? (
+                                                                ) : index === 1 ? (
                                                                     <span className="text-2xl">🥈</span>
-                                                                ) : entry.rank === 3 ? (
+                                                                ) : index === 2 ? (
                                                                     <span className="text-2xl">🥉</span>
                                                                 ) : (
-                                                                    <span className="text-gray-500">#{entry.rank}</span>
+                                                                    <span className="text-gray-500">#{index + 1}</span>
                                                                 )}
                                                             </div>
                                                         </td>
@@ -1459,9 +1477,17 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         {contestInfo?.problems?.map(prob => {
                                                             const pData = entry.problems?.[prob._id];
                                                             const status = pData?.status || 'Not Attempted';
-                                                            const subTime = pData?.submittedAt
-                                                                ? new Date(pData.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                                                : null;
+                                                            const rawTime = pData?.submittedAt;
+                                                            let formattedSubTime = null;
+                                                            if (rawTime !== undefined && rawTime !== null) {
+                                                                if (rawTime < 60) {
+                                                                    formattedSubTime = `${rawTime}m`;
+                                                                } else {
+                                                                    const h = Math.floor(rawTime / 60);
+                                                                    const m = rawTime % 60;
+                                                                    formattedSubTime = `${h}:${m.toString().padStart(2, '0')}h`;
+                                                                }
+                                                            }
 
                                                             let bgClass = 'bg-gray-50 border-gray-200';
                                                             let textClass = 'text-gray-400';
@@ -1486,10 +1512,10 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                         <span className={`text-xs font-bold ${textClass}`}>
                                                                             {statusIcon} {statusText}
                                                                         </span>
-                                                                        {pData?.tries > 0 && (
-                                                                            <span className="text-xs text-gray-400">
-                                                                                {pData.tries} {pData.tries === 1 ? 'try' : 'tries'}
-                                                                                {subTime ? ` · ${subTime}` : ''}
+                                                                        {(pData?.tries > 0 || formattedSubTime) && (
+                                                                            <span className="text-[11px] text-gray-500 font-medium">
+                                                                                {pData.tries > 0 ? `${pData.tries} ${pData.tries === 1 ? 'try' : 'tries'}` : ''}
+                                                                                {pData.tries > 0 && formattedSubTime ? ` · ${formattedSubTime}` : formattedSubTime}
                                                                             </span>
                                                                         )}
                                                                     </div>
@@ -1497,7 +1523,9 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                             );
                                                         })}
 
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{entry.time}m</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">
+                                                            {entry.time < 60 ? `${entry.time}m` : `${Math.floor(entry.time / 60)}:${(entry.time % 60).toString().padStart(2, '0')}h`}
+                                                        </td>
                                                         <td className="px-3 py-2 whitespace-nowrap text-center">
                                                             <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
                                                                 {entry.problemsSolved}/{contestInfo?.totalProblems || contestInfo?.problems?.length || 0}

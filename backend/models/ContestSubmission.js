@@ -165,7 +165,7 @@ class ContestSubmission {
                 const firstAccepted = await collections.contestSubmissions.findOne({
                     studentId: new ObjectId(studentId),
                     contestId: new ObjectId(contestId),
-                    problemId: problemId,
+                    problemId: new ObjectId(problemId),
                     verdict: 'Accepted'
                 }, { sort: { submittedAt: 1 } });
 
@@ -210,7 +210,7 @@ class ContestSubmission {
         return await collections.contestSubmissions.deleteMany({ contestId: new ObjectId(contestId) });
     }
 
-    static async getLeaderboard(contestId) {
+    static async getLeaderboard(contestId, currentUserId = null) {
         const User = require('./User');
         const Problem = require('./Problem');
         const Contest = require('./Contest');
@@ -221,16 +221,30 @@ class ContestSubmission {
         const contest = await Contest.findById(contestId);
         let participantIds = [...new Set(submissions.map(s => s.studentId.toString()))];
 
-        if (contest && contest.batchId) {
+        if (contest) {
             try {
-                const batchStudents = await User.getStudentsByBatch(contest.batchId.toString());
-                const batchStudentIds = batchStudents.map(u => u._id.toString());
-                // Union of submitters + all batch students
-                const allIds = new Set([...participantIds, ...batchStudentIds]);
+                let eligibleStudentIds = [];
+                if (contest.batchId) {
+                    const eligibleUsers = await collections.users.find({
+                        role: 'student',
+                        $or: [
+                            { batchId: contest.batchId },
+                            { assignedBatches: contest.batchId }
+                        ]
+                    }).toArray();
+                    eligibleStudentIds = eligibleUsers.map(u => u._id.toString());
+                } else {
+                    const registeredStudents = await collections.users.find({
+                        registeredForContest: contest._id
+                    }).toArray();
+                    eligibleStudentIds = registeredStudents.map(u => u._id.toString());
+                }
+                // Union of submitters + eligible students
+                const allIds = new Set([...participantIds, ...eligibleStudentIds]);
+                if (currentUserId) allIds.add(currentUserId.toString());
                 participantIds = [...allIds];
             } catch (e) {
-                // If batch fetch fails, fall back to submission-based list
-                console.error('[getLeaderboard] Failed to fetch batch students:', e.message);
+                console.error('[getLeaderboard] Failed to fetch eligible students:', e.message);
             }
         }
 
@@ -269,22 +283,25 @@ class ContestSubmission {
 
                     let status = 'Not Attempted';
                     let tries = pSubs.length;
-                    let submittedAt = null;
+                    let submittedOffset = null;
 
                     if (tries > 0) {
                         const accepted = pSubs.filter(s => s.verdict === 'Accepted');
                         if (accepted.length > 0) {
                             status = 'Accepted';
                             accepted.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
-                            submittedAt = accepted[0].submittedAt;
+                            // Calculate offset in minutes from contest start
+                            const diffMs = new Date(accepted[0].submittedAt).getTime() - new Date(contest.startTime).getTime();
+                            submittedOffset = Math.max(0, Math.floor(diffMs / 60000));
                         } else {
                             status = 'Wrong Answer';
                             pSubs.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-                            submittedAt = pSubs[0].submittedAt;
+                            const diffMs = new Date(pSubs[0].submittedAt).getTime() - new Date(contest.startTime).getTime();
+                            submittedOffset = Math.max(0, Math.floor(diffMs / 60000));
                         }
                     }
 
-                    problemsStatus[pIdStr] = { status, tries, submittedAt };
+                    problemsStatus[pIdStr] = { status, tries, submittedAt: submittedOffset };
                 }
 
                 // Compose full name from root-level firstName/lastName fields

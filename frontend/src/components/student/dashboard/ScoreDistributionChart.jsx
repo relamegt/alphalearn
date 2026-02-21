@@ -20,10 +20,9 @@ const ScoreDistributionChart = ({ leaderboardDetails }) => {
         if (!leaderboardDetails) return [];
 
         // Add internal score
-        // Add internal score
         const internalScore = leaderboardDetails.alphaCoins || 0;
         if (internalScore > 0) {
-            result.push({ name: 'Alpha Coins (Internal)', value: internalScore, fill: COLORS['smartinterviews'] });
+            result.push({ name: 'Alpha Coins', value: internalScore, fill: COLORS['smartinterviews'] });
         }
 
         // Add external scores

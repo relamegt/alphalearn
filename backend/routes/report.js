@@ -6,6 +6,25 @@ const { verifyToken } = require('../middleware/auth');
 const { instructorOrAdmin, checkOwnership } = require('../middleware/roleGuard');
 const { validateObjectId } = require('../middleware/validation');
 const { reportLimiter } = require('../middleware/rateLimiter');
+const Contest = require('../models/Contest');
+
+const resolveContestSlug = async (req, res, next, contestId) => {
+    if (contestId && contestId !== 'global' && contestId !== 'all' && !/^[0-9a-fA-F]{24}$/.test(contestId)) {
+        try {
+            const contest = await Contest.findById(contestId);
+            if (contest) {
+                req.params.contestId = contest._id.toString();
+            } else {
+                return res.status(404).json({ success: false, message: 'Contest not found' });
+            }
+        } catch (error) {
+            return res.status(500).json({ success: false, message: 'Server error resolving contest' });
+        }
+    }
+    next();
+};
+
+router.param('contestId', resolveContestSlug);
 
 router.use(verifyToken);
 

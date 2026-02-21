@@ -2,6 +2,8 @@ const User = require('../models/User');
 const ExternalProfile = require('../models/ExternalProfile');
 const Submission = require('../models/Submission');
 const Progress = require('../models/Progress');
+// NOTE: Leaderboard is NOT required at the top level — it causes a circular dependency.
+// It is lazy-required inside getDashboardData instead (see below).
 const { syncStudentProfiles, syncBatchProfiles } = require('../services/profileSyncService');
 const { sendProfileResetNotification } = require('../services/emailService');
 
@@ -11,7 +13,7 @@ const getDashboardData = async (req, res) => {
     try {
         const studentId = req.user.userId;
 
-        // Get heatmap data
+        // Get heatmap data (keys are Date.toDateString() e.g. "Mon Feb 21 2026")
         const heatmapData = await Submission.getHeatmapData(studentId);
 
         // Get verdict data
@@ -23,11 +25,81 @@ const getDashboardData = async (req, res) => {
         // Get language stats
         const languageStats = await Submission.getLanguageStats(studentId);
 
-        // Get progress
+        // Get progress (base stats from DB)
         const progress = await Progress.getStatistics(studentId);
+
+        // ── Compute current streak & max streak from heatmap (source of truth) ──
+        // These are guaranteed to match the graph since both use the same heatmap data.
+        const activeDateStrings = new Set(
+            Object.entries(heatmapData)
+                .filter(([, count]) => count > 0)
+                .map(([dateStr]) => dateStr)
+        );
+
+        // Walk backwards from today to find current streak
+        let currentStreak = 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let checkDate = new Date(today);
+        while (activeDateStrings.has(checkDate.toDateString())) {
+            currentStreak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+        }
+        // If nothing today, check if streak ran through yesterday
+        if (currentStreak === 0) {
+            checkDate = new Date(today);
+            checkDate.setDate(checkDate.getDate() - 1);
+            while (activeDateStrings.has(checkDate.toDateString())) {
+                currentStreak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+            }
+        }
+
+        // Walk all active dates ascending to compute max streak
+        const sortedDates = [...activeDateStrings]
+            .map(ds => new Date(ds))
+            .sort((a, b) => a - b);
+
+        let maxStreak = 0;
+        let runningStreak = 0;
+        let prevDate = null;
+        for (const d of sortedDates) {
+            if (!prevDate) {
+                runningStreak = 1;
+            } else {
+                const diff = Math.round((d - prevDate) / (1000 * 60 * 60 * 24));
+                runningStreak = diff === 1 ? runningStreak + 1 : 1;
+            }
+            if (runningStreak > maxStreak) maxStreak = runningStreak;
+            prevDate = d;
+        }
+
+        // Override stale DB streak values with accurate heatmap-derived values
+        if (progress) {
+            progress.streakDays = currentStreak;
+            progress.maxStreakDays = maxStreak;
+        }
+        // ────────────────────────────────────────────────────────────────────────
 
         // Get external profile stats
         const externalStats = await ExternalProfile.getStudentExternalStats(studentId);
+
+        // Lazy-require Leaderboard to break the circular dependency chain:
+        // profileController → Leaderboard → Contest/Submission/User → ... → profileController
+        // At startup Node caches Leaderboard as {} (incomplete), so static methods are missing.
+        // A lazy require inside the async function call runs AFTER all modules have settled,
+        // guaranteeing we get the fully-constructed Leaderboard class.
+        let leaderboardStats = null;
+        try {
+            const LeaderboardModel = require('../models/Leaderboard');
+            if (typeof LeaderboardModel.getStudentRank === 'function') {
+                leaderboardStats = await LeaderboardModel.getStudentRank(studentId);
+            } else {
+                console.warn('Leaderboard.getStudentRank is not a function — circular dep may still be present');
+            }
+        } catch (lbErr) {
+            console.error('Leaderboard stats fetch failed (non-fatal):', lbErr.message);
+        }
 
         res.json({
             success: true,
@@ -37,6 +109,8 @@ const getDashboardData = async (req, res) => {
                 recentSubmissions: recentSubmissions.map(s => ({
                     submittedAt: s.submittedAt,
                     problemTitle: s.problemTitle,
+                    problemId: s.problemId,
+                    problemSlug: s.problemSlug,
                     verdict: s.verdict,
                     language: s.language,
                     testCasesPassed: s.testCasesPassed,
@@ -45,7 +119,7 @@ const getDashboardData = async (req, res) => {
                 languageAcceptedSubmissions: languageStats,
                 progress,
                 externalContestStats: externalStats,
-                leaderboardStats: await require('../models/Leaderboard').getStudentRank(studentId)
+                leaderboardStats
             }
         });
     } catch (error) {
@@ -359,7 +433,7 @@ const getAllStudentsForInstructor = async (req, res) => {
     }
 };
 
-// Reset student profile - ONLY AlphaLearn practice data
+// Reset student profile - ONLY AlphaKnowledge practice data
 const resetStudentProfile = async (req, res) => {
     try {
         const studentId = req.params.studentId || req.user.userId;
@@ -403,7 +477,7 @@ const resetStudentProfile = async (req, res) => {
             }
         }
 
-        // Reset only AlphaLearn practice data (preserves contests)
+        // Reset only AlphaKnowledge practice data (preserves contests)
         const resetResult = await User.resetStudentProfile(studentId);
 
         // Send notification email
@@ -415,11 +489,11 @@ const resetStudentProfile = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'AlphaLearn practice data reset successfully',
+            message: 'AlphaKnowledge practice data reset successfully',
             details: {
                 cleared: resetResult.cleared,
                 preserved: resetResult.preserved,
-                note: 'Only AlphaLearn practice submissions, progress, and coins were cleared. Contest records, external profiles, personal info, education details, and batch assignment have been preserved.'
+                note: 'Only AlphaKnowledge practice submissions, progress, and coins were cleared. Contest records, external profiles, personal info, education details, and batch assignment have been preserved.'
             }
         });
     } catch (error) {

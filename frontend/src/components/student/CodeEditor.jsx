@@ -41,6 +41,7 @@ import SubmissionsTab from './SubmissionsTab';
 import EditorialRenderer from './EditorialRenderer';
 import { GoSidebarCollapse, GoSidebarExpand } from 'react-icons/go';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import CustomDropdown from '../../components/shared/CustomDropdown';
 
 // ─── Success Pop — Lottie coin + light particles ─────────────────────────────────
 
@@ -173,13 +174,19 @@ const DragHandleV = ({ onMouseDown }) => (
     </div>
 );
 
+// ─── Module-level Cache for Problems & Submissions ───────────────────────────
+const PROBLEM_CACHE = {};
+// { [problemId]: Submission[] } — avoids re-fetching on language switch
+const SUBMISSIONS_CACHE = {};
+
 // ─── Language & template data ────────────────────────────────────────────────
 const LANGUAGE_OPTIONS = [
     { value: 'c', label: 'C', monacoLang: 'c' },
     { value: 'cpp', label: 'C++', monacoLang: 'cpp' },
     { value: 'java', label: 'Java', monacoLang: 'java' },
     { value: 'python', label: 'Python 3', monacoLang: 'python' },
-    { value: 'javascript', label: 'JavaScript (Node)', monacoLang: 'javascript' },
+    { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript' },
+    { value: 'csharp', label: 'C#', monacoLang: 'csharp' },
 ];
 
 const DEFAULT_CODE = {
@@ -188,6 +195,7 @@ const DEFAULT_CODE = {
     java: 'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        // your code\n    }\n}',
     python: 'def main():\n    # your code\n    pass\n\nif __name__ == "__main__":\n    main()',
     javascript: 'function main() {\n    // your code\n}\n\nmain();',
+    csharp: 'using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\nclass Program {\n    static void Main() {\n        // your code\n    }\n}',
 };
 
 // ─── Difficulty badge ───────────────────────────────────────────────────────
@@ -309,138 +317,82 @@ const ProblemTimer = () => {
 };
 
 // ─── Settings Modal ────────────────────────────────────────────────────────
-const SettingsModal = ({ settings, onClose, onSave, onSaveTemplate, defaultCode }) => {
-    const [activeTab, setActiveTab] = useState('appearance');
+const SettingsModal = ({ settings, onClose, onSave }) => {
     const [fontSize, setFontSize] = useState(settings.fontSize || 14);
     const [theme, setTheme] = useState(settings.theme || 'vs-light');
+    const [fontFamily, setFontFamily] = useState(settings.fontFamily || "'JetBrains Mono', 'Fira Code', Consolas, monospace");
 
-    // Template State
-    const [tplLang, setTplLang] = useState('cpp');
-    const [tplCode, setTplCode] = useState('');
-
-    // Load template on lang switch
-    useEffect(() => {
-        // We can't easily access the user's saved template here without passing it or fetching it.
-        // But the parent is responsible for saving.
-        // Let's assume we want to edit specific language templates.
-        // We can ask the user to type it or prefill with default?
-        // Ideally we should prefill with the current saved template.
-        // BUT fetching from localStorage inside this modal is easiest for "Settings" context.
-        // We need the user ID. We didn't pass user ID.
-        // Let's pass "savedTemplates" prop?
-        // Or just let user paste their template.
-        // Let's keep it simple: Load from localStorage if available, else default.
-        // We don't have user ID props.
-        // We can infer key if we stick to `tpl_${userId}_${lang}`.
-        // Actually, let's just make the parent pass a function `getTemplate(lang)`?
-        // Or simpler: The modal is part of `CodeEditor`, so it has access to context if defined inside? 
-        // No, it's defined outside.
-        // I will rely on `onSaveTemplate` to save.
-        // For loading, I'll default to `defaultCode[tplLang]`.
-        setTplCode(defaultCode[tplLang] || '');
-    }, [tplLang, defaultCode]);
+    const FONTS = [
+        { value: "'JetBrains Mono', 'Fira Code', Consolas, monospace", label: 'Default (JetBrains/Fira)' },
+        { value: "'Fira Code', monospace", label: 'Fira Code' },
+        { value: "'Roboto Mono', monospace", label: 'Roboto Mono' },
+        { value: "'Source Code Pro', monospace", label: 'Source Code Pro' },
+        { value: "Consolas, monospace", label: 'Consolas' },
+    ];
 
     const handleSave = () => {
-        onSave({ fontSize: parseInt(fontSize), theme });
+        onSave({ fontSize: parseInt(fontSize), theme, fontFamily });
         onClose();
     };
 
-    const handleTemplateSave = () => {
-        onSaveTemplate(tplLang, tplCode);
-    };
-
     return (
-        <div className="fixed inset-0 z-[1001] bg-black/20 backdrop-blur-sm flex items-center justify-center" onClick={onClose}>
+        <div className="fixed inset-0 z-[1001] bg-black/20 backdrop-blur-sm flex items-center justify-center -1" onClick={onClose}>
             <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-[500px] overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
                 <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
-                    <h3 className="font-bold text-gray-800">Settings</h3>
+                    <h3 className="font-bold text-gray-800">Editor Settings</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle size={18} /></button>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex border-b border-gray-100 px-5 gap-6">
-                    <button onClick={() => setActiveTab('appearance')} className={`py-3 text-xs font-bold uppercase tracking-wide border-b-2 transition-colors ${activeTab === 'appearance' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Appearance</button>
-                    <button onClick={() => setActiveTab('templates')} className={`py-3 text-xs font-bold uppercase tracking-wide border-b-2 transition-colors ${activeTab === 'templates' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Code Templates</button>
-                </div>
-
-                <div className="p-5 overflow-y-auto flex-1 custom-scrollbar">
-                    {activeTab === 'appearance' ? (
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Font Size</label>
-                                <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                    <span className="text-xs font-bold text-gray-400">10px</span>
-                                    <input
-                                        type="range" min="10" max="24"
-                                        value={fontSize} onChange={(e) => setFontSize(e.target.value)}
-                                        className="flex-1 accent-primary-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                    />
-                                    <span className="text-sm font-mono font-bold text-gray-700 w-8 text-center">{fontSize}px</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Theme</label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        onClick={() => setTheme('vs-light')}
-                                        className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${theme === 'vs-light' ? 'bg-primary-50 border-primary-500 ring-1 ring-primary-500' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}
-                                    >
-                                        <div className="w-4 h-4 rounded-full bg-white border border-gray-300"></div>
-                                        <span className={`text-sm font-bold ${theme === 'vs-light' ? 'text-primary-700' : 'text-gray-600'}`}>Light Mode</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setTheme('vs-dark')}
-                                        className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${theme === 'vs-dark' ? 'bg-gray-800 border-gray-700 ring-1 ring-gray-600' : 'bg-white border-gray-200 hover:border-gray-300'}`}
-                                    >
-                                        <div className="w-4 h-4 rounded-full bg-gray-900 border border-gray-600"></div>
-                                        <span className={`text-sm font-bold ${theme === 'vs-dark' ? 'text-white' : 'text-gray-600'}`}>Dark Mode</span>
-                                    </button>
-                                </div>
-                            </div>
+                <div className="p-5 overflow-y-auto flex-1 custom-scrollbar space-y-6">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Font Size</label>
+                        <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <span className="text-xs font-bold text-gray-400">10px</span>
+                            <input
+                                type="range" min="10" max="24"
+                                value={fontSize} onChange={(e) => setFontSize(e.target.value)}
+                                className="flex-1 accent-primary-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                            />
+                            <span className="text-sm font-mono font-bold text-gray-700 w-8 text-center">{fontSize}px</span>
                         </div>
-                    ) : (
-                        <div className="space-y-4 h-full flex flex-col">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Language</label>
-                                <select
-                                    value={tplLang} onChange={(e) => setTplLang(e.target.value)}
-                                    className="w-full text-sm bg-gray-50 border border-gray-200 text-gray-700 rounded-lg p-2.5 outline-none focus:border-primary-500"
-                                >
-                                    <option value="cpp">C++</option>
-                                    <option value="java">Java</option>
-                                    <option value="python">Python</option>
-                                    <option value="javascript">JavaScript</option>
-                                </select>
-                            </div>
-                            <div className="flex-1 flex flex-col min-h-[200px]">
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Default Code</label>
-                                <textarea
-                                    value={tplCode}
-                                    onChange={(e) => setTplCode(e.target.value)}
-                                    className="flex-1 w-full bg-gray-900 text-gray-100 font-mono text-xs p-4 rounded-lg outline-none resize-none leading-relaxed"
-                                    placeholder="// Enter your template code here..."
-                                />
-                            </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Font Style</label>
+                        <CustomDropdown
+                            options={FONTS}
+                            value={fontFamily}
+                            onChange={(val) => setFontFamily(val)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Theme</label>
+                        <div className="grid grid-cols-2 gap-3">
                             <button
-                                onClick={handleTemplateSave}
-                                className="w-full py-2.5 bg-gray-100 hover:bg-green-50 text-gray-700 hover:text-green-700 border border-gray-200 hover:border-green-200 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2"
+                                onClick={() => setTheme('vs-light')}
+                                className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${theme === 'vs-light' ? 'bg-primary-50 border-primary-500 ring-1 ring-primary-500' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}
                             >
-                                <Save size={14} /> Save Template for {tplLang === 'cpp' ? 'C++' : tplLang.charAt(0).toUpperCase() + tplLang.slice(1)}
+                                <div className="w-4 h-4 rounded-full bg-white border border-gray-300"></div>
+                                <span className={`text-sm font-bold ${theme === 'vs-light' ? 'text-primary-700' : 'text-gray-600'}`}>Light Mode</span>
+                            </button>
+                            <button
+                                onClick={() => setTheme('vs-dark')}
+                                className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${theme === 'vs-dark' ? 'bg-gray-800 border-gray-700 ring-1 ring-gray-600' : 'bg-white border-gray-200 hover:border-gray-300'}`}
+                            >
+                                <div className="w-4 h-4 rounded-full bg-gray-900 border border-gray-600"></div>
+                                <span className={`text-sm font-bold ${theme === 'vs-dark' ? 'text-white' : 'text-gray-600'}`}>Dark Mode</span>
                             </button>
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                {activeTab === 'appearance' && (
-                    <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
-                        <button
-                            onClick={handleSave}
-                            className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm shadow-primary-200"
-                        >
-                            Apply Changes
-                        </button>
-                    </div>
-                )}
+                <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                    <button
+                        onClick={handleSave}
+                        className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm shadow-primary-200"
+                    >
+                        Apply Changes
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -473,7 +425,7 @@ const CodeEditor = () => {
     const [showSettings, setShowSettings] = useState(false);
     const [editorSettings, setEditorSettings] = useState(() => {
         const saved = localStorage.getItem('editor_settings');
-        return saved ? JSON.parse(saved) : { fontSize: 14, theme: 'vs-light' };
+        return saved ? JSON.parse(saved) : { fontSize: 14, theme: 'vs-light', fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace" };
     });
 
     // ── custom test cases ──
@@ -535,6 +487,17 @@ const CodeEditor = () => {
     useEffect(() => {
         let mounted = true;
         setLoading(true);
+
+        // Check cache first
+        if (PROBLEM_CACHE[problemId]) {
+            const cachedData = PROBLEM_CACHE[problemId];
+            setProblem(cachedData.problem);
+            setTestCases(cachedData.testCases);
+            setPageLoading(false);
+            setLoading(false);
+            return;
+        }
+
         problemService.getProblemById(problemId)
             .then(data => {
                 if (!mounted) return;
@@ -544,15 +507,24 @@ const CodeEditor = () => {
                 const allCases = data.problem.testCases || [];
                 const publicCases = allCases.filter(tc => !tc.isHidden);
 
+                let loadedTestCases = [];
+
                 if (publicCases.length > 0) {
-                    setTestCases(publicCases.map(tc => ({ input: tc.input, output: tc.output })));
+                    loadedTestCases = publicCases.map(tc => ({ input: tc.input, output: tc.output }));
                 } else {
                     const examples = data.problem.examples || [];
-                    setTestCases(examples.length
+                    loadedTestCases = examples.length
                         ? examples.map(e => ({ input: e.input, output: e.output, explanation: e.explanation }))
-                        : [{ input: '', output: '' }]
-                    );
+                        : [{ input: '', output: '' }];
                 }
+                setTestCases(loadedTestCases);
+
+                // Save to cache
+                PROBLEM_CACHE[problemId] = {
+                    problem: data.problem,
+                    testCases: loadedTestCases
+                };
+
                 setPageLoading(false);
             })
             .catch(() => {
@@ -565,7 +537,7 @@ const CodeEditor = () => {
             })
             .finally(() => { if (mounted) setLoading(false); });
         return () => { mounted = false; };
-    }, [problemId]);
+    }, [problemId, user, navigate]);
 
     // ───── load code draft/submission ─────────────────────────────────────────
     useEffect(() => {
@@ -580,10 +552,13 @@ const CodeEditor = () => {
                 return;
             }
 
-            // 2. Check Last Accepted Submission
+            // 2. Check Last Accepted Submission (cached per problem to avoid re-fetch on lang switch)
             try {
-                const data = await submissionService.getProblemSubmissions(problemId);
-                const accepted = data.submissions?.find(s => s.verdict === 'Accepted' && s.language === language);
+                if (!SUBMISSIONS_CACHE[problemId]) {
+                    const data = await submissionService.getProblemSubmissions(problemId);
+                    SUBMISSIONS_CACHE[problemId] = data.submissions || [];
+                }
+                const accepted = SUBMISSIONS_CACHE[problemId]?.find(s => s.verdict === 'Accepted' && s.language === language);
                 if (accepted) {
                     setCode(accepted.code);
                     return;
@@ -1051,26 +1026,23 @@ const CodeEditor = () => {
                             <SettingsModal
                                 settings={editorSettings}
                                 onClose={() => setShowSettings(false)}
-                                onSave={setEditorSettings}
-                                onSaveTemplate={handleSaveTemplate}
-                                defaultCode={DEFAULT_CODE}
+                                onSave={(newSettings) => {
+                                    setEditorSettings(newSettings);
+                                    localStorage.setItem('editor_settings', JSON.stringify(newSettings));
+                                }}
                             />
                         )}
                         {/* editor toolbar (Language + Timer + Actions) */}
                         <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-3 shrink-0">
                             {/* Left: Language & Timer */}
                             <div className="flex items-center gap-3">
-                                <div className="relative">
-                                    <select
+                                <div className="w-44">
+                                    <CustomDropdown
+                                        options={LANGUAGE_OPTIONS}
                                         value={language}
-                                        onChange={handleLangChange}
-                                        className="bg-gray-50 border border-gray-200 text-xs font-medium text-gray-700 rounded-md py-1.5 pl-2.5 pr-8 outline-none focus:ring-1 focus:ring-primary-400 cursor-pointer appearance-none hover:bg-gray-100 transition-colors"
-                                    >
-                                        {LANGUAGE_OPTIONS.map(o => (
-                                            <option key={o.value} value={o.value}>{o.label}</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                        onChange={(val) => handleLangChange({ target: { value: val } })}
+                                        size="small"
+                                    />
                                 </div>
                                 <div className="h-5 w-px bg-gray-200" />
                                 <ProblemTimer />
@@ -1110,13 +1082,7 @@ const CodeEditor = () => {
                                     </button>
                                 </div>
 
-                                <button
-                                    onClick={() => setIsFullScreen(f => !f)}
-                                    className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                                    title={isFullScreen ? "Exit Fullscreen" : "Fullscreen"}
-                                >
-                                    {isFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                                </button>
+                                {/* Fullscreen button removed as requested */}
                             </div>
                         </div>
 
@@ -1161,7 +1127,7 @@ const CodeEditor = () => {
                                 options={{
                                     minimap: { enabled: false },
                                     fontSize: editorSettings.fontSize,
-                                    fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                                    fontFamily: editorSettings.fontFamily || "'JetBrains Mono', 'Fira Code', Consolas, monospace",
                                     fontLigatures: true,
                                     lineNumbers: 'on',
                                     renderLineHighlight: 'all',

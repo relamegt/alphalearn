@@ -12,6 +12,7 @@ const LANGUAGE_IDS = {
     java: 62,       // OpenJDK 13.0.1
     python: 71,     // Python 3.8.1
     javascript: 63, // Node.js 12.14.0
+    csharp: 51,     // C# (Mono 6.6.0.161)
 };
 
 // Language Versions (for API compatibility)
@@ -20,7 +21,8 @@ const languageVersions = {
     cpp: 'GCC 9.2.0',
     java: 'OpenJDK 13.0.1',
     python: '3.8.1',
-    javascript: 'Node.js 12.14.0'
+    javascript: 'Node.js 12.14.0',
+    csharp: 'Mono 6.6.0.161'
 };
 
 // Get runtimes (Dummy implementation for compatibility)
@@ -49,7 +51,8 @@ const validateCode = (code, language) => {
         cpp: [/system\s*\(/i, /exec\s*\(/i, /fork\s*\(/i],
         java: [/Runtime\.getRuntime\(\)/i, /ProcessBuilder/i],
         python: [/os\.system/i, /subprocess/i, /eval\s*\(/i, /exec\s*\(/i, /__import__/i],
-        javascript: [/require\s*\(/i, /eval\s*\(/i, /Function\s*\(/i, /child_process/i]
+        javascript: [/require\s*\(/i, /eval\s*\(/i, /Function\s*\(/i, /child_process/i],
+        csharp: [/System\.Diagnostics\.Process/i]
     };
 
     const patterns = dangerousPatterns[language] || [];
@@ -106,7 +109,8 @@ const executeWithTestCases = async (language, code, testCases, timeLimit = 3000)
 
         // 1. Prepare Batch Payload
         const submissions = testCases.map((tc, index) => {
-            const input = String(tc.input || "");
+            // Clean up stdin so trailing spaces or \r don't break C# / Python strict parsers
+            const input = String(tc.input || "").replace(/\r/g, '').split('\n').map(line => line.trimEnd()).join('\n');
             return {
                 source_code: Buffer.from(code).toString('base64'),
                 language_id: languageId,

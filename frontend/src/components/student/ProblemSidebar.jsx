@@ -2,10 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, CheckCircle, Circle, ChevronDown, Search, X } from 'lucide-react';
 import { CiCircleList } from 'react-icons/ci';
-import { FaRegFolder, FaRegFolderOpen } from "react-icons/fa6";
+import { FcOpenedFolder, FcFolder } from 'react-icons/fc';
 import problemService from '../../services/problemService';
 import sectionService from '../../services/sectionService';
 import { useAuth } from '../../contexts/AuthContext';
+
+// Module-level cache — shared across all sidebar instances (persists for the browser session)
+const SIDEBAR_CACHE = { problems: null, sections: null };
 
 const DIFF_COLORS = {
     Easy: { text: 'text-green-700', bg: 'bg-green-100', dot: 'bg-green-500' },
@@ -28,12 +31,32 @@ const ProblemSidebar = () => {
 
     useEffect(() => { fetchData(); }, []);
 
+    // Build a map of ObjectId → slug and slug → slug for reverse lookup
+    // Since subsection.problemIds are ObjectIds but URL uses slug, we need to match both
+    const problemIdAliasMap = useMemo(() => {
+        const map = {}; // ObjectId string → [slug, objectIdStr]
+        problems.forEach(p => {
+            const oid = p._id ? String(p._id) : null;
+            const slug = p.id || (p._id ? String(p._id) : null); // p.id is slug from API
+            if (oid) map[oid] = slug;
+            if (slug) map[slug] = slug;
+        });
+        return map;
+    }, [problems]);
+
     useEffect(() => {
         if (problems.length && sections.length && problemId) {
             for (const section of sections) {
                 if (section.subsections) {
                     for (const sub of section.subsections) {
-                        if (sub.problemIds?.map(String).includes(problemId)) {
+                        // subsection.problemIds may be ObjectId strings; URL problemId is slug
+                        // Check if any problemId in the subsection resolves to the current URL problemId
+                        const match = sub.problemIds?.some(pid => {
+                            const pidStr = String(pid);
+                            const resolvedSlug = problemIdAliasMap[pidStr];
+                            return pidStr === problemId || resolvedSlug === problemId;
+                        });
+                        if (match) {
                             setExpandedSections(prev => ({ ...prev, [section._id]: true }));
                             setExpandedSubsections(prev => ({ ...prev, [sub._id]: true }));
                             return;
@@ -42,18 +65,27 @@ const ProblemSidebar = () => {
                 }
             }
         }
-    }, [problems, sections, problemId]);
+    }, [problems, sections, problemId, problemIdAliasMap]);
 
 
 
     const fetchData = async () => {
+        // Use cached data if available — avoids re-fetching when switching problems
+        if (SIDEBAR_CACHE.problems && SIDEBAR_CACHE.sections) {
+            setProblems(SIDEBAR_CACHE.problems);
+            setSections(SIDEBAR_CACHE.sections);
+            setLoading(false);
+            return;
+        }
         try {
             const [problemsData, sectionsData] = await Promise.all([
                 problemService.getAllProblems(),
                 sectionService.getAllSections()
             ]);
-            setProblems(problemsData.problems);
-            setSections(sectionsData.sections);
+            SIDEBAR_CACHE.problems = problemsData.problems;
+            SIDEBAR_CACHE.sections = sectionsData.sections;
+            setProblems(SIDEBAR_CACHE.problems);
+            setSections(SIDEBAR_CACHE.sections);
         } catch (error) {
             console.error(error);
         } finally {
@@ -64,7 +96,10 @@ const ProblemSidebar = () => {
     const structuredContent = useMemo(() => {
         if (!problems.length) return null;
         const problemMap = {};
-        problems.forEach(p => { problemMap[p.id] = p; });
+        problems.forEach(p => {
+            problemMap[p._id || p.id] = p; // support mapping by actual ObjectId as well
+            problemMap[p.id] = p; // support mapping by slug/fallback ID
+        });
         const categorizedProblemIds = new Set();
 
         const mappedSections = sections.map(section => {
@@ -85,6 +120,7 @@ const ProblemSidebar = () => {
 
         const uncategorized = problems.filter(p =>
             !categorizedProblemIds.has(p.id) &&
+            !categorizedProblemIds.has(p._id) &&
             (difficulty === 'All' || p.difficulty === difficulty) &&
             p.title.toLowerCase().includes(searchQuery.toLowerCase())
         );
@@ -110,7 +146,15 @@ const ProblemSidebar = () => {
 
     const toggleSection = (id) => setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
     const toggleSubsection = (id) => setExpandedSubsections(prev => ({ ...prev, [id]: !prev[id] }));
-    const isActive = (id) => id === problemId;
+    // isActive: id may be slug or ObjectId — URL problemId is always the slug
+    const isActive = (id) => {
+        if (!id || !problemId) return false;
+        const idStr = String(id);
+        if (idStr === problemId) return true;
+        // Also check if the ObjectId maps to the current slug
+        const resolvedSlug = problemIdAliasMap[idStr];
+        return resolvedSlug === problemId;
+    };
 
     const solvedCount = problems.filter(p => p.isSolved).length;
     const progressPct = problems.length ? Math.round(solvedCount / problems.length * 100) : 0;
@@ -239,7 +283,7 @@ const ProblemSidebar = () => {
                                                         problem={problem}
                                                         active={isActive(problem.id)}
                                                         indent="pl-12"
-                                                        onClick={() => navigate(`${basePath}/problem/${problem.id}`)}
+                                                        onClick={() => navigate(`/problem/${problem.id}`)}
                                                     />
                                                 ))}
                                             </div>
@@ -268,7 +312,7 @@ const ProblemSidebar = () => {
                                     problem={problem}
                                     active={isActive(problem.id)}
                                     indent="pl-4"
-                                    onClick={() => navigate(`${basePath}/problem/${problem.id}`)}
+                                    onClick={() => navigate(`/problem/${problem.id}`)}
                                 />
                             ))}
                         </div>
@@ -296,10 +340,10 @@ const SectionHeader = ({ title, expanded, count, onClick, noToggle }) => {
             `}
         >
             {/* Folder icon */}
-            <div className="shrink-0 text-gray-400">
+            <div className="shrink-0">
                 {expanded
-                    ? <FaRegFolderOpen size={18} className="text-blue-500" />
-                    : <FaRegFolder size={18} />
+                    ? <FcOpenedFolder size={20} />
+                    : <FcFolder size={20} />
                 }
             </div>
 

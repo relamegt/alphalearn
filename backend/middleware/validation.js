@@ -70,7 +70,7 @@ const validateProblemCreation = [
 const validateSubmission = [
     body('problemId').notEmpty().withMessage('Problem ID is required'),
     body('code').trim().notEmpty().withMessage('Code is required'),
-    body('language').isIn(['c', 'cpp', 'java', 'python', 'javascript']).withMessage('Invalid language'),
+    body('language').isIn(['c', 'cpp', 'java', 'python', 'javascript', 'csharp']).withMessage('Invalid language'),
     handleValidationErrors
 ];
 
@@ -100,14 +100,18 @@ const validateProfileUpdate = [
     handleValidationErrors
 ];
 
-// ID parameter validation
+// ID or Slug parameter validation
 const validateObjectId = (paramName = 'id') => [
     param(paramName).custom((value) => {
         if (value === 'all' || value === 'global') return true;
-        if (!/^[0-9a-fA-F]{24}$/.test(value)) {
-            throw new Error('Invalid ID format');
+        if (/^[0-9a-fA-F]{24}$/.test(value)) return true;
+
+        // Allow slugs only for contestId and problemId
+        if ((paramName === 'contestId' || paramName === 'problemId') && /^[a-z0-9-]+$/.test(value)) {
+            return true;
         }
-        return true;
+
+        throw new Error('Invalid format');
     }),
     handleValidationErrors
 ];

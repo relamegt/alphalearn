@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import reportService from '../../services/reportService';
 import contestService from '../../services/contestService';
 import toast from 'react-hot-toast';
+import CustomDropdown from '../shared/CustomDropdown';
 
 const ContestReports = () => {
     const { user } = useAuth();
@@ -70,18 +71,15 @@ const ContestReports = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Contest *
                         </label>
-                        <select
+                        <CustomDropdown
+                            options={contests.map((contest) => ({
+                                value: contest._id,
+                                label: `${contest.title} - ${new Date(contest.startTime).toLocaleDateString()}`
+                            }))}
                             value={selectedContest}
-                            onChange={(e) => setSelectedContest(e.target.value)}
-                            className="input-field"
-                        >
-                            <option value="">Select Contest</option>
-                            {contests.map((contest) => (
-                                <option key={contest._id} value={contest._id}>
-                                    {contest.title} - {new Date(contest.startTime).toLocaleDateString()}
-                                </option>
-                            ))}
-                        </select>
+                            onChange={(val) => setSelectedContest(val)}
+                            placeholder="Select Contest"
+                        />
                     </div>
 
                     <div className="flex items-end space-x-3">

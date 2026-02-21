@@ -12,12 +12,57 @@ import toast from 'react-hot-toast';
  * @param {number}   maxViolations    - max violations before auto-submit (from contest config, default 5)
  */
 const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViolations = 5) => {
-    const [violations, setViolations] = useState({
-        tabSwitchCount: 0,
-        tabSwitchDuration: 0,
-        pasteAttempts: 0,
-        fullscreenExits: 0
+    // ── Stable ref for the localStorage key ──────────────────────────────────
+    // We use a ref (not a derived variable) so closures inside setViolations
+    // always have access to the current key — even if it was null on mount.
+    const lsKeyRef = useRef(null);
+
+    useEffect(() => {
+        if (contestId && studentId) {
+            lsKeyRef.current = `proctoring_${contestId}_${studentId}`;
+        }
+    }, [contestId, studentId]);
+
+    const persistViolations = useCallback((v) => {
+        const key = lsKeyRef.current;
+        if (!key) return;
+        try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* quota – ignore */ }
+    }, []);
+
+    // Start from local storage if possible, otherwise zeros
+    const [violations, setViolations] = useState(() => {
+        if (contestId && studentId) {
+            try {
+                const cached = JSON.parse(localStorage.getItem(`proctoring_${contestId}_${studentId}`));
+                if (cached) return cached;
+            } catch { }
+        }
+        return { tabSwitchCount: 0, tabSwitchDuration: 0, pasteAttempts: 0, fullscreenExits: 0 };
     });
+
+    // ── Load from localStorage as soon as key is available (instant restore) ──
+    // The useState lazy initializer runs before studentId is known (user loads
+    // asynchronously), so we use an effect that fires once the key becomes valid.
+    const hasSyncedFromLS = useRef(false);
+    useEffect(() => {
+        if (!contestId || !studentId) return;
+        if (hasSyncedFromLS.current) return; // only do this once
+        const key = `proctoring_${contestId}_${studentId}`;
+        lsKeyRef.current = key;
+        try {
+            const cached = JSON.parse(localStorage.getItem(key));
+            if (cached) {
+                setViolations(cached);
+            }
+        } catch { /* corrupt data – ignore */ } finally {
+            hasSyncedFromLS.current = true;
+        }
+    }, [contestId, studentId]);
+
+    // ── Fetch from backend REMOVED ───────────────────────────
+    // User requested to exclusively store violations in frontend localStorage
+    // to avoid resetting to 0 from backend on refresh. Violations are now sent
+    // to the backend only on problem submission.
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showViolationModal, setShowViolationModal] = useState(false);
@@ -25,34 +70,13 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
 
     const tabHideTimeRef = useRef(null);
     const fullscreenRequestedRef = useRef(false);
-    const isFinishingRef = useRef(false); // NEW: suppress violation on intentional finish
+    const isFinishingRef = useRef(false);
     const violationsRef = useRef(violations);
 
-    // Keep ref in sync
+    // Keep violationsRef in sync so async handlers always read the latest value
     useEffect(() => {
         violationsRef.current = violations;
     }, [violations]);
-
-    // Fetch initial violations from backend on mount (only from violation logs)
-    useEffect(() => {
-        if (!contestId || !studentId || !isActive) return;
-        const fetchViolations = async () => {
-            try {
-                const data = await contestService.getProctoringViolations(contestId, studentId);
-                if (data.violations) {
-                    setViolations({
-                        tabSwitchCount: data.violations.totalTabSwitches || 0,
-                        tabSwitchDuration: data.violations.totalTabSwitchDuration || 0,
-                        pasteAttempts: data.violations.totalPasteAttempts || 0,
-                        fullscreenExits: data.violations.totalFullscreenExits || 0
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to sync violations:', error);
-            }
-        };
-        fetchViolations();
-    }, [contestId, studentId, isActive]);
 
     // ─── Track Tab Visibility ───
     useEffect(() => {
@@ -64,33 +88,20 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
             if (document.hidden) {
                 tabHideTimeRef.current = Date.now();
 
-                setViolations(prev => ({
-                    ...prev,
-                    tabSwitchCount: prev.tabSwitchCount + 1
-                }));
-
-                // Log to backend
-                if (contestId && studentId) {
-                    contestService.logViolation(contestId, {
-                        tabSwitchCount: 1,
-                        tabSwitchDuration: 0
-                    });
-                }
+                setViolations(prev => {
+                    const next = { ...prev, tabSwitchCount: prev.tabSwitchCount + 1 };
+                    persistViolations(next);
+                    return next;
+                });
 
                 showViolation('Tab Switch', 'You switched away from the contest tab');
             } else if (tabHideTimeRef.current) {
                 const duration = Math.floor((Date.now() - tabHideTimeRef.current) / 1000);
-                setViolations(prev => ({
-                    ...prev,
-                    tabSwitchDuration: prev.tabSwitchDuration + duration
-                }));
-
-                if (contestId && studentId && duration > 0) {
-                    contestService.logViolation(contestId, {
-                        tabSwitchCount: 0,
-                        tabSwitchDuration: duration
-                    });
-                }
+                setViolations(prev => {
+                    const next = { ...prev, tabSwitchDuration: prev.tabSwitchDuration + duration };
+                    persistViolations(next);
+                    return next;
+                });
 
                 tabHideTimeRef.current = null;
             }
@@ -112,16 +123,11 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
             // 1. We didn't request fullscreen yet (initial state)
             // 2. User is intentionally finishing
             if (!isFullscreenNow && fullscreenRequestedRef.current && isActive && !isFinishingRef.current) {
-                setViolations(prev => ({
-                    ...prev,
-                    fullscreenExits: prev.fullscreenExits + 1
-                }));
-
-                if (contestId && studentId) {
-                    contestService.logViolation(contestId, {
-                        fullscreenExits: 1
-                    });
-                }
+                setViolations(prev => {
+                    const next = { ...prev, fullscreenExits: prev.fullscreenExits + 1 };
+                    persistViolations(next);
+                    return next;
+                });
 
                 showViolation('Fullscreen Exit', 'You exited fullscreen mode');
             }
@@ -219,7 +225,9 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
     };
 
     const resetViolations = () => {
-        setViolations({ tabSwitchCount: 0, tabSwitchDuration: 0, pasteAttempts: 0, fullscreenExits: 0 });
+        const zeroed = { tabSwitchCount: 0, tabSwitchDuration: 0, pasteAttempts: 0, fullscreenExits: 0 };
+        setViolations(zeroed);
+        if (lsKeyRef.current) try { localStorage.removeItem(lsKeyRef.current); } catch { /* ignore */ }
         fullscreenRequestedRef.current = false;
         isFinishingRef.current = false;
     };

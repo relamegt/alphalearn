@@ -141,7 +141,7 @@ const ProblemManager = () => {
     const handleUpdateProblem = async (e) => {
         e.preventDefault();
         try {
-            await problemService.updateProblem(editingProblem.id, formData);
+            await problemService.updateProblem(editingProblem._id, formData);
             toast.success('Problem updated successfully');
             setShowEditModal(false);
             setEditingProblem(null);
@@ -172,7 +172,7 @@ const ProblemManager = () => {
         setSolutionCodeVal('');
         // Try to load existing solution code for this problem
         try {
-            const data = await problemService.getProblemById(problem.id || problem._id);
+            const data = await problemService.getProblemById(problem._id);
             const existing = data.problem?.solutionCode?.['cpp'] || '';
             setSolutionCodeVal(existing);
         } catch { }
@@ -186,7 +186,7 @@ const ProblemManager = () => {
         }
         setSavingSolution(true);
         try {
-            await problemService.setSolutionCode(solutionProblem.id || solutionProblem._id, solutionLang, solutionCode);
+            await problemService.setSolutionCode(solutionProblem._id, solutionLang, solutionCode);
             toast.success(`Reference solution saved for ${solutionLang.toUpperCase()}!`);
             setShowSolutionModal(false);
         } catch (err) {
@@ -199,7 +199,7 @@ const ProblemManager = () => {
 
     const openEditModal = async (problem) => {
         try {
-            const data = await problemService.getProblemById(problem.id || problem._id);
+            const data = await problemService.getProblemById(problem._id);
             // Ensure data structure matches
             const p = data.problem;
             setEditingProblem(problem);
@@ -430,7 +430,7 @@ const ProblemManager = () => {
                                                 <button onClick={() => openEditModal(problem)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
                                                     <Edit2 size={16} />
                                                 </button>
-                                                <button onClick={() => handleDeleteProblem(problem.id || problem._id, problem.title)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                                                <button onClick={() => handleDeleteProblem(problem._id, problem.title)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>

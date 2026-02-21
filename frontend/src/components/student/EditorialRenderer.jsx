@@ -160,7 +160,7 @@ const CodeBlockViewer = React.memo(({ blocks, id, complexity, activeTabState, on
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// MARKDOWN COMPONENTS (AlphaLearn theme — light gray bg context)
+// MARKDOWN COMPONENTS (AlphaKnowledge theme — light gray bg context)
 // ──────────────────────────────────────────────────────────────────────────────
 const MarkdownComponents = {
     h1: ({ children }) => <h1 className="text-lg font-bold text-gray-900 mt-5 mb-3 pb-2 border-b border-gray-200">{children}</h1>,

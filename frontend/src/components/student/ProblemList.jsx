@@ -18,7 +18,7 @@ const ProblemList = () => {
                     // Find first unsolved problem, or default to the first one
                     const nextProblem = problems.find(p => !p.isSolved) || problems[0];
                     const basePath = user?.role === 'admin' ? '/admin' : user?.role === 'instructor' ? '/instructor' : '/student';
-                    navigate(`${basePath}/problem/${nextProblem.id}`, { replace: true });
+                    navigate(`/problem/${nextProblem.id}`, { replace: true });
                 } else {
                     setLoading(false); // Only stop loading if no problems found
                 }

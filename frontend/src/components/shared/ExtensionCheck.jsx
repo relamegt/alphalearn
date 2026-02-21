@@ -18,7 +18,7 @@ const ExtensionCheck = ({ children }) => {
         }
 
         const interval = setInterval(() => {
-            if (window.__ALPHALEARN_EXTENSION_INSTALLED__) {
+            if (window.__ALPHAKNOWLEDGE_EXTENSION_INSTALLED__) {
                 setIsInstalled(true);
                 setChecking(false);
                 clearInterval(interval);
@@ -58,7 +58,7 @@ const ExtensionCheck = ({ children }) => {
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Extension Required</h2>
                     <p className="text-gray-600 mb-6">
-                        To participate in contests and solve problems, you must have the AlphaLearn Browser Extension installed and active.
+                        To participate in contests and solve problems, you must have the AlphaKnowledge Browser Extension installed and active.
                     </p>
                     <a
                         href="#"

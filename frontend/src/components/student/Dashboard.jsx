@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import profileService from '../../services/profileService';
 import toast from 'react-hot-toast';
@@ -203,15 +204,13 @@ const Dashboard = () => {
                                             return (
                                                 <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                                                     <td className="px-6 py-4">
-                                                        <a
-                                                            href={`/student/problem/${submission.problemId || '#'}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
+                                                        <Link
+                                                            to={`/problem/${submission.problemSlug || submission.problemId}?tab=submissions`}
                                                             className="font-medium text-gray-900 line-clamp-1 hover:text-primary-600 transition-colors"
                                                             title={submission.problemTitle}
                                                         >
                                                             {submission.problemTitle}
-                                                        </a>
+                                                        </Link>
                                                         <div className="text-xs text-gray-400 mt-0.5">
                                                             {submission.totalTestCases > 0 ?
                                                                 `${submission.testCasesPassed}/${submission.totalTestCases} Test Cases` :

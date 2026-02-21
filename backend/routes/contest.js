@@ -6,6 +6,25 @@ const { verifyToken } = require('../middleware/auth');
 const { instructorOrAdmin, studentOnly, requireRole } = require('../middleware/roleGuard');
 const { validateSubmission, validateObjectId, validateContestCreation } = require('../middleware/validation');
 const { codeExecutionLimiter } = require('../middleware/rateLimiter');
+const Contest = require('../models/Contest');
+
+const resolveContestSlug = async (req, res, next, contestId) => {
+    if (contestId && contestId !== 'global' && contestId !== 'all' && !/^[0-9a-fA-F]{24}$/.test(contestId)) {
+        try {
+            const contest = await Contest.findById(contestId);
+            if (contest) {
+                req.params.contestId = contest._id.toString();
+            } else {
+                return res.status(404).json({ success: false, message: 'Contest not found' });
+            }
+        } catch (error) {
+            return res.status(500).json({ success: false, message: 'Server error resolving contest' });
+        }
+    }
+    next();
+};
+
+router.param('contestId', resolveContestSlug);
 
 // Public contest joining routes BEFORE verifyToken
 router.get('/public/:contestId', validateObjectId('contestId'), contestController.getPublicContestInfo);

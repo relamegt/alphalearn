@@ -4,6 +4,7 @@ import reportService from '../../services/reportService';
 import adminService from '../../services/adminService';
 import contestService from '../../services/contestService';
 import toast from 'react-hot-toast';
+import CustomDropdown from '../shared/CustomDropdown';
 
 const ReportAnalytics = () => {
     const { user } = useAuth();
@@ -285,19 +286,15 @@ const ReportAnalytics = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Batch *
                                 </label>
-                                <select
+                                <CustomDropdown
+                                    options={[
+                                        ...batches.map((batch) => ({ value: batch._id, label: batch.name }))
+                                    ]}
                                     value={selectedBatch}
-                                    onChange={(e) => setSelectedBatch(e.target.value)}
-                                    className="input-field"
+                                    onChange={(val) => setSelectedBatch(val)}
+                                    placeholder="Select Batch"
                                     disabled={loading}
-                                >
-                                    <option value="">Select Batch</option>
-                                    {batches.map((batch) => (
-                                        <option key={batch._id} value={batch._id}>
-                                            {batch.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
                             </div>
 
                             {/* Client-side filters */}
@@ -305,39 +302,37 @@ const ReportAnalytics = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Filter by Branch
                                 </label>
-                                <select
+                                <CustomDropdown
+                                    options={[
+                                        { value: '', label: 'All Branches' },
+                                        { value: 'CSE', label: 'CSE' },
+                                        { value: 'ECE', label: 'ECE' },
+                                        { value: 'EEE', label: 'EEE' },
+                                        { value: 'MECH', label: 'MECH' },
+                                        { value: 'CIVIL', label: 'CIVIL' }
+                                    ]}
                                     value={filters.branch}
-                                    onChange={(e) =>
-                                        setFilters((prev) => ({ ...prev, branch: e.target.value }))
-                                    }
-                                    className="input-field"
+                                    onChange={(val) => setFilters((prev) => ({ ...prev, branch: val }))}
+                                    placeholder="All Branches"
                                     disabled={!batchReportFetched || loading}
-                                >
-                                    <option value="">All Branches</option>
-                                    <option value="CSE">CSE</option>
-                                    <option value="ECE">ECE</option>
-                                    <option value="EEE">EEE</option>
-                                    <option value="MECH">MECH</option>
-                                    <option value="CIVIL">CIVIL</option>
-                                </select>
+                                />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Filter by Timeline
                                 </label>
-                                <select
+                                <CustomDropdown
+                                    options={[
+                                        { value: 'all', label: 'All Time' },
+                                        { value: 'week', label: 'This Week' },
+                                        { value: 'month', label: 'This Month' }
+                                    ]}
                                     value={filters.timeline}
-                                    onChange={(e) =>
-                                        setFilters((prev) => ({ ...prev, timeline: e.target.value }))
-                                    }
-                                    className="input-field"
+                                    onChange={(val) => setFilters((prev) => ({ ...prev, timeline: val }))}
+                                    placeholder="All Time"
                                     disabled={!batchReportFetched || loading}
-                                >
-                                    <option value="all">All Time</option>
-                                    <option value="week">This Week</option>
-                                    <option value="month">This Month</option>
-                                </select>
+                                />
                             </div>
                         </div>
 
@@ -488,10 +483,10 @@ const ReportAnalytics = () => {
                                                     {student.hackerrank || 0}
                                                 </td>
                                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
-                                                    {student.alphaLearnBasic || 0}
+                                                    {student.alphaKnowledgeBasic || 0}
                                                 </td>
                                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-400 text-center">
-                                                    {student.alphaLearnPrimary || 0}
+                                                    {student.alphaKnowledgePrimary || 0}
                                                 </td>
                                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
                                                     {student.leetcode || 0}
@@ -568,46 +563,40 @@ const ReportAnalytics = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Batch *
                                 </label>
-                                <select
+                                <CustomDropdown
+                                    options={[
+                                        ...batches.map((batch) => ({ value: batch._id, label: batch.name }))
+                                    ]}
                                     value={selectedBatch}
-                                    onChange={(e) => {
-                                        setSelectedBatch(e.target.value);
+                                    onChange={(val) => {
+                                        setSelectedBatch(val);
                                         setSelectedContest('');
                                         setContestReportData(null);
                                         setContestReportFetched(false);
                                     }}
-                                    className="input-field"
-                                >
-                                    <option value="">Select Batch</option>
-                                    {batches.map((batch) => (
-                                        <option key={batch._id} value={batch._id}>
-                                            {batch.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    placeholder="Select Batch"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Contest *
                                 </label>
-                                <select
+                                <CustomDropdown
+                                    options={[
+                                        ...contests.map((contest) => ({
+                                            value: contest._id,
+                                            label: `${contest.title} - ${new Date(contest.startTime).toLocaleDateString()}`
+                                        }))
+                                    ]}
                                     value={selectedContest}
-                                    onChange={(e) => {
-                                        setSelectedContest(e.target.value);
+                                    onChange={(val) => {
+                                        setSelectedContest(val);
                                         setContestReportData(null);
                                         setContestReportFetched(false);
                                     }}
-                                    className="input-field"
+                                    placeholder="Select Contest"
                                     disabled={!selectedBatch}
-                                >
-                                    <option value="">Select Contest</option>
-                                    {contests.map((contest) => (
-                                        <option key={contest._id} value={contest._id}>
-                                            {contest.title} -{' '}
-                                            {new Date(contest.startTime).toLocaleDateString()}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
                             </div>
                         </div>
 
@@ -838,18 +827,16 @@ const ReportAnalytics = () => {
                                 Batch Analytics
                             </h3>
                             <div className="flex space-x-3">
-                                <select
-                                    value={selectedBatch}
-                                    onChange={(e) => setSelectedBatch(e.target.value)}
-                                    className="input-field w-64"
-                                >
-                                    <option value="">Select Batch</option>
-                                    {batches.map((batch) => (
-                                        <option key={batch._id} value={batch._id}>
-                                            {batch.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="w-64">
+                                    <CustomDropdown
+                                        options={[
+                                            ...batches.map((batch) => ({ value: batch._id, label: batch.name }))
+                                        ]}
+                                        value={selectedBatch}
+                                        onChange={(val) => setSelectedBatch(val)}
+                                        placeholder="Select Batch"
+                                    />
+                                </div>
                                 <button
                                     onClick={handleFetchAnalytics}
                                     disabled={loading || !selectedBatch}

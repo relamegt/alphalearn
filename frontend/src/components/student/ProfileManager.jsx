@@ -4,6 +4,7 @@ import profileService from '../../services/profileService';
 import uploadService from '../../services/uploadService';
 import authService from '../../services/authService';
 import toast from 'react-hot-toast';
+import CustomDropdown from '../shared/CustomDropdown';
 
 const PLATFORMS = [
     { value: 'leetcode', label: 'LeetCode' },
@@ -411,35 +412,35 @@ const ProfileManager = () => {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Gender</label>
-                                <select
+                                <CustomDropdown
+                                    options={[
+                                        { value: '', label: 'Select Gender' },
+                                        { value: 'Male', label: 'Male' },
+                                        { value: 'Female', label: 'Female' },
+                                        { value: 'Other', label: 'Other' }
+                                    ]}
                                     value={personalData.gender}
-                                    onChange={(e) =>
-                                        setPersonalData({ ...personalData, gender: e.target.value })
+                                    onChange={(val) =>
+                                        setPersonalData({ ...personalData, gender: val })
                                     }
-                                    className="mt-1 input-field"
-                                >
-                                    <option value="">Select Gender</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="Other">Other</option>
-                                </select>
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">T-shirt Size</label>
-                                <select
+                                <CustomDropdown
+                                    options={[
+                                        { value: '', label: 'Select Size' },
+                                        { value: 'S', label: 'S' },
+                                        { value: 'M', label: 'M' },
+                                        { value: 'L', label: 'L' },
+                                        { value: 'XL', label: 'XL' },
+                                        { value: 'XXL', label: 'XXL' }
+                                    ]}
                                     value={personalData.tshirtSize}
-                                    onChange={(e) =>
-                                        setPersonalData({ ...personalData, tshirtSize: e.target.value })
+                                    onChange={(val) =>
+                                        setPersonalData({ ...personalData, tshirtSize: val })
                                     }
-                                    className="mt-1 input-field"
-                                >
-                                    <option value="">Select Size</option>
-                                    <option value="S">S</option>
-                                    <option value="M">M</option>
-                                    <option value="L">L</option>
-                                    <option value="XL">XL</option>
-                                    <option value="XXL">XXL</option>
-                                </select>
+                                />
                             </div>
                         </div>
 
@@ -707,7 +708,7 @@ const ProfileManager = () => {
                             </div>
                         </div>
 
-                        
+
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Skills</label>
@@ -833,19 +834,13 @@ const ProfileManager = () => {
                         <form onSubmit={handleLinkProfile} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Platform</label>
-                                <select
+                                <CustomDropdown
+                                    options={PLATFORMS}
                                     value={linkProfileData.platform}
-                                    onChange={(e) =>
-                                        setLinkProfileData({ ...linkProfileData, platform: e.target.value })
+                                    onChange={(val) =>
+                                        setLinkProfileData({ ...linkProfileData, platform: val })
                                     }
-                                    className="mt-1 input-field"
-                                >
-                                    {PLATFORMS.map((platform) => (
-                                        <option key={platform.value} value={platform.value}>
-                                            {platform.label}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
                                 <p className="text-xs text-gray-500 mt-1">You can only add each platform once</p>
                             </div>
                             <div>

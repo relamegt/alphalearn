@@ -7,7 +7,9 @@ const CustomDropdown = ({
     onChange,
     placeholder = 'Select...',
     className = '',
-    icon: Icon
+    icon: Icon,
+    disabled = false,
+    size = 'default'
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -25,11 +27,12 @@ const CustomDropdown = ({
     }, []);
 
     return (
-        <div className={`relative ${className}`} ref={dropdownRef}>
+        <div className={`relative ${className} ${disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`} ref={dropdownRef}>
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-sm group"
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+                disabled={disabled}
+                className={`w-full flex items-center justify-between ${size === 'small' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-white border border-gray-200 rounded-lg text-gray-700 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-sm group`}
             >
                 <div className="flex items-center gap-2 truncate">
                     {Icon && <Icon size={16} className="text-gray-400 group-hover:text-blue-500 transition-colors" />}
@@ -52,8 +55,8 @@ const CustomDropdown = ({
                                         setIsOpen(false);
                                     }}
                                     className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-between ${value === option.value
-                                            ? 'bg-blue-50 text-blue-700 font-medium'
-                                            : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                                        ? 'bg-blue-50 text-blue-700 font-medium'
+                                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                                         }`}
                                 >
                                     <span className="truncate">{option.label}</span>

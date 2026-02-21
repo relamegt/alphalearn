@@ -44,7 +44,7 @@ const getReportData = async (batchId, filters = {}) => {
                 }
             });
 
-            // Get AlphaLearn internal contest scores - ONLY for this batch
+            // Get AlphaKnowledge internal contest scores - ONLY for this batch
             const contestSubmissions = await ContestSubmission.findByStudent(entry.studentId);
 
             // Filter submissions to only include contests from this batch
@@ -54,7 +54,7 @@ const getReportData = async (batchId, filters = {}) => {
 
             const uniqueContests = [...new Set(batchContestSubmissions.map(cs => cs.contestId.toString()))];
 
-            let alphaLearnPrimaryScore = 0;
+            let alphaKnowledgePrimaryScore = 0;
             const internalContestsData = {};
 
             for (const contestId of uniqueContests) {
@@ -63,7 +63,7 @@ const getReportData = async (batchId, filters = {}) => {
                     .sort((a, b) => b.score - a.score)[0];
 
                 if (submission) {
-                    alphaLearnPrimaryScore += submission.score;
+                    alphaKnowledgePrimaryScore += submission.score;
                     internalContestsData[contestId] = submission.score;
                 }
             }
@@ -223,7 +223,7 @@ const generateCSVReport = async (batchId, filters = {}) => {
         return {
             success: true,
             data: csv,
-            filename: `alphalearn_report_${Date.now()}.csv`
+            filename: `alphaknowledge_report_${Date.now()}.csv`
         };
     } catch (error) {
         console.error('Error generating CSV report:', error);
@@ -280,12 +280,12 @@ const generatePDFReport = async (batchId, filters = {}) => {
                 resolve({
                     success: true,
                     data: pdfBuffer,
-                    filename: `alphalearn_report_${Date.now()}.pdf`
+                    filename: `alphaknowledge_report_${Date.now()}.pdf`
                 });
             });
             doc.on('error', reject);
 
-            doc.fontSize(14).font('Helvetica-Bold').text('AlphaLearn - Detailed Batch Report', { align: 'center' });
+            doc.fontSize(14).font('Helvetica-Bold').text('AlphaKnowledge - Detailed Batch Report', { align: 'center' });
             doc.fontSize(10).font('Helvetica').text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'center' });
             doc.moveDown(1);
 

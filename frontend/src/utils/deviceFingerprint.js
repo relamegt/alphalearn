@@ -5,7 +5,7 @@ export const generateDeviceFingerprint = () => {
         const ctx = canvas.getContext('2d');
         ctx.textBaseline = 'top';
         ctx.font = '14px Arial';
-        ctx.fillText('alphalearn', 2, 2);
+        ctx.fillText('alphaknowledge', 2, 2);
 
         const fingerprint = {
             userAgent: navigator.userAgent,

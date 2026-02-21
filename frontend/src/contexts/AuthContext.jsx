@@ -91,11 +91,13 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const loginAsSpotUser = (userData, token) => {
+    const loginAsSpotUser = (userData, token, showToast = true) => {
         authService.spotLogin(userData, token);
         setUser(userData);
         setIsAuthenticated(true);
-        toast.success('Joined contest successfully!');
+        if (showToast) {
+            toast.success('Joined contest successfully!');
+        }
     };
 
     const completeProfile = async (profileData) => {

@@ -2,12 +2,12 @@ const jwt = require('jsonwebtoken');
 
 // JWT Configuration (Access: 15min, Refresh: 7 days)
 const jwtConfig = {
-    accessTokenSecret: process.env.JWT_ACCESS_SECRET || 'alphalearn_access_secret_2026',
-    refreshTokenSecret: process.env.JWT_REFRESH_SECRET || 'alphalearn_refresh_secret_2026',
+    accessTokenSecret: process.env.JWT_ACCESS_SECRET || 'alphaknowledge_access_secret_2026',
+    refreshTokenSecret: process.env.JWT_REFRESH_SECRET || 'alphaknowledge_refresh_secret_2026',
     accessTokenExpiry: '15m', // 15 minutes
     refreshTokenExpiry: '7d', // 7 days
-    issuer: 'alphalearn',
-    audience: 'alphalearn-users'
+    issuer: 'alphaknowledge',
+    audience: 'alphaknowledge-users'
 };
 
 // Generate Access Token

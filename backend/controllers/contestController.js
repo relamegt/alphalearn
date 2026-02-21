@@ -695,8 +695,9 @@ const finishContest = async (req, res) => {
 const getContestLeaderboard = async (req, res) => {
     try {
         const { contestId } = req.params;
+        const currentUserId = req.user?.userId || req.user?._id;
 
-        const leaderboard = await ContestSubmission.getLeaderboard(contestId);
+        const leaderboard = await ContestSubmission.getLeaderboard(contestId, currentUserId);
         const contest = await Contest.findById(contestId);
 
         // Populate problem titles manually keeping original order
@@ -875,6 +876,9 @@ const registerSpotUser = async (req, res) => {
     try {
         const { contestId, name, rollNumber, branch } = req.body;
 
+        // Contest.findById handles both slug and ObjectId — use it to resolve to the real document.
+        // The contestId from req.body may be a slug (e.g. "g20-6307") because it comes from the
+        // frontend URL param. We must use contest._id (the real ObjectId) for DB relationships.
         const contest = await Contest.findById(contestId);
         if (!contest) return res.status(404).json({ success: false, message: 'Contest not found' });
 
@@ -885,6 +889,9 @@ const registerSpotUser = async (req, res) => {
         const { ObjectId } = require('bson');
         const User = require('../models/User');
         const jwt = require('jsonwebtoken');
+
+        // Use the resolved real ObjectId string — NOT the raw slug from req.body
+        const resolvedContestId = contest._id.toString();
 
         // Check if they already exist (very rudimentary, they're temporary anyway)
         const spotEmail = `spot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@temporary.com`;
@@ -899,7 +906,7 @@ const registerSpotUser = async (req, res) => {
             lastName: '',
             role: 'student', // so middleware treats them correctly
             batchId: null, // Global user
-            registeredForContest: contestId,
+            registeredForContest: resolvedContestId, // ← always the real 24-char hex ObjectId
             education: {
                 rollNumber: rollNumber || 'N/A',
                 branch: branch || 'N/A'
@@ -910,7 +917,14 @@ const registerSpotUser = async (req, res) => {
             }
         });
 
-        // Set isSpotUser flag in their token so we can distinguish if needed
+        // Set isSpotUser flag in their token so we can distinguish if needed.
+        // Token expiry = contest endTime + 2-hour buffer (so they can still view the leaderboard
+        // after submission). Minimum 30 minutes in case the contest is already near its end.
+        const BUFFER_MS = 2 * 60 * 60 * 1000; // 2 hours
+        const MIN_TTL_S = 30 * 60;           // 30 minutes floor
+        const contestEnd = contest.endTime ? new Date(contest.endTime).getTime() : Date.now();
+        const tokenTTLs = Math.max(MIN_TTL_S, Math.floor((contestEnd + BUFFER_MS - Date.now()) / 1000));
+
         const token = jwt.sign(
             {
                 userId: user._id.toString(),
@@ -919,7 +933,7 @@ const registerSpotUser = async (req, res) => {
                 tokenVersion: user.tokenVersion || 0 // Required by auth middleware
             },
             process.env.JWT_ACCESS_SECRET || 'fallback_secret',
-            { expiresIn: '24h' }
+            { expiresIn: tokenTTLs } // seconds — dynamic, proportional to contest duration
         );
 
         user.activeSessionToken = token;
@@ -933,6 +947,7 @@ const registerSpotUser = async (req, res) => {
                 name: name,
                 role: 'student',
                 isSpotUser: true,
+                registeredForContest: resolvedContestId,
                 rollNumber: rollNumber || 'N/A',
                 branch: branch || 'N/A'
             }

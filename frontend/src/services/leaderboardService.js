@@ -21,9 +21,9 @@ apiClient.interceptors.request.use((config) => {
 
 // Cache keys
 const CACHE_KEYS = {
-    PRACTICE_LEADERBOARD: 'alphalearn_practice_leaderboard_',
-    EXTERNAL_DATA: 'alphalearn_external_data_',
-    CACHE_TIMESTAMP: 'alphalearn_cache_timestamp_',
+    PRACTICE_LEADERBOARD: 'alphaknowledge_practice_leaderboard_',
+    EXTERNAL_DATA: 'alphaknowledge_external_data_',
+    CACHE_TIMESTAMP: 'alphaknowledge_cache_timestamp_',
 };
 
 // Cache duration: 24 hours
@@ -72,7 +72,7 @@ const leaderboardService = {
         try {
             const keys = Object.keys(localStorage);
             keys.forEach(key => {
-                if (key.startsWith('alphalearn_')) {
+                if (key.startsWith('alphaknowledge_')) {
                     localStorage.removeItem(key);
                 }
             });

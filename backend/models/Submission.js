@@ -1,16 +1,34 @@
 const { ObjectId } = require('bson');
 const { collections } = require('../config/astra');
+const { isValidObjectId } = require('../utils/objectId');
+
+// Helper: safely convert any problemId (ObjectId or slug-resolved) to ObjectId
+// Only use this when the value has already been resolved from slug at the controller level.
+// For model methods that receive raw input, we validate.
+const safeProblemOid = (id) => {
+    if (!id) throw new Error('problemId is required');
+    if (id instanceof ObjectId) return id;
+    if (isValidObjectId(id)) return new ObjectId(id.toString());
+    throw new Error(`Invalid problemId "${id}" — must be a 24-char hex ObjectId, not a slug`);
+};
+
+const safeStudentOid = (id) => {
+    if (!id) throw new Error('studentId is required');
+    if (id instanceof ObjectId) return id;
+    if (isValidObjectId(id)) return new ObjectId(id.toString());
+    throw new Error(`Invalid studentId "${id}" — must be a 24-char hex ObjectId`);
+};
 
 class Submission {
     // Create new submission
     static async create(submissionData) {
         const submission = {
             _id: new ObjectId(),
-            studentId: new ObjectId(submissionData.studentId),
-            problemId: new ObjectId(submissionData.problemId),
+            studentId: safeStudentOid(submissionData.studentId),
+            problemId: safeProblemOid(submissionData.problemId),
             code: submissionData.code,
-            language: submissionData.language, // 'c' | 'cpp' | 'java' | 'python' | 'javascript'
-            verdict: submissionData.verdict, // 'Accepted' | 'Wrong Answer' | 'TLE' | 'Runtime Error' | 'Compilation Error'
+            language: submissionData.language,
+            verdict: submissionData.verdict,
             testCasesPassed: submissionData.testCasesPassed,
             totalTestCases: submissionData.totalTestCases,
             submittedAt: new Date()
@@ -38,8 +56,8 @@ class Submission {
     static async findByStudentAndProblem(studentId, problemId) {
         return await collections.submissions
             .find({
-                studentId: new ObjectId(studentId),
-                problemId: new ObjectId(problemId)
+                studentId: safeStudentOid(studentId),
+                problemId: safeProblemOid(problemId)
             })
             .sort({ submittedAt: -1 })
             .toArray();
@@ -61,7 +79,8 @@ class Submission {
             return {
                 ...sub,
                 problemTitle: problem ? problem.title : 'Unknown Problem',
-                problemDifficulty: problem ? problem.difficulty : 'Medium'
+                problemDifficulty: problem ? problem.difficulty : 'Medium',
+                problemSlug: problem ? problem.slug : null
             };
         }));
 
@@ -70,39 +89,28 @@ class Submission {
 
     // Find all recent submissions (global) with details
     static async findAllRecentSubmissions(limit = 10) {
-        return await collections.submissions.aggregate([
-            { $sort: { submittedAt: -1 } },
-            { $limit: limit },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'studentId',
-                    foreignField: '_id',
-                    as: 'user'
-                }
-            },
-            { $unwind: '$user' },
-            {
-                $lookup: {
-                    from: 'problems',
-                    localField: 'problemId',
-                    foreignField: '_id',
-                    as: 'problem'
-                }
-            },
-            { $unwind: '$problem' },
-            {
-                $project: {
-                    _id: 1,
-                    code: 1,
-                    language: 1,
-                    verdict: 1,
-                    submittedAt: 1,
-                    user: { username: 1, email: 1 },
-                    problem: { title: 1 }
-                }
-            }
-        ]).toArray();
+        const submissions = await collections.submissions
+            .find({})
+            .sort({ submittedAt: -1 })
+            .limit(limit)
+            .toArray();
+
+        const Problem = require('./Problem');
+        const User = require('./User');
+
+        return await Promise.all(submissions.map(async (sub) => {
+            const user = await User.findById(sub.studentId);
+            const problem = await Problem.findById(sub.problemId);
+            return {
+                _id: sub._id,
+                code: sub.code,
+                language: sub.language,
+                verdict: sub.verdict,
+                submittedAt: sub.submittedAt,
+                user: user ? { username: user.username, email: user.email } : null,
+                problem: problem ? { title: problem.title } : null
+            };
+        }));
     }
 
     // Get submission heatmap data (365 days)

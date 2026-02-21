@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "AlphaLearn - MERN Stack Learning Management System with Coding Practice Platform",
+  "description": "AlphaKnowledge - MERN Stack Learning Management System with Coding Practice Platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -19,7 +19,7 @@
     "MERN",
     "astra-db"
   ],
-  "author": "AlphaLearn Team",
+  "author": "AlphaKnowledge Team",
   "license": "MIT",
   "dependencies": {
     "@datastax/astra-db-ts": "^1.0.0",

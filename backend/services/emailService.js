@@ -51,7 +51,7 @@ const sendPasswordResetOTP = async (email, recipientName) => {
     const template = emailTemplates.passwordResetOTP(recipientName, otp);
 
     await transporter.sendMail({
-      from: `"AlphaLearn" <${process.env.EMAIL_USER}>`,
+      from: `"AlphaKnowledge" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: template.subject,
       html: template.html
@@ -78,7 +78,7 @@ const sendBatchExpiryWarning = async (adminEmails, instructorEmails, batchName, 
     const recipients = [...adminEmails, ...instructorEmails];
 
     await transporter.sendMail({
-      from: `"AlphaLearn" <${process.env.EMAIL_USER}>`,
+      from: `"AlphaKnowledge" <${process.env.EMAIL_USER}>`,
       to: recipients.join(', '),
       subject: template.subject,
       html: template.html
@@ -97,7 +97,7 @@ const sendWelcomeEmail = async (email, userName, tempPassword, role) => {
     const template = emailTemplates.welcomeEmail(userName, email, tempPassword, role);
 
     await transporter.sendMail({
-      from: `"AlphaLearn" <${process.env.EMAIL_USER}>`,
+      from: `"AlphaKnowledge" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: template.subject,
       html: template.html
@@ -131,9 +131,9 @@ const sendBulkWelcomeEmails = async (users) => {
 const sendPasswordChangeConfirmation = async (email, userName) => {
   try {
     await transporter.sendMail({
-      from: `"AlphaLearn" <${process.env.EMAIL_USER}>`,
+      from: `"AlphaKnowledge" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: 'AlphaLearn - Password Changed Successfully',
+      subject: 'AlphaKnowledge - Password Changed Successfully',
       html: `
         <!DOCTYPE html>
         <html>
@@ -153,12 +153,12 @@ const sendPasswordChangeConfirmation = async (email, userName) => {
             </div>
             <div class="content">
               <p>Hello <strong>${userName}</strong>,</p>
-              <p>Your AlphaLearn account password has been changed successfully.</p>
+              <p>Your AlphaKnowledge account password has been changed successfully.</p>
               <p>If you did not make this change, please contact your administrator immediately.</p>
               <p>Login URL: <a href="${process.env.FRONTEND_URL}/login">${process.env.FRONTEND_URL}/login</a></p>
             </div>
             <div class="footer">
-              <p>© 2026 AlphaLearn. All rights reserved.</p>
+              <p>© 2026 AlphaKnowledge. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -177,9 +177,9 @@ const sendPasswordChangeConfirmation = async (email, userName) => {
 const sendProfileResetNotification = async (email, userName, resetByName) => {
   try {
     await transporter.sendMail({
-      from: `"AlphaLearn" <${process.env.EMAIL_USER}>`,
+      from: `"AlphaKnowledge" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: 'AlphaLearn - Profile Reset Notification',
+      subject: 'AlphaKnowledge - Profile Reset Notification',
       html: `
         <!DOCTYPE html>
         <html>
@@ -201,7 +201,7 @@ const sendProfileResetNotification = async (email, userName, resetByName) => {
             <div class="content">
               <p>Hello <strong>${userName}</strong>,</p>
               <div class="warning">
-                <strong>Your AlphaLearn profile has been reset by ${resetByName}.</strong>
+                <strong>Your AlphaKnowledge profile has been reset by ${resetByName}.</strong>
               </div>
               <p>All your data has been permanently deleted, including:</p>
               <ul>
@@ -214,7 +214,7 @@ const sendProfileResetNotification = async (email, userName, resetByName) => {
               <p>This action was taken due to policy violations. If you have questions, please contact your instructor or administrator.</p>
             </div>
             <div class="footer">
-              <p>© 2026 AlphaLearn. All rights reserved.</p>
+              <p>© 2026 AlphaKnowledge. All rights reserved.</p>
             </div>
           </div>
         </body>

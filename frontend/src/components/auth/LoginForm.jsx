@@ -92,12 +92,14 @@ const LoginForm = () => {
                 {/* Header */}
                 <div className="text-center">
                     <div className="flex justify-center mb-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center">
-                            <span className="text-3xl font-bold text-white">α</span>
-                        </div>
+                        <img
+                            src="/alphalogo.png"
+                            alt="AlphaKnowledge"
+                            className="w-16 h-16 object-contain"
+                        />
                     </div>
                     <h2 className="text-3xl font-bold text-gray-900">
-                        AlphaLearn
+                        AlphaKnowledge
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
                         Sign in to continue your learning journey

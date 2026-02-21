@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import profileService from '../../services/profileService';
 import adminService from '../../services/adminService';
 import toast from 'react-hot-toast';
+import CustomDropdown from '../shared/CustomDropdown';
 
 const ProfileReset = () => {
     const [students, setStudents] = useState([]);
@@ -88,14 +89,14 @@ const ProfileReset = () => {
         const studentName = `${selectedStudent.firstName || ''} ${selectedStudent.lastName || ''}`.trim() || 'Student';
 
         const confirmText = window.prompt(
-            `⚠️ CRITICAL ACTION: Reset AlphaLearn Practice Data for ${studentName}\n\n` +
+            `⚠️ CRITICAL ACTION: Reset AlphaKnowledge Practice Data for ${studentName}\n\n` +
             `Email: ${selectedStudent.email}\n` +
             `Roll Number: ${selectedStudent.rollNumber}\n` +
             `Branch: ${selectedStudent.branch}\n\n` +
             'This will PERMANENTLY DELETE:\n' +
-            '✗ All AlphaLearn practice submissions\n' +
+            '✗ All AlphaKnowledge practice submissions\n' +
             '✗ Practice progress & statistics\n' +
-            '✗ AlphaLearn coins & achievements\n\n' +
+            '✗ AlphaKnowledge coins & achievements\n\n' +
             'PRESERVED (Student will keep):\n' +
             '✓ Contest submissions & records\n' +
             '✓ Contest leaderboard rankings\n' +
@@ -116,7 +117,7 @@ const ProfileReset = () => {
         try {
             const result = await profileService.resetStudentProfile(selectedStudent.id);
             toast.success(result.message);
-            toast.info('Student has been notified via email');
+            toast('Student has been notified via email');
             setSelectedStudent(null);
             setSearchQuery('');
             fetchAllStudents();
@@ -133,10 +134,10 @@ const ProfileReset = () => {
                 {/* Warning Banner */}
                 <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
                     <h2 className="text-2xl font-bold text-red-800 mb-2">
-                        ⚠️ Reset AlphaLearn Practice Data
+                        ⚠️ Reset AlphaKnowledge Practice Data
                     </h2>
                     <p className="text-red-700">
-                        This action resets only the student's <strong>AlphaLearn practice submissions and scores</strong>.
+                        This action resets only the student's <strong>AlphaKnowledge practice submissions and scores</strong>.
                         Contest records, external profiles, and batch assignment will be preserved.
                     </p>
                 </div>
@@ -154,21 +155,18 @@ const ProfileReset = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Filter by Batch
                                 </label>
-                                <select
+                                <CustomDropdown
+                                    options={[
+                                        { value: '', label: 'All Batches' },
+                                        ...batches.map(batch => ({ value: batch._id, label: batch.name }))
+                                    ]}
                                     value={selectedBatchId}
-                                    onChange={(e) => {
-                                        setSelectedBatchId(e.target.value);
+                                    onChange={(val) => {
+                                        setSelectedBatchId(val);
                                         setSelectedStudent(null);
                                     }}
-                                    className="input-field"
-                                >
-                                    <option value="">All Batches</option>
-                                    {batches.map(batch => (
-                                        <option key={batch._id} value={batch._id}>
-                                            {batch.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    placeholder="All Batches"
+                                />
                             </div>
                         )}
 
@@ -400,9 +398,9 @@ const ProfileReset = () => {
                                             What will be deleted:
                                         </p>
                                         <ul className="list-disc list-inside text-yellow-700 space-y-1 text-sm ml-7">
-                                            <li>All AlphaLearn practice submissions</li>
+                                            <li>All AlphaKnowledge practice submissions</li>
                                             <li>Practice progress statistics</li>
-                                            <li>AlphaLearn coins & achievements</li>
+                                            <li>AlphaKnowledge coins & achievements</li>
                                         </ul>
                                         <p className="text-yellow-800 font-semibold mt-4 mb-3 flex items-center">
                                             <svg
@@ -454,7 +452,7 @@ const ProfileReset = () => {
                                                         d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                                                     />
                                                 </svg>
-                                                Reset AlphaLearn Practice Data
+                                                Reset AlphaKnowledge Practice Data
                                             </>
                                         )}
                                     </button>

@@ -12,7 +12,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
-        folder: 'alphalearn/profile-pictures',
+        folder: 'alphaknowledge/profile-pictures',
         allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
         transformation: [
             { width: 500, height: 500, crop: 'limit' },

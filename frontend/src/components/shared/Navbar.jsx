@@ -93,14 +93,12 @@ const Navbar = () => {
                     {/* Logo (Left side) */}
                     <div className="flex-shrink-0 flex items-center">
                         <Link to="/" className="flex items-center space-x-2">
-                            {/* Assuming logo image or text */}
-                            {/* Placeholder Logo Icon */}
-                            <div className="bg-yellow-400 p-1.5 rounded-full">
-                                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                            </div>
-                            <span className="text-xl font-bold text-gray-800 tracking-tight">AlphaLearn</span>
+                            <img
+                                src="/alphalogo.png"
+                                alt="AlphaKnowledge"
+                                className="h-8 w-auto object-contain"
+                            />
+                            <span className="text-xl font-bold text-gray-800 tracking-tight">AlphaKnowledge</span>
                         </Link>
                     </div>
 

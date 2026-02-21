@@ -65,7 +65,7 @@ const getBatchLeaderboard = async (req, res) => {
                     username: user.username || user.email?.split('@')[0] || 'N/A',
                     overallScore: 0,
                     alphaCoins: user.alphacoins || 0,
-                    alphaLearnBasicScore: 0,
+                    alphaKnowledgeBasicScore: 0,
                     externalScores: {},
                     lastUpdated: user.createdAt
                 };
@@ -103,15 +103,29 @@ const getBatchLeaderboard = async (req, res) => {
                     }
                 }
 
+                // alphaCoins = practice-only coins from the user document (source of truth).
+                // Use != null so a genuine 0 value is preserved (not skipped by ||).
+                const alphaCoins = (user.alphacoins != null) ? user.alphacoins
+                    : (entry.alphaCoins != null) ? entry.alphaCoins : 0;
+
+                // Compute externalTotal from live externalProfiles fetched above (not stale entry)
+                const scoreCalculator = require('../utils/scoreCalculator');
+                let externalTotal = 0;
+                externalProfiles.forEach(profile => {
+                    externalTotal += scoreCalculator.calculatePlatformScore(profile.platform, profile.stats) || 0;
+                });
+
+                // overallScore = practice coins + external (NO internal contest scores)
+                const overallScore = alphaCoins + externalTotal;
+
                 return {
                     rank: entry.rank,
                     globalRank: entry.globalRank,
                     rollNumber: user?.education?.rollNumber || entry.rollNumber || 'N/A',
                     name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || entry.username,
                     username: entry.username || user.username || 'N/A',
-                    overallScore: entry.overallScore || 0,
-                    alphaCoins: entry.alphaCoins || entry.alphaLearnBasicScore || user.alphacoins || 0,
-                    alphaLearnBasicScore: entry.alphaLearnBasicScore || 0,
+                    overallScore,
+                    alphaCoins,
                     externalScores: entry.externalScores || {},
                     detailedStats: detailedStats,
                     internalContests: internalContestsData,
@@ -266,7 +280,8 @@ const getInternalContestLeaderboard = async (req, res) => {
             });
         }
 
-        const leaderboard = await ContestSubmission.getLeaderboard(contestId);
+        const currentUserId = req.user?.userId || req.user?._id;
+        const leaderboard = await ContestSubmission.getLeaderboard(contestId, currentUserId);
 
         let problems = [];
         if (contest.problems && contest.problems.length > 0) {

@@ -10,7 +10,8 @@ const languageVersions = {
     cpp: '10.2.0',
     java: '15.0.2',
     python: '3.10.0',
-    javascript: '18.15.0'
+    javascript: '18.15.0',
+    csharp: '5.0.201'
 };
 
 // Map our language names to Piston's expected names
@@ -19,7 +20,8 @@ const languageMap = {
     javascript: 'javascript',
     python: 'python',
     java: 'java',
-    c: 'c'
+    c: 'c',
+    csharp: 'csharp'
 };
 
 // Get runtime information
@@ -320,7 +322,8 @@ const getFileExtension = (language) => {
         cpp: 'cpp',
         java: 'java',
         python: 'py',
-        javascript: 'js'
+        javascript: 'js',
+        csharp: 'cs'
     };
     return extensions[language] || 'txt';
 };
@@ -342,7 +345,8 @@ const validateCode = (code, language) => {
         cpp: [/system\s*\(/i, /exec\s*\(/i, /fork\s*\(/i],
         java: [/Runtime\.getRuntime\(\)/i, /ProcessBuilder/i],
         python: [/os\.system/i, /subprocess/i, /eval\s*\(/i, /exec\s*\(/i, /__import__/i],
-        javascript: [/require\s*\(/i, /eval\s*\(/i, /Function\s*\(/i, /child_process/i]
+        javascript: [/require\s*\(/i, /eval\s*\(/i, /Function\s*\(/i, /child_process/i],
+        csharp: [/System\.Diagnostics\.Process/i]
     };
 
     const patterns = dangerousPatterns[language] || [];

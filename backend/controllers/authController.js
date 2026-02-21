@@ -330,6 +330,7 @@ const getCurrentUser = async (req, res) => {
                 profileCompleted: user.profileCompleted || false,
                 isFirstLogin: user.isFirstLogin || false,
                 isSpotUser: req.user.isSpotUser || false,
+                registeredForContest: user.registeredForContest,
                 createdAt: user.createdAt,
                 lastLogin: user.lastLogin
             }

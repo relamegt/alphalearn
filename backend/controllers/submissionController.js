@@ -154,8 +154,8 @@ const runCode = async (req, res) => {
             finalVerdict = results[0].verdict;
 
         } else {
-            // ── Sample test cases mode ─────────────────────────────────────
-            const testCases = await Problem.getSampleTestCases(problemId);
+            // ── Sample test cases mode — use problem._id (ObjectId), not slug ───
+            const testCases = await Problem.getSampleTestCases(problem._id);
             const result = await executeWithTestCases(language, code, testCases, problem.timeLimit);
             results = result.results.map(r => ({
                 input: r.input,
@@ -218,16 +218,16 @@ const submitCode = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Problem not found' });
         }
 
-        // Get all test cases (sample + hidden)
-        const allTestCases = await Problem.getAllTestCases(problemId);
+        // Get all test cases (sample + hidden) — use problem._id (ObjectId), not slug
+        const allTestCases = await Problem.getAllTestCases(problem._id);
 
         // Execute code against all test cases
         const result = await executeWithTestCases(language, code, allTestCases, problem.timeLimit);
 
-        // Create submission record
+        // Create submission record — use problem._id (ObjectId) not the raw problemId which may be a slug
         const submission = await Submission.create({
             studentId,
-            problemId,
+            problemId: problem._id,
             code,
             language,
             verdict: result.verdict,
@@ -239,14 +239,12 @@ const submitCode = async (req, res) => {
         let totalCoins = 0;
         let isFirstSolve = false;
 
-        // Award coins only on Accepted verdict
-        if (result.verdict === 'Accepted' && req.user.role === 'student') {
+        // Award coins only on Accepted verdict for PRACTICE problems (not contest problems)
+        if (result.verdict === 'Accepted' && req.user.role === 'student' && !problem.isContestProblem) {
             // Check if problem was ALREADY in progress before this submission
-            // Progress.updateProblemsSolved is called AFTER this block, so if the
-            // problemId is already in progress.problemsSolved it was solved before
             const progress = await Progress.findByStudent(studentId);
             const alreadyInProgress = progress?.problemsSolved?.some(
-                id => id.toString() === problemId.toString()
+                id => id.toString() === problem._id.toString()
             ) || false;
             isFirstSolve = !alreadyInProgress;
 
@@ -259,13 +257,13 @@ const submitCode = async (req, res) => {
                 console.log(`   ℹ️ Problem already solved before - no duplicate coins`);
             }
 
-            // Always update progress and leaderboard on accepted
+            // Always update progress and leaderboard on accepted — pass problem._id (ObjectId, not slug)
             try {
-                await Progress.updateProblemsSolved(studentId, problemId);
+                await Progress.updateProblemsSolved(studentId, problem._id);
                 await Promise.all([
                     Progress.recalculateSectionProgress(studentId),
                     Progress.updateStreak(studentId),
-                    Leaderboard.recalculateScores(studentId)
+                    Leaderboard.recalculateScores(studentId, problem._id)
                 ]);
             } catch (progressErr) {
                 console.error('   ⚠️ Progress/Leaderboard update error (non-fatal):', progressErr.message);
@@ -355,7 +353,18 @@ const getStudentSubmissions = async (req, res) => {
 
         let submissions;
         if (problemId) {
-            submissions = await Submission.findByStudentAndProblem(studentId, problemId);
+            let actualProblemId = problemId;
+            if (problemId && problemId !== 'global' && problemId !== 'all' && !/^[0-9a-fA-F]{24}$/.test(problemId)) {
+                // Since problemId might be a slug passed in the query
+                const Problem = require('../models/Problem');
+                const problem = await Problem.findById(problemId);
+                if (problem) {
+                    actualProblemId = problem._id.toString();
+                } else {
+                    return res.status(404).json({ success: false, message: 'Problem not found' });
+                }
+            }
+            submissions = await Submission.findByStudentAndProblem(studentId, actualProblemId);
         } else {
             submissions = await Submission.findByStudent(studentId, parseInt(limit));
         }

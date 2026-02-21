@@ -40,7 +40,7 @@ const verifyEmailConfig = async () => {
 const emailTemplates = {
     // OTP Email for Password Reset (6-digit, 10-min expiry)
     passwordResetOTP: (recipientName, otp) => ({
-        subject: 'AlphaLearn - Password Reset OTP',
+        subject: 'AlphaKnowledge - Password Reset OTP',
         html: `
       <!DOCTYPE html>
       <html>
@@ -59,11 +59,11 @@ const emailTemplates = {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🔐 AlphaLearn Password Reset</h1>
+            <h1>🔐 AlphaKnowledge Password Reset</h1>
           </div>
           <div class="content">
             <p>Hello <strong>${recipientName}</strong>,</p>
-            <p>We received a request to reset your AlphaLearn account password. Use the OTP below to proceed:</p>
+            <p>We received a request to reset your AlphaKnowledge account password. Use the OTP below to proceed:</p>
             
             <div class="otp-box">
               <p style="margin: 0; color: #666; font-size: 14px;">Your One-Time Password</p>
@@ -78,7 +78,7 @@ const emailTemplates = {
             <p>This OTP will expire in <strong>10 minutes</strong>. Do not share this code with anyone.</p>
           </div>
           <div class="footer">
-            <p>© 2026 AlphaLearn. All rights reserved.</p>
+            <p>© 2026 AlphaKnowledge. All rights reserved.</p>
             <p>This is an automated message. Please do not reply to this email.</p>
           </div>
         </div>
@@ -89,7 +89,7 @@ const emailTemplates = {
 
     // Batch Expiry Warning (7 days before)
     batchExpiryWarning: (batchName, expiryDate, studentCount) => ({
-        subject: `AlphaLearn - Batch Expiry Warning: ${batchName}`,
+        subject: `AlphaKnowledge - Batch Expiry Warning: ${batchName}`,
         html: `
       <!DOCTYPE html>
       <html>
@@ -134,7 +134,7 @@ const emailTemplates = {
             <p>If you need to extend this batch, please log in to the admin dashboard and manually extend the batch expiry date.</p>
           </div>
           <div class="footer">
-            <p>© 2026 AlphaLearn. All rights reserved.</p>
+            <p>© 2026 AlphaKnowledge. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -144,7 +144,7 @@ const emailTemplates = {
 
     // Welcome Email for New Users
     welcomeEmail: (userName, email, tempPassword, role) => ({
-        subject: 'Welcome to AlphaLearn - Your Account is Ready!',
+        subject: 'Welcome to AlphaKnowledge - Your Account is Ready!',
         html: `
       <!DOCTYPE html>
       <html>
@@ -161,11 +161,11 @@ const emailTemplates = {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🎓 Welcome to AlphaLearn!</h1>
+            <h1>🎓 Welcome to AlphaKnowledge!</h1>
           </div>
           <div class="content">
             <p>Hello <strong>${userName}</strong>,</p>
-            <p>Your AlphaLearn account has been created successfully. You can now access the platform with the following credentials:</p>
+            <p>Your AlphaKnowledge account has been created successfully. You can now access the platform with the following credentials:</p>
             
             <div class="credentials">
               <p><strong>Email:</strong> ${email}</p>
@@ -178,7 +178,7 @@ const emailTemplates = {
             <p>Login URL: <a href="${process.env.FRONTEND_URL}/login">${process.env.FRONTEND_URL}/login</a></p>
           </div>
           <div class="footer">
-            <p>© 2026 AlphaLearn. All rights reserved.</p>
+            <p>© 2026 AlphaKnowledge. All rights reserved.</p>
           </div>
         </div>
       </body>

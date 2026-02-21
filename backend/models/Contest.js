@@ -1,17 +1,41 @@
 const { ObjectId } = require('bson');
 const { collections } = require('../config/astra');
 
+// Helper: resolve a problem identifier (ObjectId string or slug) to an ObjectId.
+// Returns null if the problem cannot be found.
+async function resolveProblemId(idOrSlug) {
+    // Fast path: already a valid 24-char hex ObjectId string
+    if (/^[0-9a-fA-F]{24}$/.test(idOrSlug)) {
+        return new ObjectId(idOrSlug);
+    }
+    // If passed an actual ObjectId instance
+    if (idOrSlug instanceof ObjectId) {
+        return idOrSlug;
+    }
+    // Slow path: treat as slug and look up
+    const problem = await collections.problems.findOne({ slug: idOrSlug });
+    if (problem) {
+        return problem._id;
+    }
+    return null; // problem not found
+}
+
 class Contest {
     // Create new contest
     static async create(contestData) {
+        const titleSlug = (contestData.title || 'contest').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const randSuffix = Math.floor(Math.random() * 10000);
+
         const contest = {
             _id: new ObjectId(),
+            slug: `${titleSlug}-${randSuffix}`,
             title: contestData.title,
             description: contestData.description || '',
             startTime: new Date(contestData.startTime),
             endTime: new Date(contestData.endTime),
-            problems: contestData.problems.map(p => new ObjectId(p)),
+            problems: await Promise.all(contestData.problems.map(async p => await resolveProblemId(p.toString ? p.toString() : String(p)))).then(ids => ids.filter(Boolean)),
             createdBy: new ObjectId(contestData.createdBy),
+
             proctoringEnabled: contestData.proctoringEnabled !== false,
             tabSwitchLimit: contestData.tabSwitchLimit || 3,
             maxViolations: contestData.maxViolations || 5,
@@ -23,9 +47,15 @@ class Contest {
         return { ...contest, _id: result.insertedId };
     }
 
-    // Find contest by ID
+    // Find contest by ID or slug
     static async findById(contestId) {
-        return await collections.contests.findOne({ _id: new ObjectId(contestId) });
+        let query = {};
+        try {
+            query._id = new ObjectId(contestId);
+        } catch (e) {
+            query.slug = contestId;
+        }
+        return await collections.contests.findOne(query);
     }
 
     // Find contests by batch
@@ -79,7 +109,12 @@ class Contest {
     // Update contest
     static async update(contestId, updateData) {
         if (updateData.problems) {
-            updateData.problems = updateData.problems.map(p => new ObjectId(p));
+            updateData.problems = (
+                await Promise.all(updateData.problems.map(async p => {
+                    const s = (p && p.toString) ? p.toString() : String(p);
+                    return await resolveProblemId(s);
+                }))
+            ).filter(Boolean);
         }
         if (updateData.startTime) {
             updateData.startTime = new Date(updateData.startTime);
@@ -88,16 +123,28 @@ class Contest {
             updateData.endTime = new Date(updateData.endTime);
         }
 
+        let query = {};
+        try {
+            query._id = new ObjectId(contestId);
+        } catch (e) {
+            query.slug = contestId;
+        }
+
         return await collections.contests.updateOne(
-            { _id: new ObjectId(contestId) },
+            query,
             { $set: updateData }
         );
     }
 
     // Delete contest and its transient data
     static async delete(contestId) {
-        // cleanly delete the contest itself (submissions and spot users are deleted externally in the controller)
-        return await collections.contests.deleteOne({ _id: new ObjectId(contestId) });
+        let query = {};
+        try {
+            query._id = new ObjectId(contestId);
+        } catch (e) {
+            query.slug = contestId;
+        }
+        return await collections.contests.deleteOne(query);
     }
 
     // Delete contests by batch (for batch deletion)

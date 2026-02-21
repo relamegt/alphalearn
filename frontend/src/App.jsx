@@ -54,14 +54,22 @@ const ProtectedRoute = ({ children, allowedRoles, hideNavbar = false }) => {
     }
 
     if (!user) {
-        if (location.pathname.startsWith('/student/contest/')) {
-            const parts = location.pathname.split('/');
-            const contestId = parts[3];
+        const contestMatch = location.pathname.match(/^\/contest\/([^/]+)/);
+        if (contestMatch) {
+            const contestId = contestMatch[1];
             if (contestId && !location.pathname.includes('/leaderboard')) {
                 return <Navigate to={`/join/${contestId}`} replace />;
             }
         }
         return <Navigate to="/login" replace />;
+    }
+
+    if (user.isSpotUser && user.registeredForContest) {
+        const theirContestUrl = `/contest/${user.registeredForContest}`;
+        // Allow them to access both /contest/id and /contest/id/leaderboard etc
+        if (!location.pathname.startsWith(theirContestUrl)) {
+            return <Navigate to={theirContestUrl} replace />;
+        }
     }
 
     if (allowedRoles && !allowedRoles.includes(user.role)) {
@@ -89,6 +97,9 @@ const PublicRoute = ({ children }) => {
     }
 
     if (user) {
+        if (user.isSpotUser && user.registeredForContest) {
+            return <Navigate to={`/contest/${user.registeredForContest}`} replace />;
+        }
         // Redirect to role-based dashboard
         switch (user.role) {
             case 'admin':
@@ -217,9 +228,9 @@ function App() {
                             }
                         />
                         <Route
-                            path="/admin/problem/:problemId"
+                            path="/problem/:problemId"
                             element={
-                                <ProtectedRoute allowedRoles={['admin']}>
+                                <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']}>
                                     <ExtensionCheck>
                                         <CodeEditor />
                                     </ExtensionCheck>
@@ -268,16 +279,6 @@ function App() {
                                 </ProtectedRoute>
                             }
                         />
-                        <Route
-                            path="/instructor/problem/:problemId"
-                            element={
-                                <ProtectedRoute allowedRoles={['instructor']}>
-                                    <ExtensionCheck>
-                                        <CodeEditor />
-                                    </ExtensionCheck>
-                                </ProtectedRoute>
-                            }
-                        />
 
                         {/* Student Routes */}
                         <Route
@@ -297,16 +298,6 @@ function App() {
                             }
                         />
                         <Route
-                            path="/student/problem/:problemId"
-                            element={
-                                <ProtectedRoute allowedRoles={['student']}>
-                                    <ExtensionCheck>
-                                        <CodeEditor />
-                                    </ExtensionCheck>
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
                             path="/student/contests"
                             element={
                                 <ProtectedRoute allowedRoles={['student']}>
@@ -315,9 +306,9 @@ function App() {
                             }
                         />
                         <Route
-                            path="/student/contest/:contestId"
+                            path="/contest/:contestId"
                             element={
-                                <ProtectedRoute allowedRoles={['student']} hideNavbar={true}>
+                                <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']} hideNavbar={true}>
                                     <ExtensionCheck>
                                         <ContestInterface />
                                     </ExtensionCheck>
@@ -325,9 +316,9 @@ function App() {
                             }
                         />
                         <Route
-                            path="/student/contest/:contestId/practice"
+                            path="/contest/:contestId/practice"
                             element={
-                                <ProtectedRoute allowedRoles={['student']} hideNavbar={true}>
+                                <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']} hideNavbar={true}>
                                     <ExtensionCheck>
                                         <ContestInterface isPractice={true} />
                                     </ExtensionCheck>
@@ -335,7 +326,7 @@ function App() {
                             }
                         />
                         <Route
-                            path="/student/contest/:contestId/leaderboard"
+                            path="/contest/:contestId/leaderboard"
                             element={
                                 <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']}>
                                     <Leaderboard />

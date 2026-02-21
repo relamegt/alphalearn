@@ -83,7 +83,13 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                 startTime: initialData.startTime ? new Date(initialData.startTime).toISOString().slice(0, 16) : '',
                 endTime: initialData.endTime ? new Date(initialData.endTime).toISOString().slice(0, 16) : '',
                 batchId: initialData.batchId || 'global',
-                existingProblemIds: initialData.problems || [], // Assuming problems is array of IDs
+                existingProblemIds: (initialData.problems || []).map(p => {
+                    // initialData.problems may be fully populated objects or plain ID strings
+                    if (typeof p === 'object' && p !== null) {
+                        return (p._id || p.id || '').toString();
+                    }
+                    return p ? p.toString() : '';
+                }).filter(id => /^[0-9a-fA-F]{24}$/.test(id)), // keep only valid ObjectId strings
                 proctoringEnabled: initialData.proctoringEnabled !== undefined ? initialData.proctoringEnabled : true,
                 tabSwitchLimit: initialData.tabSwitchLimit || 3,
                 maxViolations: initialData.maxViolations || 5,
@@ -538,7 +544,8 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                 ) : (
                                     <div className="space-y-2">
                                         {filteredProblems.map((problem) => {
-                                            const problemId = problem.id || problem._id;
+                                            // Always use the raw ObjectId (_id), never problem.id which may be a slug
+                                            const problemId = (problem._id || '').toString();
                                             const isSelected = formData.existingProblemIds.includes(problemId);
 
                                             return (

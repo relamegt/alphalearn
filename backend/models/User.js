@@ -537,14 +537,14 @@ class User {
         };
     }
 
-    // Reset student profile - Only AlphaLearn practice data (preserves contests)
+    // Reset student profile - Only AlphaKnowledge practice data (preserves contests)
     static async resetStudentProfile(studentId) {
         const student = await User.findById(studentId);
         if (!student) {
             throw new Error('User not found');
         }
 
-        // Delete ONLY AlphaLearn practice submissions (NOT contest submissions)
+        // Delete ONLY AlphaKnowledge practice submissions (NOT contest submissions)
         const deletedSubmissions = await collections.submissions.deleteMany({
             studentId: new ObjectId(studentId)
         });

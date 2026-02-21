@@ -85,7 +85,8 @@ const getAllProblems = async (req, res) => {
             success: true,
             count: problems.length,
             problems: problems.map(p => ({
-                id: p._id,
+                id: p.slug || p._id,
+                _id: p._id,
                 title: p.title,
                 difficulty: p.difficulty,
                 points: p.points,
@@ -217,7 +218,7 @@ const setSolutionCode = async (req, res) => {
             return res.status(400).json({ success: false, message: 'language and code are required' });
         }
 
-        const allowedLanguages = ['c', 'cpp', 'java', 'python', 'javascript'];
+        const allowedLanguages = ['c', 'cpp', 'java', 'python', 'javascript', 'csharp'];
         if (!allowedLanguages.includes(language)) {
             return res.status(400).json({ success: false, message: `Language must be one of: ${allowedLanguages.join(', ')}` });
         }

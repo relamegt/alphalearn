@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import authService from '../../services/authService';
 import uploadService from '../../services/uploadService';
 import toast from 'react-hot-toast';
+import CustomDropdown from '../shared/CustomDropdown';
 
 const CompleteProfile = () => {
     const navigate = useNavigate();
@@ -278,7 +279,7 @@ const CompleteProfile = () => {
                 {/* Header */}
                 <div className="text-center mb-10">
                     <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
-                        Welcome to AlphaLearn!
+                        Welcome to AlphaKnowledge!
                     </h1>
                     <p className="text-lg text-gray-500">
                         Let's set up your profile to get you started.
@@ -482,17 +483,16 @@ const CompleteProfile = () => {
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Gender *
                                         </label>
-                                        <select
-                                            name="gender"
+                                        <CustomDropdown
+                                            options={[
+                                                { value: '', label: 'Select Gender' },
+                                                { value: 'Male', label: 'Male' },
+                                                { value: 'Female', label: 'Female' },
+                                                { value: 'Other', label: 'Other' }
+                                            ]}
                                             value={formData.gender}
-                                            onChange={handleChange}
-                                            className={`input-field ${errors.gender ? 'border-red-500' : ''}`}
-                                        >
-                                            <option value="">Select Gender</option>
-                                            <option value="Male">Male</option>
-                                            <option value="Female">Female</option>
-                                            <option value="Other">Other</option>
-                                        </select>
+                                            onChange={(val) => handleChange({ target: { name: 'gender', value: val } })}
+                                        />
                                         {errors.gender && (
                                             <p className="text-red-500 text-xs mt-1">{errors.gender}</p>
                                         )}
@@ -503,21 +503,20 @@ const CompleteProfile = () => {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         T-Shirt Size (Optional)
                                     </label>
-                                    <select
-                                        name="tshirtSize"
+                                    <CustomDropdown
+                                        options={[
+                                            { value: '', label: 'Select Size' },
+                                            { value: 'XS', label: 'XS' },
+                                            { value: 'S', label: 'S' },
+                                            { value: 'M', label: 'M' },
+                                            { value: 'L', label: 'L' },
+                                            { value: 'XL', label: 'XL' },
+                                            { value: 'XXL', label: 'XXL' },
+                                            { value: 'XXXL', label: 'XXXL' }
+                                        ]}
                                         value={formData.tshirtSize}
-                                        onChange={handleChange}
-                                        className="input-field"
-                                    >
-                                        <option value="">Select Size</option>
-                                        <option value="XS">XS</option>
-                                        <option value="S">S</option>
-                                        <option value="M">M</option>
-                                        <option value="L">L</option>
-                                        <option value="XL">XL</option>
-                                        <option value="XXL">XXL</option>
-                                        <option value="XXXL">XXXL</option>
-                                    </select>
+                                        onChange={(val) => handleChange({ target: { name: 'tshirtSize', value: val } })}
+                                    />
                                 </div>
 
                                 <div>
@@ -637,18 +636,14 @@ const CompleteProfile = () => {
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                                     Branch *
                                                 </label>
-                                                <select
-                                                    name="branch"
+                                                <CustomDropdown
+                                                    options={[
+                                                        { value: '', label: 'Select your branch' },
+                                                        ...availableBranches.map((branch) => ({ value: branch, label: branch }))
+                                                    ]}
                                                     value={formData.branch}
-                                                    onChange={handleChange}
-                                                    className={`input-field ${errors.branch ? 'border-red-500' : ''}`}
-                                                    required
-                                                >
-                                                    <option value="">Select your branch</option>
-                                                    {availableBranches.map((branch, index) => (
-                                                        <option key={index} value={branch}>{branch}</option>
-                                                    ))}
-                                                </select>
+                                                    onChange={(val) => handleChange({ target: { name: 'branch', value: val } })}
+                                                />
                                                 {errors.branch && (
                                                     <p className="text-red-500 text-xs mt-1">{errors.branch}</p>
                                                 )}

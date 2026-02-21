@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Cookies from 'js-cookie';
 import { CiLock } from 'react-icons/ci';
 import { IoCloseCircleOutline } from 'react-icons/io5';
+import { MdOutlineArrowForward } from 'react-icons/md';
 import {
     Play,
     CheckCircle,
@@ -33,8 +34,11 @@ import {
     PanelLeft,
     BookOpen,
     ChevronRight,
-    ChevronLeft
+    ChevronLeft,
+    RotateCw
 } from 'lucide-react';
+
+import CustomDropdown from '../shared/CustomDropdown';
 
 /* ─── Helpers ─── */
 const DragHandleH = ({ onMouseDown }) => (
@@ -131,7 +135,8 @@ const LANGUAGE_OPTIONS = [
     { value: 'java', label: 'Java', monacoLang: 'java' },
     { value: 'python', label: 'Python 3', monacoLang: 'python' },
     { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript' },
-    { value: 'c', label: 'C', monacoLang: 'c' }
+    { value: 'c', label: 'C', monacoLang: 'c' },
+    { value: 'csharp', label: 'C#', monacoLang: 'csharp' }
 ];
 
 const DEFAULT_CODE = {
@@ -140,6 +145,7 @@ const DEFAULT_CODE = {
     java: 'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        // your code\n    }\n}',
     python: 'def main():\n    # your code\n    pass\n\nif __name__ == "__main__":\n    main()',
     javascript: 'function main() {\n    // your code\n}\n\nmain();',
+    csharp: 'using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\nclass Program {\n    static void Main() {\n        // your code\n    }\n}',
 };
 
 /* ─── Main Component ─── */
@@ -147,6 +153,7 @@ const ContestInterface = ({ isPractice = false }) => {
     const { contestId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const basePath = user?.role === 'admin' ? '/admin' : user?.role === 'instructor' ? '/instructor' : '/student';
 
     // Data State
     const [contest, setContest] = useState(null);
@@ -159,7 +166,7 @@ const ContestInterface = ({ isPractice = false }) => {
     // Contest Status
     const [contestSubmitted, setContestSubmitted] = useState(false);
     const [contestActive, setContestActive] = useState(false);
-    const [timeRemaining, setTimeRemaining] = useState(0);
+    const [timeRemaining, setTimeRemaining] = useState(null);
     const [liveParticipants, setLiveParticipants] = useState(0);
 
     // Execution State
@@ -173,8 +180,10 @@ const ContestInterface = ({ isPractice = false }) => {
     const [sampleTestCases, setSampleTestCases] = useState([]);
 
     // UI State
-    const [descW, setDescW] = useState(35);
-    const [editorTopH, setEditorTopH] = useState(60);
+    const [sidebarW, setSidebarW] = useState(20);
+    const [descW, setDescW] = useState(38);
+    const [editorTopH, setEditorTopH] = useState(65);
+    const COLLAPSED_SIDEBAR_WIDTH = 48; // px
     const [bottomTab, setBottomTab] = useState('testcases');
     const [activeResultCase, setActiveResultCase] = useState(0);
     const [activeInputCase, setActiveInputCase] = useState(0);
@@ -183,7 +192,7 @@ const ContestInterface = ({ isPractice = false }) => {
     const [leaderboardData, setLeaderboardData] = useState([]);
     const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 50;
+    const itemsPerPage = 20;
     const [totalParticipants, setTotalParticipants] = useState(0);
     const [isResizing, setIsResizing] = useState(false);
     const [resultsAnimKey, setResultsAnimKey] = useState(0);
@@ -200,6 +209,15 @@ const ContestInterface = ({ isPractice = false }) => {
     const dragging = useRef(null);
     // Keep a ref to violations so handleMaxViolations can read them without stale closures
     const violationsRef = useRef({ tabSwitchCount: 0, tabSwitchDuration: 0, fullscreenExits: 0, pasteAttempts: 0 });
+    const finishingRef = useRef(false); // mirrors `finishing` state — readable in closures without staleness
+    const timeUpFiredRef = useRef(false); // ensures we only fire time-up submission once
+    // Refs for values needed inside async setInterval callbacks (avoids stale closures)
+    const userRef = useRef(user);
+    const navigateRef = useRef(navigate);
+    const basePathRef = useRef(basePath);
+    useEffect(() => { userRef.current = user; }, [user]);
+    useEffect(() => { navigateRef.current = navigate; }, [navigate]);
+    useEffect(() => { basePathRef.current = basePath; }, [basePath]);
 
     // Proctoring Hook - Disable in Practice Mode
     const handleMaxViolations = useCallback(async () => {
@@ -215,7 +233,7 @@ const ContestInterface = ({ isPractice = false }) => {
             localStorage.removeItem(`contest_${contestId}_codeMap`);
             setTimeout(() => {
                 if (user?.isSpotUser) setShowLeaderboard(true);
-                else navigate('/student/contests');
+                else navigate(`${basePath}/contests`);
             }, 2000);
         } catch (error) {
             toast.error(error.message || 'Auto-submission failed');
@@ -227,7 +245,7 @@ const ContestInterface = ({ isPractice = false }) => {
     const { violations, isFullscreen, enterFullscreen, exitFullscreenSilently, markAsFinishing, getViolationSummary } =
         useProctoring(
             contestId,
-            user?.userId,
+            user?.userId || user?.id || user?._id,
             (contestActive && !contestSubmitted && !isPractice),
             handleMaxViolations,
             contest?.maxViolations || 5
@@ -244,16 +262,59 @@ const ContestInterface = ({ isPractice = false }) => {
         }
     }, [contestActive, contestSubmitted, hasEnteredFullscreen, enterFullscreen, contest, isPractice]);
 
+    const handleFinishContest = useCallback(async (autoFinish = false, isTimeUp = false) => {
+        if (contestSubmitted || finishing || autoSubmitTriggered.current) return;
+
+        autoSubmitTriggered.current = true;
+
+        if (isTimeUp) {
+            toast('⏰ Time up! Submitting the contest...');
+        }
+
+        // Mark as finishing FIRST so fullscreen exit is NOT counted as a violation
+        markAsFinishing();
+        exitFullscreenSilently();
+
+        setFinishing(true);
+        finishingRef.current = true;
+        try {
+            // Pass the current live violation state as the definitive snapshot
+            const finalViolations = {
+                tabSwitchCount: violationsRef.current.tabSwitchCount,
+                tabSwitchDuration: violationsRef.current.tabSwitchDuration,
+                fullscreenExits: violationsRef.current.fullscreenExits,
+                pasteAttempts: violationsRef.current.pasteAttempts
+            };
+            const result = await contestService.finishContest(contestId, finalViolations);
+            toast.success(`Contest submitted! Final Score: ${result.finalScore}`);
+            setContestSubmitted(true);
+            setContestActive(false);
+            localStorage.removeItem(`contest_${contestId}_codeMap`);
+            setTimeout(() => {
+                if (user?.isSpotUser) setShowLeaderboard(true);
+                else navigate(`${basePath}/contests`);
+            }, 2000);
+        } catch (error) {
+            toast.error(error.message || 'Failed to finish contest');
+            setFinishing(false);
+            finishingRef.current = false;
+            autoSubmitTriggered.current = false;
+        }
+    }, [contestId, contestSubmitted, finishing, user, navigate, basePath, markAsFinishing, exitFullscreenSilently]);
 
     /* ─── WebSocket ─── */
-    const handleContestEnd = useCallback(() => {
-        setContestActive(false);
-        toast.success('Contest has ended!');
-        setTimeout(() => {
-            if (user?.isSpotUser) setShowLeaderboard(true);
-            else navigate(`/student/contests`);
-        }, 2000);
-    }, [navigate, user]);
+    const handleContestEnd = useCallback(async () => {
+        if (!contestSubmitted && !isPractice) {
+            await handleFinishContest(true, true);
+        } else {
+            setContestActive(false);
+            toast.success('Contest has ended!');
+            setTimeout(() => {
+                if (user?.isSpotUser) setShowLeaderboard(true);
+                else navigate(`${basePath}/contests`);
+            }, 2000);
+        }
+    }, [navigate, user, contestSubmitted, isPractice, basePath, handleFinishContest]);
 
     const handleWebSocketMessage = useCallback((data) => {
         switch (data.type) {
@@ -323,14 +384,20 @@ const ContestInterface = ({ isPractice = false }) => {
             } else {
                 if (contestData.contest.isSubmitted) {
                     if (user?.isSpotUser) setShowLeaderboard(true);
-                    else setTimeout(() => navigate('/student/contests'), 2000);
+                    else setTimeout(() => navigate(`${basePath}/contests`), 2000);
                     return;
                 }
                 if (now >= start && now <= end) setContestActive(true);
                 else if (now > end) {
-                    toast.error('Contest has ended');
-                    if (user?.isSpotUser) setShowLeaderboard(true);
-                    else navigate('/student/contests');
+                    toast('Contest has ended. Submitting final results...', { duration: 2000 });
+                    try {
+                        await contestService.finishContest(contestId, null);
+                        setContestSubmitted(true);
+                    } catch (e) { }
+                    setTimeout(() => {
+                        if (user?.isSpotUser) setShowLeaderboard(true);
+                        else navigate(`${basePath}/contests`);
+                    }, 2000);
                 }
             }
 
@@ -364,40 +431,87 @@ const ContestInterface = ({ isPractice = false }) => {
         initSecurityFeatures();
     }, [contestId]);
 
-    // Leaderboard: fetch on open + auto-refresh every 15s while open
+    // Leaderboard: fetch once when opened. Manual refresh available via the RotateCw button.
+    // Polling removed to avoid unnecessary backend calls while the panel stays open.
     useEffect(() => {
         if (!showLeaderboard) return;
         let cancelled = false;
-        const fetchLb = async (showSpinner = false) => {
-            if (showSpinner) setLoadingLeaderboard(true);
+        const fetchLb = async () => {
+            setLoadingLeaderboard(true);
             try {
                 const d = await contestService.getContestLeaderboard(contestId);
                 if (!cancelled) {
                     setLeaderboardData(d.leaderboard || []);
-                    // Track total enrolled from API
                     if (d.totalParticipants) setTotalParticipants(d.totalParticipants);
                 }
             } finally {
-                if (!cancelled && showSpinner) setLoadingLeaderboard(false);
+                if (!cancelled) setLoadingLeaderboard(false);
             }
         };
-        fetchLb(true);
-        // Live refresh every 15s
-        const lbInterval = setInterval(() => fetchLb(false), 15000);
-        return () => { cancelled = true; clearInterval(lbInterval); };
+        fetchLb();
+        return () => { cancelled = true; };
     }, [contestId, showLeaderboard]);
 
+    // (old timer that called handleContestEnd removed — replaced by the ref-safe timer below)
+
+    // ─── Dedicated time-up handler — uses refs only, NO stale closure issues ───
+    // This is kept separate from `handleContestEnd` so the setInterval callback
+    // never captures a stale version of the async submission logic.
+    const timeUpContestId = useRef(contestId);
+    useEffect(() => { timeUpContestId.current = contestId; }, [contestId]);
+
     useEffect(() => {
-        if (contest && contestActive && !contestSubmitted && !isPractice) {
-            const interval = setInterval(() => {
-                const now = new Date();
-                const end = new Date(contest.endTime);
-                const remaining = Math.max(0, Math.floor((end - now) / 1000));
-                setTimeRemaining(remaining);
-                if (remaining === 0) handleContestEnd();
-            }, 1000);
-            return () => clearInterval(interval);
-        }
+        if (!contest || !contestActive || contestSubmitted || isPractice) return;
+
+        const calculateRemaining = () => {
+            const now = new Date();
+            const end = new Date(contest.endTime);
+            return Math.max(0, Math.floor((end - now) / 1000));
+        };
+
+        setTimeRemaining(calculateRemaining());
+
+        const interval = setInterval(async () => {
+            const remaining = calculateRemaining();
+            setTimeRemaining(remaining);
+
+            if (remaining === 0 && !timeUpFiredRef.current) {
+                timeUpFiredRef.current = true;
+                clearInterval(interval);
+
+                // Guard: skip if already finishing or submitted
+                if (finishingRef.current || autoSubmitTriggered.current) return;
+
+                autoSubmitTriggered.current = true;
+                setFinishing(true);
+                finishingRef.current = true;
+
+                toast('⏰ Time up! Submitting the contest...');
+
+                try {
+                    const result = await contestService.finishContest(timeUpContestId.current, violationsRef.current);
+                    toast.success(`Contest submitted! Final Score: ${result.finalScore}`);
+                    setContestSubmitted(true);
+                    setContestActive(false);
+                    localStorage.removeItem(`contest_${timeUpContestId.current}_codeMap`);
+                    setFinishing(false);
+                    finishingRef.current = false;
+                    // Navigate — read fresh user/navigate from refs, never stale
+                    setTimeout(() => {
+                        if (userRef.current?.isSpotUser) setShowLeaderboard(true);
+                        else navigateRef.current(`${basePathRef.current}/contests`);
+                    }, 2000);
+                } catch (error) {
+                    toast.error(error.message || 'Time-up submission failed. Please use Finish button.');
+                    setFinishing(false);
+                    finishingRef.current = false;
+                    autoSubmitTriggered.current = false;
+                    timeUpFiredRef.current = false; // allow retry via button
+                }
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [contest, contestActive, contestSubmitted, isPractice]);
 
     /* ─── Handlers ─── */
@@ -578,7 +692,9 @@ const ContestInterface = ({ isPractice = false }) => {
                         }
                         if (nextProblem) {
                             setTimeout(() => {
-                                toast('Moving to next problem...', { icon: '➡️' });
+                                toast(
+                                    <span className="flex items-center gap-1.5">Moving to next problem.. <MdOutlineArrowForward size={15} /></span>
+                                );
                                 handleProblemChange(nextProblem);
                             }, 2500);
                         }
@@ -608,41 +724,6 @@ const ContestInterface = ({ isPractice = false }) => {
             }
         } finally { setSubmitting(false); }
     };
-
-    const handleFinishContest = async (autoFinish = false) => {
-        if (contestSubmitted) return;
-        if (!autoFinish && !window.confirm('Are you sure you want to finish the contest?')) return;
-
-        // Mark as finishing FIRST so fullscreen exit is NOT counted as a violation
-        markAsFinishing();
-        await exitFullscreenSilently();
-
-        setFinishing(true);
-        try {
-            // Pass the current live violation state as the definitive snapshot
-            // so they are saved on the COMPLETED record in the DB
-            const finalViolations = {
-                tabSwitchCount: violations.tabSwitchCount,
-                tabSwitchDuration: violations.tabSwitchDuration,
-                fullscreenExits: violations.fullscreenExits,
-                pasteAttempts: violations.pasteAttempts
-            };
-            const result = await contestService.finishContest(contestId, finalViolations);
-            toast.success(`Contest submitted! Final Score: ${result.finalScore}`);
-            setContestSubmitted(true);
-            setContestActive(false);
-            localStorage.removeItem(`contest_${contestId}_codeMap`);
-            setTimeout(() => {
-                if (user?.isSpotUser) setShowLeaderboard(true);
-                else navigate('/student/contests');
-            }, 2000);
-        } catch (error) {
-            toast.error(error.message);
-            setFinishing(false);
-        }
-    };
-
-
 
 
     /* ─── Sorting & CSV ─── */
@@ -703,8 +784,12 @@ const ContestInterface = ({ isPractice = false }) => {
         const rows = sortedLeaderboardData.map((entry, index) => {
             // Problem statuses
             const problemStatuses = contest?.problems?.map(p => {
-                const pStatus = entry.problems?.[p._id]?.status;
-                return pStatus || 'Not Attempted';
+                const pData = entry.problems?.[p._id];
+                let statusStr = pData?.status || 'Not Attempted';
+                if (pData?.submittedAt !== undefined && pData?.submittedAt !== null) {
+                    statusStr += ` (${pData.submittedAt}m)`;
+                }
+                return statusStr;
             }) || [];
 
             // Fix for "1/2" turning into date: wrap in ="..." formula for Excel or prepend '
@@ -753,12 +838,17 @@ const ContestInterface = ({ isPractice = false }) => {
         const d = dragging.current;
         if (!d || !containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
-        if (d.type === 'desc') {
-            setDescW(Math.min(60, Math.max(20, d.startVal + (e.clientX - d.startX) / rect.width * 100)));
-        } else {
-            setEditorTopH(Math.min(85, Math.max(15, d.startVal + (e.clientY - d.startY) / rect.height * 100)));
+        if (d.type === 'sidebar') {
+            const newW = d.startVal + ((e.clientX - d.startX) / rect.width) * 100;
+            setSidebarW(Math.min(45, Math.max(10, newW)));
+        } else if (d.type === 'desc') {
+            const newW = d.startVal + ((e.clientX - d.startX) / rect.width) * 100;
+            setDescW(Math.min(70, Math.max(15, newW)));
+        } else if (d.type === 'editorH') {
+            const newH = d.startVal + ((e.clientY - d.startY) / rect.height) * 100;
+            setEditorTopH(Math.min(90, Math.max(10, newH)));
         }
-    }, []);
+    }, [isResizing]);
 
     const onMouseUpResize = useCallback(() => {
         dragging.current = null;
@@ -783,11 +873,17 @@ const ContestInterface = ({ isPractice = false }) => {
         setIsResizing(true);
         document.body.style.cursor = type === 'editorH' ? 'row-resize' : 'col-resize';
         document.body.style.userSelect = 'none';
+
+        let startVal;
+        if (type === 'sidebar') startVal = sidebarW;
+        else if (type === 'desc') startVal = descW;
+        else startVal = editorTopH;
+
         dragging.current = {
             type,
             startX: e.clientX,
             startY: e.clientY,
-            startVal: type === 'desc' ? descW : editorTopH,
+            startVal,
         };
     };
 
@@ -815,7 +911,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                 : 'Something went wrong while loading the contest. Please try again.'}
                         </p>
                         <button
-                            onClick={() => navigate('/student/contests')}
+                            onClick={() => navigate(`${basePath}/contests`)}
                             className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium text-sm"
                         >
                             Back to Contests
@@ -847,8 +943,20 @@ const ContestInterface = ({ isPractice = false }) => {
     const runAllPassed = displayResult?.isRun && displayResult?.results?.every(r => r.passed);
     const showGreenVerdict = displayResult?.verdict === 'Accepted' || runAllPassed;
 
+    const solvedCount = contest?.problems?.filter(p => userSubmissions[p._id] === 'Accepted').length || 0;
+
     return (
-        <div className="flex flex-col h-screen bg-gray-50 font-sans text-gray-800 overflow-hidden" ref={containerRef}>
+        <div className="flex flex-col h-screen bg-gray-50 font-sans text-gray-800 overflow-hidden relative" ref={containerRef}>
+            {/* Resizing Overlay - Captures events over iframes/editor */}
+            {isResizing && (
+                <div
+                    className="fixed inset-0 z-[9999]"
+                    style={{
+                        cursor: dragging.current?.type === 'editorH' ? 'row-resize' : 'col-resize'
+                    }}
+                />
+            )}
+
             {/* ─── Minimal Header ─── */}
             <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-20 shrink-0 shadow-sm relative">
                 <div className="flex items-center gap-4 min-w-0">
@@ -862,7 +970,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 </div>
 
                 {/* Center Timer - Hide in Practice */}
-                {(!contestSubmitted && !isPractice) && (
+                {(!contestSubmitted && !isPractice && timeRemaining !== null) && (
                     <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 px-4 py-1.5 rounded-full border ${timeRemaining < 300 ? 'bg-red-50 border-red-200 text-red-600 animate-pulse' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>
                         <Clock size={14} />
                         <span className="font-mono font-bold text-sm tracking-widest">{formatTime(timeRemaining)}</span>
@@ -902,13 +1010,18 @@ const ContestInterface = ({ isPractice = false }) => {
                             <Layout size={14} /> Leaderboard
                         </button>
                     )}
-                    {(!contestSubmitted && !isPractice) && (
+                    {(!contestSubmitted && !isPractice && timeRemaining !== null) && (
                         <button
                             onClick={() => handleFinishContest(false)}
-                            disabled={finishing}
+                            disabled={finishing || timeRemaining <= 0}
                             className="flex items-center gap-2 px-4 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-all text-xs font-bold shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
                         >
-                            {finishing ? <Loader2 size={13} className="animate-spin" /> : 'Finish Contest'}
+                            {(finishing || timeRemaining <= 0) ? (
+                                <>
+                                    <Loader2 size={13} className="animate-spin" />
+                                    Submitting...
+                                </>
+                            ) : 'Finish Contest'}
                         </button>
                     )}
                     {isPractice && (
@@ -918,7 +1031,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                 Practice Mode
                             </span>
                             <button
-                                onClick={() => navigate('/student/contests')}
+                                onClick={() => navigate(`${basePath}/contests`)}
                                 className="group flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-red-50 text-red-400 hover:text-red-600 border border-red-100 hover:border-red-300 rounded-lg transition-all duration-200 text-xs font-bold shadow-sm"
                             >
                                 <IoCloseCircleOutline size={16} className="group-hover:scale-110 transition-transform" />
@@ -929,107 +1042,118 @@ const ContestInterface = ({ isPractice = false }) => {
                 </div>
             </header>
 
-            {/* ─── Sidebar & Workspace ─── */}
-            <div className="flex-1 flex overflow-hidden">
-                {/* Collapsible Sidebar — always mounted, transitions width */}
+            {/* ── Main 3‑column area ─────────────────────────────────────── */}
+            <div className="flex-1 flex overflow-hidden relative">
+
+                {/* ─ Col 1: Sidebar ─ */}
                 <div
-                    style={{ width: showSidebar ? '256px' : '28px', transition: 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
-                    className="relative bg-white border-r border-gray-200 flex flex-col shrink-0"
+                    style={{
+                        width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px`,
+                        transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                    }}
+                    className="relative flex flex-col shrink-0 border-r border-gray-200 bg-white z-20"
                 >
-                    {/* Expanded content */}
-                    <div className={`flex-1 flex flex-col overflow-hidden transition-opacity duration-200 ${showSidebar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-                        <div className="p-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-                            <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Problems</h2>
-                            <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                                {contest.problems.length}
-                            </span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto">
-                            {contest.problems.map((p, i) => {
-                                const status = userSubmissions[p._id];
-                                const isActive = selectedProblem?._id === p._id;
-                                const isLocked = !isPractice && lockedProblems.has(p._id);
-                                const isSolved = status === 'Accepted';
+                    <div className="flex-1 overflow-hidden flex flex-col relative h-full">
+                        <div className={`flex-1 flex flex-col overflow-hidden h-full transition-opacity duration-300 ${showSidebar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none hidden'}`}>
+                            {/* Header (Problems/Status) */}
+                            <div className="px-5 py-4 border-b border-gray-200 bg-gray-50/40 shrink-0 flex items-center justify-between">
+                                <h2 className="text-gray-900 font-bold flex items-center gap-2 text-[15px]">
+                                    <List size={16} className="text-gray-400" />
+                                    Problems ({solvedCount}/{contest?.problems?.length || 0})
+                                </h2>
+                                {isPractice && (
+                                    <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded border border-blue-200 uppercase font-bold tracking-wide flex items-center gap-1">
+                                        Practice
+                                    </span>
+                                )}
+                            </div>
 
-                                return (
-                                    <button
-                                        key={p._id}
-                                        onClick={() => handleProblemChange(p)}
-                                        disabled={(contestSubmitted && !isActive && !isPractice) || (isSolved && !isActive && !isPractice)}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-150 border-l-2
-                                            ${isActive
-                                                ? (isSolved ? 'bg-emerald-50 border-emerald-500' : 'bg-blue-50 border-blue-500')
+                            {/* Problem List */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1 bg-gray-50">
+                                {contest?.problems?.map((p, i) => {
+                                    const status = userSubmissions[p._id];
+                                    const isActive = selectedProblem?._id === p._id;
+                                    const isLocked = !isPractice && lockedProblems.has(p._id);
+                                    const isSolved = status === 'Accepted';
+
+                                    return (
+                                        <button
+                                            key={p._id}
+                                            onClick={() => !isLocked && handleProblemChange(p)}
+                                            disabled={isLocked}
+                                            className={`w-full text-left p-3 rounded-xl transition-all border flex gap-3 ${isLocked
+                                                ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed pointer-events-none'
+                                                : isActive
+                                                    ? (isSolved ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-white border-blue-200 shadow-sm ring-1 ring-blue-500/20')
+                                                    : isSolved
+                                                        ? 'bg-white border-gray-200 hover:border-emerald-300'
+                                                        : 'bg-white border-transparent hover:bg-gray-100'
+                                                }`}
+                                        >
+                                            <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center font-bold text-sm shadow-sm border ${isActive
+                                                ? (isSolved ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-blue-100 text-blue-700 border-blue-200')
                                                 : isSolved
-                                                    ? 'border-transparent bg-emerald-50/40 hover:bg-emerald-50'
-                                                    : 'border-transparent hover:bg-gray-50'
-                                            }
-                                        `}
-                                    >
-                                        <div className={`w-6 h-6 shrink-0 flex items-center justify-center rounded-md text-xs font-bold
-                                            ${isActive
-                                                ? (isSolved ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700')
-                                                : isSolved
-                                                    ? 'bg-emerald-100 text-emerald-600'
-                                                    : 'bg-gray-100 text-gray-500'
-                                            }`}>
-                                            {String.fromCharCode(65 + i)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`text-sm font-medium truncate flex items-center gap-1.5 ${isActive
-                                                ? (isSolved ? 'text-emerald-800' : 'text-gray-900')
-                                                : isSolved
-                                                    ? 'text-emerald-700'
-                                                    : 'text-gray-600'
+                                                    ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
+                                                    : 'bg-gray-100 border-gray-200 text-gray-500'
                                                 }`}>
-                                                <span className="truncate">{p.title}</span>
-                                                {isLocked && (
-                                                    <span title="Problem Locked – Solved!" className="shrink-0 inline-flex">
-                                                        <CiLock
-                                                            size={14}
-                                                            style={{
-                                                                color: '#c8922a',
-                                                                filter: 'drop-shadow(0 0 2px rgba(212,160,23,0.6))',
-                                                                strokeWidth: 0.5
-                                                            }}
-                                                        />
-                                                    </span>
-                                                )}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <span className={`text-[10px] font-bold ${p.difficulty === 'Easy' ? 'text-emerald-600' :
-                                                    p.difficulty === 'Medium' ? 'text-amber-600' : 'text-rose-600'}`}>
-                                                    {p.difficulty}
-                                                </span>
-                                                <span className="text-[10px] text-gray-400">•</span>
-                                                <span className="text-[10px] text-gray-400">{p.points} pts</span>
-                                                {isSolved && (
-                                                    <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5">
-                                                        ✓ Solved
-                                                    </span>
-                                                )}
+                                                {String.fromCharCode(65 + i)}
                                             </div>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Collapsed strip — centered vertical label, click to open */}
-                    {!showSidebar && (
-                        <div
-                            className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors"
-                            onClick={() => setShowSidebar(true)}
-                        >
-                            <div style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-bold text-gray-400 tracking-widest uppercase select-none">
-                                <span className="rotate-180">Problems</span>
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-sm font-medium truncate flex items-center gap-1.5 ${isActive
+                                                    ? (isSolved ? 'text-emerald-800' : 'text-gray-900')
+                                                    : isSolved
+                                                        ? 'text-emerald-700'
+                                                        : 'text-gray-600'
+                                                    }`}>
+                                                    <span className="truncate">{p.title}</span>
+                                                    {isLocked && (
+                                                        <span title="Problem Locked – Solved!" className="shrink-0 inline-flex">
+                                                            <CiLock
+                                                                size={14}
+                                                                style={{
+                                                                    color: '#c8922a',
+                                                                    filter: 'drop-shadow(0 0 2px rgba(212,160,23,0.6))',
+                                                                    strokeWidth: 0.5
+                                                                }}
+                                                            />
+                                                        </span>
+                                                    )}
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className={`text-[10px] font-bold ${p.difficulty === 'Easy' ? 'text-emerald-600' :
+                                                        p.difficulty === 'Medium' ? 'text-amber-600' : 'text-rose-600'}`}>
+                                                        {p.difficulty}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400">•</span>
+                                                    <span className="text-[10px] text-gray-400">{p.points} pts</span>
+                                                    {isSolved && (
+                                                        <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5">
+                                                            ✓ Solved
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
-                    )}
+
+                        {!showSidebar && (
+                            <div
+                                className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors"
+                                onClick={() => setShowSidebar(true)}
+                            >
+                                <div style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-bold text-gray-400 tracking-widest uppercase select-none">
+                                    <span className="rotate-180">Problems List</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Toggle tab — vertically centered on right edge */}
                     <button
-                        onClick={() => setShowSidebar(!showSidebar)}
+                        onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
                         className="absolute -right-[14px] top-1/2 -translate-y-1/2 z-50 w-[14px] h-14 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-gray-50 transition-colors"
                         title={showSidebar ? 'Close Problem List' : 'Open Problem List'}
                     >
@@ -1037,459 +1161,467 @@ const ContestInterface = ({ isPractice = false }) => {
                     </button>
                 </div>
 
-                {/* Workspace Wrapper */}
-                <div className="flex-1 flex overflow-hidden relative min-w-0">
-                    {/* Description Panel */}
-                    <div style={{ width: `${descW}%` }} className="flex flex-col bg-white border-r border-gray-200 shrink-0 transition-all duration-200 ease-linear relative">
+                {showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
 
-                        <div className="flex items-center h-12 border-b border-gray-200 bg-white shrink-0 pl-0 pr-4 overflow-x-auto no-scrollbar">
-                            <div className="flex items-center gap-1 h-full">
+                {/* ─ Col 2: Description / Editorial ─ */}
+                <div style={{ width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 bg-white">
+
+                    <div className="flex items-center h-12 border-b border-gray-200 bg-white shrink-0 pl-0 pr-4 overflow-x-auto no-scrollbar">
+                        <div className="flex items-center gap-1 h-full">
+                            <button
+                                onClick={() => setShowEditorial(false)}
+                                className={`h-full flex items-center gap-2 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${!showEditorial ? 'border-blue-500 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                            >
+                                <FileText size={14} /> Description
+                            </button>
+                            {isPractice && selectedProblem?.editorial && (
                                 <button
-                                    onClick={() => setShowEditorial(false)}
-                                    className={`h-full flex items-center gap-2 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${!showEditorial ? 'border-blue-500 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                                    onClick={() => setShowEditorial(true)}
+                                    className={`h-full flex items-center gap-2 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${showEditorial ? 'border-blue-500 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
                                 >
-                                    <FileText size={14} /> Description
+                                    <BookOpen size={14} /> Editorial
                                 </button>
-                                {isPractice && selectedProblem?.editorial && (
-                                    <button
-                                        onClick={() => setShowEditorial(true)}
-                                        className={`h-full flex items-center gap-2 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${showEditorial ? 'border-blue-500 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
-                                    >
-                                        <BookOpen size={14} /> Editorial
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+
+                        {selectedProblem ? (
+                            showEditorial ? (
+                                <div className="prose prose-sm max-w-none">
+                                    <h2 className="text-xl font-bold text-gray-900 mb-6">{selectedProblem.title} - Editorial</h2>
+
+                                    {selectedProblem.editorial.approach && (
+                                        <div className="mb-8">
+                                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <span className="w-1.5 h-6 bg-blue-500 rounded-full" />
+                                                Approach
+                                            </h3>
+                                            <div className="text-gray-700 leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: selectedProblem.editorial.approach }} />
+                                        </div>
+                                    )}
+
+                                    {selectedProblem.editorial.complexity && (
+                                        <div className="mb-8">
+                                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <span className="w-1.5 h-6 bg-purple-500 rounded-full" />
+                                                Complexity
+                                            </h3>
+                                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
+                                                <div dangerouslySetInnerHTML={{ __html: selectedProblem.editorial.complexity }} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedProblem.editorial.solution && (
+                                        <div>
+                                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <span className="w-1.5 h-6 bg-emerald-500 rounded-full" />
+                                                Solution
+                                            </h3>
+                                            <div className="relative group">
+                                                <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(selectedProblem.editorial.solution);
+                                                            toast.success('Solution copied!');
+                                                        }}
+                                                        className="p-1.5 bg-white shadow-sm border border-gray-200 rounded-md text-gray-500 hover:text-blue-600"
+                                                        title="Copy Code"
+                                                    >
+                                                        <Code2 size={14} />
+                                                    </button>
+                                                </div>
+                                                <pre className="bg-gray-900 text-gray-100 rounded-xl p-4 overflow-x-auto text-xs font-mono border border-gray-800">
+                                                    <code>{selectedProblem.editorial.solution}</code>
+                                                </pre>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="prose prose-sm max-w-none">
+                                    <h2 className="text-xl font-bold text-gray-900 mb-4">{selectedProblem.title}</h2>
+                                    <div className="flex flex-wrap gap-2 mb-6">
+                                        <DiffBadge d={selectedProblem.difficulty} />
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold">
+                                            <Coins size={10} /> {selectedProblem.points} pts
+                                        </span>
+                                    </div>
+                                    <div dangerouslySetInnerHTML={{ __html: selectedProblem.description }} />
+
+                                    {selectedProblem.examples?.map((ex, i) => (
+                                        <div key={i} className="mt-6">
+                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">Example {i + 1}</h3>
+                                            <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                                                <div className="p-3 border-b border-gray-200/50 flex flex-col gap-1">
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Input</span>
+                                                    <code className="text-xs font-mono text-gray-800 bg-white px-2 py-1 rounded border border-gray-100">{ex.input}</code>
+                                                </div>
+                                                <div className="p-3 flex flex-col gap-1">
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Output</span>
+                                                    <code className="text-xs font-mono text-gray-800 bg-white px-2 py-1 rounded border border-gray-100">{ex.output}</code>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {selectedProblem.constraints?.length > 0 && (
+                                        <div className="mt-8">
+                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Constraints</h3>
+                                            <ul className="space-y-2">
+                                                {selectedProblem.constraints.map((c, i) => (
+                                                    <li key={i} className="text-xs font-mono text-gray-600 bg-gray-50 px-3 py-2 rounded border border-gray-100 flex items-start gap-2">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-1.5 shrink-0" />
+                                                        {c}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        ) : <div className="p-8 text-center text-gray-400">Select a problem to view</div>}
+                    </div>
+                </div>
+
+                <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />
+
+                {/* Editor & Results */}
+                <div style={{ width: showSidebar ? `calc(${100 - sidebarW - descW}%)` : `calc(100% - ${COLLAPSED_SIDEBAR_WIDTH}px - ${descW}%)` }} className="flex flex-col overflow-hidden bg-white">
+                    {/* Editor Split */}
+                    <div style={{ height: `${editorTopH}%`, transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }} className="flex flex-col relative overflow-hidden">
+                        {/* Toolbar */}
+                        <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-3 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-44">
+                                    <CustomDropdown
+                                        options={LANGUAGE_OPTIONS}
+                                        value={currentLang}
+                                        onChange={(val) => handleLangChange({ target: { value: val } })}
+                                        disabled={isProblemLocked || contestSubmitted}
+                                        size="small"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
+                                    <button onClick={handleRun} disabled={running || isProblemLocked || (contestSubmitted && !isPractice)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 rounded-md hover:bg-white hover:shadow-sm transition-all disabled:opacity-50" title="Run Code">
+                                        {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} className="fill-current" />}
+                                        <span className="hidden sm:inline">Run</span>
                                     </button>
-                                )}
+                                    <button onClick={handleSubmit} disabled={submitting || isProblemLocked || (contestSubmitted && !isPractice)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 ml-0.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-all disabled:opacity-50" title={isPractice ? 'Verify Code' : 'Submit Code'}>
+                                        {submitting ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
+                                        <span className="hidden sm:inline">{isPractice ? 'Verify' : 'Submit'}</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
 
-                            {selectedProblem ? (
-                                showEditorial ? (
-                                    <div className="prose prose-sm max-w-none">
-                                        <h2 className="text-xl font-bold text-gray-900 mb-6">{selectedProblem.title} - Editorial</h2>
-
-                                        {selectedProblem.editorial.approach && (
-                                            <div className="mb-8">
-                                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                    <span className="w-1.5 h-6 bg-blue-500 rounded-full" />
-                                                    Approach
-                                                </h3>
-                                                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: selectedProblem.editorial.approach }} />
-                                            </div>
-                                        )}
-
-                                        {selectedProblem.editorial.complexity && (
-                                            <div className="mb-8">
-                                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                    <span className="w-1.5 h-6 bg-purple-500 rounded-full" />
-                                                    Complexity
-                                                </h3>
-                                                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
-                                                    <div dangerouslySetInnerHTML={{ __html: selectedProblem.editorial.complexity }} />
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {selectedProblem.editorial.solution && (
-                                            <div>
-                                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                    <span className="w-1.5 h-6 bg-emerald-500 rounded-full" />
-                                                    Solution
-                                                </h3>
-                                                <div className="relative group">
-                                                    <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button
-                                                            onClick={() => {
-                                                                navigator.clipboard.writeText(selectedProblem.editorial.solution);
-                                                                toast.success('Solution copied!');
-                                                            }}
-                                                            className="p-1.5 bg-white shadow-sm border border-gray-200 rounded-md text-gray-500 hover:text-blue-600"
-                                                            title="Copy Code"
-                                                        >
-                                                            <Code2 size={14} />
-                                                        </button>
-                                                    </div>
-                                                    <pre className="bg-gray-900 text-gray-100 rounded-xl p-4 overflow-x-auto text-xs font-mono border border-gray-800">
-                                                        <code>{selectedProblem.editorial.solution}</code>
-                                                    </pre>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="prose prose-sm max-w-none">
-                                        <h2 className="text-xl font-bold text-gray-900 mb-4">{selectedProblem.title}</h2>
-                                        <div className="flex flex-wrap gap-2 mb-6">
-                                            <DiffBadge d={selectedProblem.difficulty} />
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold">
-                                                <Coins size={10} /> {selectedProblem.points} pts
-                                            </span>
+                        <div className="flex-1 overflow-hidden relative">
+                            <Editor
+                                height="100%"
+                                language={LANGUAGE_OPTIONS.find(l => l.value === currentLang)?.monacoLang}
+                                value={currentCode}
+                                onChange={(v) => !isProblemLocked && (!contestSubmitted || isPractice) && setCurrentCode(v || '')}
+                                theme="vs-light"
+                                options={{
+                                    minimap: { enabled: false },
+                                    fontSize: 14,
+                                    padding: { top: 16 },
+                                    automaticLayout: true,
+                                    fontFamily: "'JetBrains Mono', monospace",
+                                    readOnly: isProblemLocked || (contestSubmitted && !isPractice)
+                                }}
+                                onMount={(e, m) => {
+                                    editorRef.current = e;
+                                    monacoRef.current = m;
+                                    // Block paste — contest integrity
+                                    e.addCommand(
+                                        m.KeyMod.CtrlCmd | m.KeyCode.KeyV,
+                                        () => { /* paste disabled in contest */ }
+                                    );
+                                    // Block right-click paste via DOM
+                                    e.getDomNode()?.addEventListener('paste', (ev) => ev.preventDefault(), true);
+                                }}
+                            />
+                            {(isProblemLocked || contestSubmitted) && (
+                                <div className="absolute inset-0 bg-gray-50/50 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none">
+                                    <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 text-center transform scale-100">
+                                        <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <CheckCircle className="text-green-500" size={24} />
                                         </div>
-                                        <div dangerouslySetInnerHTML={{ __html: selectedProblem.description }} />
-
-                                        {selectedProblem.examples?.map((ex, i) => (
-                                            <div key={i} className="mt-6">
-                                                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">Example {i + 1}</h3>
-                                                <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-                                                    <div className="p-3 border-b border-gray-200/50 flex flex-col gap-1">
-                                                        <span className="text-[10px] font-bold text-gray-400 uppercase">Input</span>
-                                                        <code className="text-xs font-mono text-gray-800 bg-white px-2 py-1 rounded border border-gray-100">{ex.input}</code>
-                                                    </div>
-                                                    <div className="p-3 flex flex-col gap-1">
-                                                        <span className="text-[10px] font-bold text-gray-400 uppercase">Output</span>
-                                                        <code className="text-xs font-mono text-gray-800 bg-white px-2 py-1 rounded border border-gray-100">{ex.output}</code>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-
-                                        {selectedProblem.constraints?.length > 0 && (
-                                            <div className="mt-8">
-                                                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Constraints</h3>
-                                                <ul className="space-y-2">
-                                                    {selectedProblem.constraints.map((c, i) => (
-                                                        <li key={i} className="text-xs font-mono text-gray-600 bg-gray-50 px-3 py-2 rounded border border-gray-100 flex items-start gap-2">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-1.5 shrink-0" />
-                                                            {c}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
+                                        <h3 className="text-gray-900 font-bold mb-1">Problem Submitted</h3>
+                                        <p className="text-xs text-gray-500">This problem is locked for further editing.</p>
                                     </div>
-                                )
-                            ) : <div className="p-8 text-center text-gray-400">Select a problem to view</div>}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />
+                    <DragHandleV onMouseDown={(e) => startDrag('editorH', e)} />
 
-                    {/* Editor & Results */}
-                    <div style={{ width: `calc(100% - ${descW}%)` }} className="flex flex-col bg-white">
-                        {/* Editor Split */}
-                        <div style={{ height: `${editorTopH}%` }} className="flex flex-col relative transition-height duration-200">
-                            {/* Toolbar */}
-                            <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-3 shrink-0">
-                                <div className="flex items-center gap-3">
-                                    <div className="relative">
-                                        <select value={currentLang} onChange={handleLangChange} disabled={isProblemLocked || contestSubmitted}
-                                            className="bg-gray-50 border border-gray-200 text-xs font-medium text-gray-700 rounded-md py-1.5 pl-2.5 pr-8 outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer hover:bg-gray-100 transition-colors appearance-none">
-                                            {LANGUAGE_OPTIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-                                        </select>
-                                        <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={handleRun} disabled={running || isProblemLocked || (contestSubmitted && !isPractice)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 rounded-md hover:bg-gray-100 transition-all disabled:opacity-50">
-                                        {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} className="fill-current" />}
-                                        Run
-                                    </button>
-                                    <button onClick={handleSubmit} disabled={submitting || isProblemLocked || (contestSubmitted && !isPractice)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md shadow-sm transition-all disabled:opacity-50">
-                                        {submitting ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
-                                        {isPractice ? 'Verify' : 'Submit'}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex-1 overflow-hidden relative">
-                                <Editor
-                                    height="100%"
-                                    language={LANGUAGE_OPTIONS.find(l => l.value === currentLang)?.monacoLang}
-                                    value={currentCode}
-                                    onChange={(v) => !isProblemLocked && (!contestSubmitted || isPractice) && setCurrentCode(v || '')}
-                                    theme="vs-light"
-                                    options={{
-                                        minimap: { enabled: false },
-                                        fontSize: 14,
-                                        padding: { top: 16 },
-                                        automaticLayout: true,
-                                        fontFamily: "'JetBrains Mono', monospace",
-                                        readOnly: isProblemLocked || (contestSubmitted && !isPractice)
-                                    }}
-                                    onMount={(e, m) => {
-                                        editorRef.current = e;
-                                        monacoRef.current = m;
-                                        // Block paste — contest integrity
-                                        e.addCommand(
-                                            m.KeyMod.CtrlCmd | m.KeyCode.KeyV,
-                                            () => { /* paste disabled in contest */ }
-                                        );
-                                        // Block right-click paste via DOM
-                                        e.getDomNode()?.addEventListener('paste', (ev) => ev.preventDefault(), true);
-                                    }}
-                                />
-                                {(isProblemLocked || contestSubmitted) && (
-                                    <div className="absolute inset-0 bg-gray-50/50 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none">
-                                        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 text-center transform scale-100">
-                                            <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                <CheckCircle className="text-green-500" size={24} />
-                                            </div>
-                                            <h3 className="text-gray-900 font-bold mb-1">Problem Submitted</h3>
-                                            <p className="text-xs text-gray-500">This problem is locked for further editing.</p>
-                                        </div>
-                                    </div>
+                    {/* Results Split */}
+                    <div
+                        key={resultsAnimKey}
+                        style={{ height: `${100 - editorTopH}%`, transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
+                        className="flex flex-col bg-white overflow-hidden relative"
+                        data-results-panel
+                    >
+                        <div className="flex items-center h-10 border-b border-gray-200 bg-gray-50 px-2 gap-1 shrink-0">
+                            <button onClick={() => setBottomTab('testcases')}
+                                className={`px-4 h-full text-xs font-medium border-b-2 transition-colors flex items-center gap-2 ${bottomTab === 'testcases' ? 'border-blue-500 text-blue-700 bg-white' : 'border-transparent text-gray-500 hover:bg-gray-100'}`}>
+                                <List size={14} /> Test Cases
+                            </button>
+                            <button onClick={() => setBottomTab('results')}
+                                className={`px-4 h-full text-xs font-medium border-b-2 transition-colors flex items-center gap-2 ${bottomTab === 'results' ? 'border-blue-500 text-blue-700 bg-white' : 'border-transparent text-gray-500 hover:bg-gray-100'}`}>
+                                {isCompileErr ? (
+                                    <span className="flex items-center gap-1.5 text-orange-600"><AlertTriangle size={14} /> Compilation Error</span>
+                                ) : displayResult && !running && !submitting ? (
+                                    <span className={`flex items-center gap-1.5 ${displayResult.verdict === 'Accepted' ? 'text-green-600' : 'text-red-600'}`}>
+                                        {displayResult.verdict === 'Accepted' ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                                        {displayResult.isRun ? 'Run Result' : 'Submission Result'}
+                                    </span>
+                                ) : (
+                                    <><Terminal size={14} /> Results</>
                                 )}
-                            </div>
+                            </button>
                         </div>
 
-                        <DragHandleV onMouseDown={(e) => startDrag('editorH', e)} />
-
-                        {/* Results Split */}
-                        <div style={{ height: `${100 - editorTopH}%` }} className="flex flex-col bg-white relative" key={resultsAnimKey}>
-                            <div className="flex items-center h-10 border-b border-gray-200 bg-gray-50 px-2 gap-1 shrink-0">
-                                <button onClick={() => setBottomTab('testcases')}
-                                    className={`px-4 h-full text-xs font-medium border-b-2 transition-colors flex items-center gap-2 ${bottomTab === 'testcases' ? 'border-blue-500 text-blue-700 bg-white' : 'border-transparent text-gray-500 hover:bg-gray-100'}`}>
-                                    <List size={14} /> Test Cases
-                                </button>
-                                <button onClick={() => setBottomTab('results')}
-                                    className={`px-4 h-full text-xs font-medium border-b-2 transition-colors flex items-center gap-2 ${bottomTab === 'results' ? 'border-blue-500 text-blue-700 bg-white' : 'border-transparent text-gray-500 hover:bg-gray-100'}`}>
-                                    {isCompileErr ? (
-                                        <span className="flex items-center gap-1.5 text-orange-600"><AlertTriangle size={14} /> Compilation Error</span>
-                                    ) : displayResult && !running && !submitting ? (
-                                        <span className={`flex items-center gap-1.5 ${displayResult.verdict === 'Accepted' ? 'text-green-600' : 'text-red-600'}`}>
-                                            {displayResult.verdict === 'Accepted' ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                                            {displayResult.isRun ? 'Run Result' : 'Submission Result'}
-                                        </span>
-                                    ) : (
-                                        <><Terminal size={14} /> Results</>
-                                    )}
-                                </button>
-                            </div>
-
-                            <div className="flex-1 overflow-hidden bg-white relative">
-                                {/* Running State */}
-                                {(running || submitting) ? (
-                                    <ExecutionProgress isRunning={running} isSubmitting={submitting} total={submitting ? (selectedProblem?.testCases?.length || 5) : sampleTestCases.length} />
-                                ) : (
-                                    <>
-                                        {/* Test Cases Tab */}
-                                        {bottomTab === 'testcases' && (
-                                            <div className="flex flex-col h-full">
-                                                {/* Tabs */}
-                                                <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0">
-                                                    {/* Standard Cases */}
-                                                    {sampleTestCases.map((_, i) => (
-                                                        <button
-                                                            key={`case-${i}`}
-                                                            onClick={() => setActiveInputCase(i)}
-                                                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
+                        <div className="flex-1 overflow-hidden bg-white relative">
+                            {/* Running State */}
+                            {(running || submitting) ? (
+                                <ExecutionProgress isRunning={running} isSubmitting={submitting} total={submitting ? (selectedProblem?.testCases?.length || 5) : sampleTestCases.length} />
+                            ) : (
+                                <>
+                                    {/* Test Cases Tab */}
+                                    {bottomTab === 'testcases' && (
+                                        <div className="flex flex-col h-full">
+                                            {/* Tabs */}
+                                            <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0">
+                                                {/* Standard Cases */}
+                                                {sampleTestCases.map((_, i) => (
+                                                    <button
+                                                        key={`case-${i}`}
+                                                        onClick={() => setActiveInputCase(i)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
                                                                 ${activeInputCase === i
-                                                                    ? 'bg-gray-100 border-gray-200 text-gray-900 font-semibold shadow-sm'
-                                                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                                                                }`}
-                                                        >
-                                                            Case {i + 1}
-                                                        </button>
-                                                    ))}
-                                                </div>
-
-                                                {/* Inputs Area */}
-                                                <div className="flex-1 p-4 overflow-y-auto">
-                                                    {sampleTestCases[activeInputCase] && (
-                                                        <div className="space-y-4 max-w-2xl">
-                                                            <div>
-                                                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                                <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap select-text">
-                                                                    {sampleTestCases[activeInputCase].input}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap opacity-80 select-text">
-                                                                    {sampleTestCases[activeInputCase].output}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                                ? 'bg-gray-100 border-gray-200 text-gray-900 font-semibold shadow-sm'
+                                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        Case {i + 1}
+                                                    </button>
+                                                ))}
                                             </div>
-                                        )}
 
-                                        {/* Results Tab */}
-                                        {bottomTab === 'results' && (
-                                            <div className="h-full overflow-y-auto flex flex-col" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
-
-                                                {/* ── Compilation Error ── */}
-                                                {!running && !submitting && isCompileErr && (
-                                                    <div className="flex flex-col bg-orange-50/30">
-                                                        <div className="bg-orange-50 border-b border-orange-100 px-4 py-3 flex items-center gap-2 shrink-0">
-                                                            <div className="bg-orange-100 p-1.5 rounded-full">
-                                                                <AlertTriangle className="text-orange-600" size={16} />
-                                                            </div>
-                                                            <div>
-                                                                <h3 className="text-orange-800 font-bold text-sm">Compilation Error</h3>
-                                                                <p className="text-xs text-orange-600">Check your code for syntax errors</p>
+                                            {/* Inputs Area */}
+                                            <div className="flex-1 p-4 overflow-y-auto">
+                                                {sampleTestCases[activeInputCase] && (
+                                                    <div className="space-y-4 max-w-2xl">
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
+                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap select-text">
+                                                                {sampleTestCases[activeInputCase].input}
                                                             </div>
                                                         </div>
-                                                        <div className="p-4">
-                                                            <pre className="font-mono text-xs text-orange-700 bg-orange-50/50 border border-orange-100 rounded-lg p-3 whitespace-pre-wrap leading-relaxed shadow-sm">
-                                                                {consoleOutput?.message || 'Unknown error'}
-                                                            </pre>
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
+                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap opacity-80 select-text">
+                                                                {sampleTestCases[activeInputCase].output}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
+                                            </div>
+                                        </div>
+                                    )}
 
-                                                {/* ── Has results ── */}
-                                                {!running && !submitting && !isCompileErr && displayResult && (
-                                                    <div className="flex flex-col h-full">
-                                                        {/* ── LeetCode-style Verdict Header ── */}
-                                                        {(() => {
-                                                            const vc = getVerdictColor(displayResult.verdict);
-                                                            const isAccepted = displayResult.verdict === 'Accepted';
-                                                            return (
-                                                                <div className={`px-5 py-4 border-b shrink-0 ${vc.bg} ${vc.border}`}>
-                                                                    <div className="flex items-start justify-between gap-3">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                                                {isAccepted ? <CheckCircle size={20} /> : <XCircle size={20} />}
-                                                                            </div>
-                                                                            <div>
-                                                                                <h2 className={`text-lg font-bold ${vc.text}`}>
-                                                                                    {displayResult.verdict}
-                                                                                </h2>
-                                                                                {/* X / Y testcases passed — always shown */}
-                                                                                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                                                                    <span className={`text-sm font-medium ${vc.text}`}>
-                                                                                        {displayResult.testCasesPassed ?? (displayResult.results?.filter(r => r.passed).length || 0)} / {displayResult.totalTestCases ?? (displayResult.results?.length || 0)} testcases passed
-                                                                                    </span>
-                                                                                    {displayResult.isRun === false && (
-                                                                                        <span className="text-xs text-gray-500">All Test Cases</span>
-                                                                                    )}
-                                                                                </div>
+                                    {/* Results Tab */}
+                                    {bottomTab === 'results' && (
+                                        <div className="h-full overflow-y-auto flex flex-col" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
+
+                                            {/* ── Compilation Error ── */}
+                                            {!running && !submitting && isCompileErr && (
+                                                <div className="flex flex-col bg-orange-50/30">
+                                                    <div className="bg-orange-50 border-b border-orange-100 px-4 py-3 flex items-center gap-2 shrink-0">
+                                                        <div className="bg-orange-100 p-1.5 rounded-full">
+                                                            <AlertTriangle className="text-orange-600" size={16} />
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="text-orange-800 font-bold text-sm">Compilation Error</h3>
+                                                            <p className="text-xs text-orange-600">Check your code for syntax errors</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="p-4">
+                                                        <pre className="font-mono text-xs text-orange-700 bg-orange-50/50 border border-orange-100 rounded-lg p-3 whitespace-pre-wrap leading-relaxed shadow-sm">
+                                                            {consoleOutput?.message || 'Unknown error'}
+                                                        </pre>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* ── Has results ── */}
+                                            {!running && !submitting && !isCompileErr && displayResult && (
+                                                <div className="flex flex-col h-full">
+                                                    {/* ── LeetCode-style Verdict Header ── */}
+                                                    {(() => {
+                                                        const vc = getVerdictColor(displayResult.verdict);
+                                                        const isAccepted = displayResult.verdict === 'Accepted';
+                                                        return (
+                                                            <div className={`px-5 py-4 border-b shrink-0 ${vc.bg} ${vc.border}`}>
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                                            {isAccepted ? <CheckCircle size={20} /> : <XCircle size={20} />}
+                                                                        </div>
+                                                                        <div>
+                                                                            <h2 className={`text-lg font-bold ${vc.text}`}>
+                                                                                {displayResult.verdict}
+                                                                            </h2>
+                                                                            {/* X / Y testcases passed — always shown */}
+                                                                            <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                                                                <span className={`text-sm font-medium ${vc.text}`}>
+                                                                                    {displayResult.testCasesPassed ?? (displayResult.results?.filter(r => r.passed).length || 0)} / {displayResult.totalTestCases ?? (displayResult.results?.length || 0)} testcases passed
+                                                                                </span>
+                                                                                {displayResult.isRun === false && (
+                                                                                    <span className="text-xs text-gray-500">All Test Cases</span>
+                                                                                )}
                                                                             </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                            );
-                                                        })()}
+                                                            </div>
+                                                        );
+                                                    })()}
 
-                                                        {/* ── Test Case Tabs (LeetCode style) ── */}
-                                                        {displayResult.results?.length > 0 && (
-                                                            <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0 bg-white">
-                                                                {displayResult.results.map((r, i) => {
-                                                                    const label = `Case ${i + 1}`;
-                                                                    return (
-                                                                        <button
-                                                                            key={i}
-                                                                            onClick={() => setActiveResultCase(i)}
-                                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
+                                                    {/* ── Test Case Tabs (LeetCode style) ── */}
+                                                    {displayResult.results?.length > 0 && (
+                                                        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0 bg-white">
+                                                            {displayResult.results.map((r, i) => {
+                                                                const label = `Case ${i + 1}`;
+                                                                return (
+                                                                    <button
+                                                                        key={i}
+                                                                        onClick={() => setActiveResultCase(i)}
+                                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
                                                                                     ${activeResultCase === i
-                                                                                    ? `${r.passed
-                                                                                        ? 'bg-green-50 border-green-300 text-green-700'
-                                                                                        : 'bg-red-50 border-red-300 text-red-700'
-                                                                                    } font-semibold`
-                                                                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                                                                                }`}
-                                                                        >
-                                                                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                                            {label}
-                                                                        </button>
-                                                                    );
-                                                                })}
+                                                                                ? `${r.passed
+                                                                                    ? 'bg-green-50 border-green-300 text-green-700'
+                                                                                    : 'bg-red-50 border-red-300 text-red-700'
+                                                                                } font-semibold`
+                                                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                                                            }`}
+                                                                    >
+                                                                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                                        {label}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+
+                                                    {/* ── Result Details ── */}
+                                                    <div className="flex-1 p-4 overflow-y-auto">
+                                                        {displayResult.results?.[activeResultCase] ? (
+                                                            <div className="space-y-4 max-w-3xl">
+                                                                {/* Hidden test case placeholder */}
+                                                                {displayResult.results[activeResultCase].isHidden ? (
+                                                                    <div className={`p-10 text-center border-2 border-dashed rounded-xl ${displayResult.results[activeResultCase].passed ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'}`}>
+                                                                        <Lock size={24} className={`mx-auto mb-3 ${displayResult.results[activeResultCase].passed ? 'text-green-400' : 'text-red-400'}`} />
+                                                                        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Hidden Test Case</p>
+                                                                        <p className={`text-sm font-semibold mt-2 ${displayResult.results[activeResultCase].passed ? 'text-green-600' : 'text-red-600'}`}>
+                                                                            {displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}
+                                                                        </p>
+                                                                        <p className="text-[10px] text-gray-400 mt-1">Input and expected output are hidden</p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <>
+                                                                        {/* Pass / Fail badge */}
+                                                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${displayResult.results[activeResultCase].passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                                            {displayResult.results[activeResultCase].passed
+                                                                                ? <><CheckCircle size={12} /> Passed</>
+                                                                                : <><XCircle size={12} /> {displayResult.results[activeResultCase].verdict || 'Failed'}</>
+                                                                            }
+                                                                        </div>
+
+                                                                        {/* Input */}
+                                                                        <div>
+                                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
+                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
+                                                                                {displayResult.results[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Your Output + Expected Output side by side */}
+                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                            {/* Your Output */}
+                                                                            <div>
+                                                                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Your Output</p>
+                                                                                <div className={`rounded-lg p-3 text-xs font-mono whitespace-pre-wrap border min-h-[48px]
+                                                                                        ${displayResult.results[activeResultCase].passed
+                                                                                        ? 'bg-green-50/40 border-green-200 text-gray-900'
+                                                                                        : 'bg-red-50/40 border-red-200 text-gray-900'
+                                                                                    }`}
+                                                                                >
+                                                                                    {displayResult.results[activeResultCase].actualOutput || <span className="text-gray-400 italic">No output</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                            {/* Expected Output */}
+                                                                            <div>
+                                                                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
+                                                                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
+                                                                                    {displayResult.results[activeResultCase].expectedOutput ?? <span className="text-gray-400 italic">N/A</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Runtime error / stderr */}
+                                                                        {displayResult.results[activeResultCase].error && (
+                                                                            <div>
+                                                                                <p className="text-[10px] font-bold text-red-500 uppercase mb-1.5">Error / Traceback</p>
+                                                                                <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap">
+                                                                                    {displayResult.results[activeResultCase].error}
+                                                                                </pre>
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-center h-full text-gray-400 text-xs">
+                                                                No result data for this case.
                                                             </div>
                                                         )}
-
-                                                        {/* ── Result Details ── */}
-                                                        <div className="flex-1 p-4 overflow-y-auto">
-                                                            {displayResult.results?.[activeResultCase] ? (
-                                                                <div className="space-y-4 max-w-3xl">
-                                                                    {/* Hidden test case placeholder */}
-                                                                    {displayResult.results[activeResultCase].isHidden ? (
-                                                                        <div className={`p-10 text-center border-2 border-dashed rounded-xl ${displayResult.results[activeResultCase].passed ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'}`}>
-                                                                            <Lock size={24} className={`mx-auto mb-3 ${displayResult.results[activeResultCase].passed ? 'text-green-400' : 'text-red-400'}`} />
-                                                                            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Hidden Test Case</p>
-                                                                            <p className={`text-sm font-semibold mt-2 ${displayResult.results[activeResultCase].passed ? 'text-green-600' : 'text-red-600'}`}>
-                                                                                {displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}
-                                                                            </p>
-                                                                            <p className="text-[10px] text-gray-400 mt-1">Input and expected output are hidden</p>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <>
-                                                                            {/* Pass / Fail badge */}
-                                                                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${displayResult.results[activeResultCase].passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                                                {displayResult.results[activeResultCase].passed
-                                                                                    ? <><CheckCircle size={12} /> Passed</>
-                                                                                    : <><XCircle size={12} /> {displayResult.results[activeResultCase].verdict || 'Failed'}</>
-                                                                                }
-                                                                            </div>
-
-                                                                            {/* Input */}
-                                                                            <div>
-                                                                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
-                                                                                    {displayResult.results[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
-                                                                                </div>
-                                                                            </div>
-
-                                                                            {/* Your Output + Expected Output side by side */}
-                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                                {/* Your Output */}
-                                                                                <div>
-                                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Your Output</p>
-                                                                                    <div className={`rounded-lg p-3 text-xs font-mono whitespace-pre-wrap border min-h-[48px]
-                                                                                        ${displayResult.results[activeResultCase].passed
-                                                                                            ? 'bg-green-50/40 border-green-200 text-gray-900'
-                                                                                            : 'bg-red-50/40 border-red-200 text-gray-900'
-                                                                                        }`}
-                                                                                    >
-                                                                                        {displayResult.results[activeResultCase].actualOutput || <span className="text-gray-400 italic">No output</span>}
-                                                                                    </div>
-                                                                                </div>
-                                                                                {/* Expected Output */}
-                                                                                <div>
-                                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
-                                                                                        {displayResult.results[activeResultCase].expectedOutput ?? <span className="text-gray-400 italic">N/A</span>}
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            {/* Runtime error / stderr */}
-                                                                            {displayResult.results[activeResultCase].error && (
-                                                                                <div>
-                                                                                    <p className="text-[10px] font-bold text-red-500 uppercase mb-1.5">Error / Traceback</p>
-                                                                                    <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap">
-                                                                                        {displayResult.results[activeResultCase].error}
-                                                                                    </pre>
-                                                                                </div>
-                                                                            )}
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex items-center justify-center h-full text-gray-400 text-xs">
-                                                                    No result data for this case.
-                                                                </div>
-                                                            )}
-                                                        </div>
                                                     </div>
-                                                )}
+                                                </div>
+                                            )}
 
-                                                {/* ── No results yet ── */}
-                                                {!running && !submitting && !displayResult && !consoleOutput?.error && (
-                                                    <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
-                                                        <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
-                                                            <Play size={20} className="ml-1 text-gray-300" />
-                                                        </div>
-                                                        <p className="text-sm font-medium">Run code to view results</p>
+                                            {/* ── No results yet ── */}
+                                            {!running && !submitting && !displayResult && !consoleOutput?.error && (
+                                                <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
+                                                    <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
+                                                        <Play size={20} className="ml-1 text-gray-300" />
                                                     </div>
-                                                )}
+                                                    <p className="text-sm font-medium">Run code to view results</p>
+                                                </div>
+                                            )}
 
-                                                {/* ── Generic error (no results) ── */}
-                                                {!running && !submitting && consoleOutput?.error && !displayResult && (
-                                                    <div className="p-4">
-                                                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                                            <p className="text-xs font-bold text-red-600 mb-2">Error</p>
-                                                            <p className="text-xs text-red-700">{consoleOutput.error}</p>
-                                                        </div>
+                                            {/* ── Generic error (no results) ── */}
+                                            {!running && !submitting && consoleOutput?.error && !displayResult && (
+                                                <div className="p-4">
+                                                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                                        <p className="text-xs font-bold text-red-600 mb-2">Error</p>
+                                                        <p className="text-xs text-red-700">{consoleOutput.error}</p>
                                                     </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1513,9 +1645,6 @@ const ContestInterface = ({ isPractice = false }) => {
                                             {liveParticipants} online now
                                         </span>
                                     )}
-                                    <button onClick={downloadCSV} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold hover:bg-blue-100 transition-colors">
-                                        ↓ CSV
-                                    </button>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
@@ -1533,13 +1662,16 @@ const ContestInterface = ({ isPractice = false }) => {
                                     className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
                                     title="Refresh leaderboard"
                                 >
-                                    <Loader2 size={14} className={loadingLeaderboard ? 'animate-spin' : ''} />
+                                    <RotateCw size={15} className={loadingLeaderboard ? 'animate-spin' : ''} />
                                 </button>
-                                {!user?.isSpotUser && (
-                                    <button onClick={() => setShowLeaderboard(false)} className="p-2 rounded-full bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 transition-colors" title="Close leaderboard">
-                                        <IoCloseCircleOutline size={20} />
-                                    </button>
-                                )}
+                                {/* Close button — always visible */}
+                                <button
+                                    onClick={() => setShowLeaderboard(false)}
+                                    className="p-2 rounded-full bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 transition-colors"
+                                    title="Close leaderboard"
+                                >
+                                    <XCircle size={18} />
+                                </button>
                             </div>
                         </div>
                         {/* Single Rankings view — no separate violations tab */}
@@ -1645,9 +1777,16 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                                             return (
                                                                 <td key={prob._id} className="p-2 text-center border-r border-gray-50">
-                                                                    <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
-                                                                        {icon && <span className="font-bold">{icon}</span>}
-                                                                        {status === 'Not Attempted' ? '—' : status === 'Accepted' ? 'Accepted' : 'Wrong'}
+                                                                    <div className="flex flex-col items-center justify-center gap-0.5">
+                                                                        <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
+                                                                            {icon && <span className="font-bold">{icon}</span>}
+                                                                            {status === 'Not Attempted' ? '—' : status === 'Accepted' ? 'Accepted' : 'Wrong'}
+                                                                        </div>
+                                                                        {pData?.submittedAt !== undefined && pData?.submittedAt !== null && (
+                                                                            <span className="text-[10px] text-gray-500 font-mono tracking-tighter">
+                                                                                {pData.submittedAt}m
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                 </td>
                                                             );
