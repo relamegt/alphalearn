@@ -1,7 +1,20 @@
 import React, { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const GlobalRankGraph = ({ externalContestStats }) => {
+const calcRatingScore = (platform, rating) => {
+    switch (platform.toLowerCase()) {
+        case 'leetcode':
+            return rating > 1300 ? Math.pow(rating - 1300, 2) / 10 : 0;
+        case 'codechef':
+            return rating > 1200 ? Math.pow(rating - 1200, 2) / 10 : 0;
+        case 'codeforces':
+            return rating > 800 ? Math.pow(rating - 800, 2) / 10 : 0;
+        default:
+            return 0;
+    }
+};
+
+const GlobalRankGraph = ({ externalContestStats, leaderboardStats }) => {
     const data = useMemo(() => {
         if (!externalContestStats) return [];
 
@@ -10,6 +23,16 @@ const GlobalRankGraph = ({ externalContestStats }) => {
         const platforms = Object.keys(externalContestStats).filter(p =>
             validPlatforms.includes(p.toLowerCase())
         );
+
+        // Calculate current rating components to find the static non-time-series base (AlpsCoins, HackerRank, InterviewBit, etc.)
+        let currentTotalRatingScore = 0;
+        platforms.forEach(platform => {
+            const currentRating = externalContestStats[platform]?.rating || 0;
+            currentTotalRatingScore += calcRatingScore(platform, currentRating);
+        });
+
+        const currentOverallScore = leaderboardStats?.score || leaderboardStats?.details?.overallScore || 0;
+        const baseConstantScore = currentOverallScore - currentTotalRatingScore;
 
         // Collect all rating update events
         platforms.forEach(platform => {
@@ -24,7 +47,17 @@ const GlobalRankGraph = ({ externalContestStats }) => {
             });
         });
 
-        if (events.length === 0) return [];
+        if (events.length === 0) {
+            if (currentOverallScore > 0) {
+                // Plot an artificial flatline if they only have Alpha Coins or static external platform points
+                const now = Date.now();
+                return [
+                    { date: new Date(now - 7 * 24 * 60 * 60 * 1000).toLocaleDateString(), totalScore: Math.round(currentOverallScore), timestamp: now - 7 * 24 * 60 * 60 * 1000 },
+                    { date: new Date(now).toLocaleDateString(), totalScore: Math.round(currentOverallScore), timestamp: now }
+                ];
+            }
+            return [];
+        }
 
         // Sort by time
         events.sort((a, b) => a.timestamp - b.timestamp);
@@ -32,14 +65,17 @@ const GlobalRankGraph = ({ externalContestStats }) => {
         // Calculate cumulative score over time
         const currentRatings = {};
         const timeSeries = [];
-
         let lastDate = '';
 
         events.forEach(event => {
             currentRatings[event.platform] = event.rating;
 
-            // Calculate total score at this point in time
-            const totalScore = Object.values(currentRatings).reduce((sum, r) => sum + r, 0);
+            let pointRatingScore = 0;
+            Object.entries(currentRatings).forEach(([p, r]) => {
+                pointRatingScore += calcRatingScore(p, r);
+            });
+
+            const totalScore = Math.max(0, Math.round(baseConstantScore + pointRatingScore));
             const dateStr = event.date.toLocaleDateString();
 
             // Improve data points density: if same day, update last point
@@ -55,8 +91,18 @@ const GlobalRankGraph = ({ externalContestStats }) => {
             }
         });
 
+        // Add final current day marker
+        const todayStr = new Date().toLocaleDateString();
+        if (timeSeries.length > 0 && timeSeries[timeSeries.length - 1].date !== todayStr) {
+            timeSeries.push({
+                date: todayStr,
+                totalScore: Math.round(currentOverallScore),
+                timestamp: Date.now()
+            });
+        }
+
         return timeSeries;
-    }, [externalContestStats]);
+    }, [externalContestStats, leaderboardStats]);
 
     if (data.length === 0) {
         return (

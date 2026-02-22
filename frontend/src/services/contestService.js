@@ -1,24 +1,6 @@
-import axios from 'axios';
-import Cookies from 'js-cookie';
+import apiClient from './apiClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-const apiClient = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    withCredentials: true,
-});
-
-// Add auth token
-apiClient.interceptors.request.use((config) => {
-    const accessToken = Cookies.get('accessToken');
-    if (accessToken) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-});
+const PENDING_CALLS = {};
 
 const contestService = {
     // ============================================
@@ -49,13 +31,25 @@ const contestService = {
 
     // Get Contests by Batch → GET /contest/batch/:batchId
     getContestsByBatch: async (batchId, status = null) => {
-        try {
-            const params = status ? { status } : {};
-            const response = await apiClient.get(`/contest/batch/${batchId}`, { params });
-            return response.data;
-        } catch (error) {
-            throw error.response?.data || { message: 'Failed to fetch contests' };
+        const cacheKey = `batch_${batchId}_${status || 'all'}`;
+        if (PENDING_CALLS[cacheKey]) {
+            return await PENDING_CALLS[cacheKey];
         }
+
+        const promise = (async () => {
+            try {
+                const params = status ? { status } : {};
+                const response = await apiClient.get(`/contest/batch/${batchId}`, { params });
+                return response.data;
+            } catch (error) {
+                throw error.response?.data || { message: 'Failed to fetch contests' };
+            } finally {
+                delete PENDING_CALLS[cacheKey];
+            }
+        })();
+
+        PENDING_CALLS[cacheKey] = promise;
+        return promise;
     },
 
     // Get Contest by ID → GET /contest/:contestId

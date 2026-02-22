@@ -333,9 +333,8 @@ const CompleteProfile = () => {
 
             toast.success('Profile completed successfully! Please login with your new password.');
 
-            // Logout and redirect to login
-            await logout();
-            navigate('/login', { state: { message: 'Profile completed. Please login with your new password.' } });
+            // Logout and redirect to login, skip the extra 'logged out' toast
+            await logout(false, true);
         } catch (error) {
             toast.error(error.message || 'Failed to complete profile');
         } finally {
@@ -899,7 +898,6 @@ const CompleteProfile = () => {
                     <button
                         onClick={async () => {
                             await logout();
-                            navigate('/login');
                         }}
                         className="text-sm text-gray-600 hover:text-gray-900"
                     >

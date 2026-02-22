@@ -159,6 +159,7 @@ const Dashboard = () => {
                 <div className="lg:col-span-2 space-y-6">
                     <GlobalRankGraph
                         externalContestStats={externalContestStats}
+                        leaderboardStats={leaderboardStats}
                     />
 
                     <ScoreDistributionChart

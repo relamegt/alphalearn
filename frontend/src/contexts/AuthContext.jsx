@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
                 console.error('Auth initialization failed:', error);
                 setUser(null);
                 setIsAuthenticated(false);
-                await authService.logout();
+                await authService.logout(true);
             } finally {
                 setLoading(false);
             }
@@ -124,9 +124,9 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = async () => {
+    const logout = async (skipBackend = false, skipToast = false) => {
         try {
-            await authService.logout();
+            await authService.logout(skipBackend);
 
             // Clear all leaderboard caches on logout
             leaderboardService.clearAllCaches();
@@ -134,7 +134,9 @@ export const AuthProvider = ({ children }) => {
 
             setUser(null);
             setIsAuthenticated(false);
-            toast.success('Logged out successfully');
+            if (!skipToast) {
+                toast.success('Logged out successfully');
+            }
             navigate('/login');
         } catch (error) {
             console.error('Logout error:', error);

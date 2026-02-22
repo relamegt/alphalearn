@@ -1,18 +1,6 @@
-import axios from 'axios';
 import Cookies from 'js-cookie';
+import apiClient from './apiClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-const apiClient = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    withCredentials: true,
-});
-
-let meCache = null;
-let meCacheTime = 0;
 let mePromise = null;
 
 const authService = {
@@ -26,10 +14,6 @@ const authService = {
                 Cookies.set('accessToken', response.data.tokens.accessToken, { expires: 1 }); // 24 hours
                 Cookies.set('refreshToken', response.data.tokens.refreshToken, { expires: 7 }); // 7 days
                 localStorage.setItem('user', JSON.stringify(response.data.user));
-
-                // Set cache
-                meCache = response.data.user;
-                meCacheTime = Date.now();
 
                 // Show notification if session was replaced
                 if (response.data.sessionReplaced) {
@@ -49,8 +33,6 @@ const authService = {
         // No refresh token for spot users
         localStorage.setItem('user', JSON.stringify(user));
 
-        meCache = user;
-        meCacheTime = Date.now();
         return { success: true, user };
     },
 
@@ -86,10 +68,10 @@ const authService = {
 
             return response.data;
         } catch (error) {
-            // Session replaced or expired - force logout
+            // Session replaced or expired - force logout locally
             if (error.response?.data?.code === 'SESSION_REPLACED' ||
                 error.response?.data?.code === 'SESSION_EXPIRED') {
-                authService.logout();
+                authService.logout(true);
                 window.location.href = '/login?reason=session_expired';
             }
             throw error.response?.data || { message: 'Token refresh failed' };
@@ -97,10 +79,10 @@ const authService = {
     },
 
     // Logout
-    logout: async () => {
+    logout: async (skipBackend = false) => {
         try {
             const accessToken = Cookies.get('accessToken');
-            if (accessToken) {
+            if (accessToken && !skipBackend) {
                 await apiClient.post(
                     '/auth/logout',
                     {},
@@ -118,19 +100,20 @@ const authService = {
             Cookies.remove('accessToken');
             Cookies.remove('refreshToken');
             localStorage.removeItem('user');
-            meCache = null;
             mePromise = null;
-            meCacheTime = 0;
         }
     },
 
-    // Get current user (with deduplication & short-term cache)
+    // Get current user
     getCurrentUser: async (forceRefresh = false) => {
         try {
-            // 60-second in-memory cache to prevent spamming the server on rapid route navigation
-            if (!forceRefresh && meCache && Date.now() - meCacheTime < 60000) {
-                return meCache;
+            if (!forceRefresh) {
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                    return JSON.parse(storedUser);
+                }
             }
+
             // Return ongoing promise to avoid duplicate concurrent calls
             if (!forceRefresh && mePromise) {
                 return await mePromise;
@@ -153,10 +136,10 @@ const authService = {
                     Authorization: `Bearer ${accessToken}`,
                 },
             }).then(response => {
-                meCache = response.data.user;
-                meCacheTime = Date.now();
+                const user = response.data.user;
+                localStorage.setItem('user', JSON.stringify(user));
                 mePromise = null;
-                return meCache;
+                return user;
             }).catch(error => {
                 mePromise = null;
                 throw error;
@@ -265,8 +248,17 @@ apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
-
         if (error.response?.status === 401 && !originalRequest._retry) {
+            const errorCode = error.response?.data?.code;
+
+            // Do NOT try to refresh if the session was explicitly replaced by another login
+            // or if we already know it's permanently expired
+            if (errorCode === 'SESSION_REPLACED' || errorCode === 'SESSION_EXPIRED' || errorCode === 'INVALID_TOKEN') {
+                authService.logout(true);
+                window.location.href = '/login?reason=session_expired';
+                return Promise.reject(error);
+            }
+
             originalRequest._retry = true;
 
             try {

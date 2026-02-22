@@ -341,7 +341,7 @@ const PublicProfile = () => {
                         ) : (
                             <>
                                 {/* Global Rank Graph (same as dashboard) */}
-                                <GlobalRankGraph externalContestStats={externalContestStats} />
+                                <GlobalRankGraph externalContestStats={externalContestStats} leaderboardStats={leaderboardStats} />
 
                                 {/* Score Distribution Chart (same as dashboard) */}
                                 <ScoreDistributionChart leaderboardDetails={leaderboardStats?.details} />

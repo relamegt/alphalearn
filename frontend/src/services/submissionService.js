@@ -1,24 +1,6 @@
-import axios from 'axios';
-import Cookies from 'js-cookie';
+import apiClient from './apiClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-const apiClient = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    withCredentials: true,
-});
-
-// Add auth token
-apiClient.interceptors.request.use((config) => {
-    const accessToken = Cookies.get('accessToken');
-    if (accessToken) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-});
+const PENDING_CALLS = {};
 
 const submissionService = {
     // Run Code (Sample Test Cases) → POST /student/code/run
@@ -76,13 +58,25 @@ const submissionService = {
 
     // Get submissions for a specific problem
     getProblemSubmissions: async (problemId, studentId = null) => {
-        try {
-            const url = studentId ? `/student/submissions/${studentId}` : '/student/submissions';
-            const response = await apiClient.get(url, { params: { problemId } });
-            return response.data;
-        } catch (error) {
-            throw error.response?.data || { message: 'Failed to fetch problem submissions' };
+        const cacheKey = `prob_subs_${problemId}_${studentId || 'me'}`;
+        if (PENDING_CALLS[cacheKey]) {
+            return await PENDING_CALLS[cacheKey];
         }
+
+        const promise = (async () => {
+            try {
+                const url = studentId ? `/student/submissions/${studentId}` : '/student/submissions';
+                const response = await apiClient.get(url, { params: { problemId } });
+                return response.data;
+            } catch (error) {
+                throw error.response?.data || { message: 'Failed to fetch problem submissions' };
+            } finally {
+                delete PENDING_CALLS[cacheKey];
+            }
+        })();
+
+        PENDING_CALLS[cacheKey] = promise;
+        return promise;
     },
 
     // Get Recent Submissions → GET /student/submissions/recent

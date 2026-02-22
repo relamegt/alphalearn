@@ -267,7 +267,7 @@ const LoginForm = () => {
                             </button>
 
                             {/* Security Notice */}
-                            <div className="mt-6 p-4 bg-orange-50/80 border border-orange-100 rounded-xl flex items-start">
+                            {/* <div className="mt-6 p-4 bg-orange-50/80 border border-orange-100 rounded-xl flex items-start">
                                 <svg className="w-5 h-5 text-orange-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                                 </svg>
@@ -279,7 +279,7 @@ const LoginForm = () => {
                                         Logging in here will automatically log you out from other devices for security reasons.
                                     </p>
                                 </div>
-                            </div>
+                            </div> */}
                         </form>
                     </div>
 

@@ -567,26 +567,13 @@ const CodeEditor = () => {
                 return;
             }
 
-            // 2. Check Last Accepted Submission (cached per problem to avoid re-fetch on lang switch)
-            try {
-                if (!SUBMISSIONS_CACHE[problemId]) {
-                    if (!PENDING_SUBMISSIONS_CALLS[problemId]) {
-                        PENDING_SUBMISSIONS_CALLS[problemId] = submissionService.getProblemSubmissions(problemId);
-                    }
-                    const data = await PENDING_SUBMISSIONS_CALLS[problemId];
-                    if (!SUBMISSIONS_CACHE[problemId]) {
-                        SUBMISSIONS_CACHE[problemId] = data.submissions || [];
-                    }
-                    delete PENDING_SUBMISSIONS_CALLS[problemId];
-                }
-                const accepted = SUBMISSIONS_CACHE[problemId]?.find(s => s.verdict === 'Accepted' && s.language === language);
-                if (accepted) {
-                    setCode(accepted.code);
-                    return;
-                }
-            } catch (err) {
-                console.error("Failed to fetch submissions", err);
-                delete PENDING_SUBMISSIONS_CALLS[problemId];
+            // 2. We no longer auto-fetch previous submissions to save backend load,
+            // unless we want to rely entirely on localStorage.
+            const previousSubKey = `submission_${user.id}_${problemId}_${language}`;
+            const previousCode = localStorage.getItem(previousSubKey);
+            if (previousCode) {
+                setCode(previousCode);
+                return;
             }
 
             // 3. Default Template

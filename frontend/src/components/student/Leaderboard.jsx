@@ -42,6 +42,25 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         }
     }, [isBatchView, targetBatchId, user, navigate]);
 
+    // Local Token Rescue for Bulletproof Highlighting
+    const [tokenUserId, setTokenUserId] = useState(null);
+    const [localUserData, setLocalUserData] = useState(null);
+    useEffect(() => {
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('accessToken='))?.split('=')[1];
+            if (token) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                setTokenUserId(payload.userId || payload.id);
+            }
+            const stored = localStorage.getItem('user');
+            if (stored) {
+                setLocalUserData(JSON.parse(stored));
+            }
+        } catch (e) {
+            console.error('Local token bypass highlighting lookup error:', e);
+        }
+    }, []);
+
     // Options menu state for Batch View
     const [showOptions, setShowOptions] = useState(false);
     const [batchName, setBatchName] = useState('');
@@ -291,6 +310,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
     // Filter state
     const [activeFilter, setActiveFilter] = useState(null); // 'branch' | 'section' | 'timeline'
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Sorting state
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
@@ -345,10 +365,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         if (!Array.isArray(rawPracticeData)) return [];
 
         // 1. Assign Global Rank (assuming rawPracticeData is sorted by score from backend)
-        let processed = rawPracticeData.map((entry, index) => ({
-            ...entry,
-            globalRank: index + 1
-        }));
+        let processed = [...rawPracticeData];
 
         // 2. Apply Filters
         if (filters.branch) {
@@ -372,6 +389,15 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                 }
                 return true;
             });
+        }
+
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase().trim();
+            processed = processed.filter(entry =>
+                (entry.name && String(entry.name).toLowerCase().includes(query)) ||
+                (entry.username && String(entry.username).toLowerCase().includes(query)) ||
+                (entry.rollNumber && String(entry.rollNumber).toLowerCase().includes(query))
+            );
         }
 
         // 3. Assign Filtered Rank (Branch/Section Rank)
@@ -420,7 +446,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         }
 
         return ranked;
-    }, [rawPracticeData, filters, sortConfig]);
+    }, [rawPracticeData, filters, sortConfig, searchQuery]);
 
     // Get external leaderboard for selected platform and contest (CLIENT-SIDE)
     const externalLeaderboard = useMemo(() => {
@@ -591,6 +617,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
     const handleResetFilters = () => {
         setFilters({ section: '', timeline: '', branch: '' });
+        setSearchQuery('');
     };
 
     const handleRefreshPractice = () => {
@@ -601,6 +628,69 @@ const Leaderboard = ({ batchId, isBatchView }) => {
     const handleRefreshExternal = () => {
         toast.success('Refreshing external contest data...');
         fetchAllExternalData(true);
+    };
+
+    const downloadPracticeCSV = () => {
+        if (!filteredPracticeLeaderboard || filteredPracticeLeaderboard.length === 0) {
+            toast.error('No data to download');
+            return;
+        }
+
+        const headers = [
+            'Rank', 'Global Rank', 'Roll Number', 'Full Name', 'Username', 'Branch',
+            'Overall Score', 'Alpha Coins',
+            'HackerRank', 'LeetCode', 'InterviewBit', 'CodeChef', 'CodeForces'
+        ];
+
+        internalContestsMeta.forEach((contest, idx) => {
+            headers.push(`Contest-${idx + 1} (${contest.maxScore})`);
+        });
+
+        const escapeCell = (str) => {
+            if (str === null || str === undefined) return '';
+            const val = String(str).replace(/"/g, '""');
+            return `"${val}"`;
+        };
+
+        const rows = filteredPracticeLeaderboard.map((entry) => {
+            const row = [
+                entry.rank,
+                entry.globalRank || '-',
+                entry.rollNumber,
+                entry.name,
+                entry.username,
+                entry.branch,
+                entry.overallScore,
+                entry.alphaCoins || 0,
+                entry.externalScores?.hackerrank || 0,
+                entry.externalScores?.leetcode || 0,
+                entry.externalScores?.interviewbit || 0,
+                entry.externalScores?.codechef || 0,
+                entry.externalScores?.codeforces || 0
+            ];
+
+            internalContestsMeta.forEach((contest) => {
+                row.push(entry.internalContests?.[contest.id] || 0);
+            });
+
+            return row;
+        });
+
+        const csvContent = [
+            headers.map(escapeCell).join(','),
+            ...rows.map(row => row.map(escapeCell).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${batchName || 'batch'}_practice_leaderboard.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        if (showOptions) setShowOptions(false);
     };
 
     const LoadingSpinner = () => (
@@ -680,8 +770,17 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                         </div>
                     </div>
 
-                    {/* Refresh */}
-                    <div className="p-2">
+                    {/* Actions */}
+                    <div className="p-2 space-y-1">
+                        <button
+                            onClick={downloadPracticeCSV}
+                            className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            <span>Download Report</span>
+                        </button>
                         <button
                             onClick={() => { handleRefreshPractice(); setShowOptions(false); }}
                             className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
@@ -794,6 +893,32 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                             </div>
                         )}
 
+                        {/* Search Input Filter for Everyone */}
+                        <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                            <div className="relative w-full sm:w-80">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </span>
+                                <input
+                                    type="text"
+                                    className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg bg-gray-50/50 hover:bg-white focus:bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                                    placeholder="Search Roll No, Name, or Username..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            {(searchQuery || filters.branch || filters.section || filters.timeline) && (
+                                <button
+                                    onClick={handleResetFilters}
+                                    className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors whitespace-nowrap"
+                                >
+                                    Clear All Filters
+                                </button>
+                            )}
+                        </div>
+
 
                         <div className="card !p-0 overflow-hidden">
                             {practiceLoading ? (
@@ -810,9 +935,9 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 text-sm">
                                         <thead className="bg-gray-50">
-                                            <tr className="border-b border-gray-200 divide-x divide-gray-200">
+                                            <tr className="border-b border-gray-200">
                                                 <th
-                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[90px] min-w-[90px] cursor-pointer hover:bg-gray-100"
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 sticky left-0 bg-gray-50 z-20 w-[90px] min-w-[90px] cursor-pointer hover:bg-gray-100"
                                                     onClick={() => handleSort('rank')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
@@ -824,21 +949,21 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     </div>
                                                 </th>
                                                 <th
-                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider sticky left-[90px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[130px] min-w-[130px] cursor-pointer hover:bg-gray-100"
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 sticky left-[90px] bg-gray-50 z-20 w-[130px] min-w-[130px] cursor-pointer hover:bg-gray-100"
                                                     onClick={() => handleSort('rollNumber')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
                                                     Roll No {sortConfig.key === 'rollNumber' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
                                                 <th
-                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider sticky left-[220px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[260px] min-w-[260px] cursor-pointer hover:bg-gray-100"
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 sticky left-[220px] bg-gray-50 z-20 w-[260px] min-w-[260px] cursor-pointer hover:bg-gray-100"
                                                     onClick={() => handleSort('name')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
                                                     Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
                                                 <th
-                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider relative group"
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 relative group"
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
                                                     <div className="flex items-center cursor-pointer hover:text-gray-900" onClick={() => handleSort('branch')}>
@@ -873,7 +998,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         </div>
                                                     )}
                                                 </th>
-                                                <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider hidden lg:table-cell min-w-[120px]" rowSpan={viewMode === 'detailed' ? 2 : 1}>Username</th>
+                                                <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 hidden lg:table-cell min-w-[120px]" rowSpan={viewMode === 'detailed' ? 2 : 1}>Username</th>
                                                 <th
                                                     className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 cursor-pointer hover:bg-gray-100 min-w-[180px]"
                                                     onClick={() => handleSort('alphaCoins')}
@@ -937,23 +1062,23 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                 ) : (
                                                     // Summary Platform Columns - Full Names as requested
                                                     <>
-                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[120px] whitespace-nowrap" onClick={() => handleSort('externalScores.hackerrank')}>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer border-r border-gray-200 hover:bg-gray-100 min-w-[120px] whitespace-nowrap" onClick={() => handleSort('externalScores.hackerrank')}>
                                                             <div>HackerRank</div>
                                                             <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight text-wrap max-w-[120px] mx-auto">(DS+Algo)</div>
                                                         </th>
-                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[180px] whitespace-nowrap" onClick={() => handleSort('externalScores.leetcode')}>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer border-r border-gray-200 hover:bg-gray-100 min-w-[180px] whitespace-nowrap" onClick={() => handleSort('externalScores.leetcode')}>
                                                             <div>LeetCode</div>
                                                             <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight text-wrap max-w-[170px] mx-auto">(LCPS*10 + (LCR-1300)²/10 + LCNC*50)</div>
                                                         </th>
-                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[120px] whitespace-nowrap" onClick={() => handleSort('externalScores.interviewbit')}>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer border-r border-gray-200 hover:bg-gray-100 min-w-[120px] whitespace-nowrap" onClick={() => handleSort('externalScores.interviewbit')}>
                                                             <div>InterviewBit</div>
                                                             <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight text-wrap max-w-[110px] mx-auto">(Score / 5)</div>
                                                         </th>
-                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[180px] whitespace-nowrap" onClick={() => handleSort('externalScores.codechef')}>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer border-r border-gray-200 hover:bg-gray-100 min-w-[180px] whitespace-nowrap" onClick={() => handleSort('externalScores.codechef')}>
                                                             <div>CodeChef</div>
                                                             <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight text-wrap max-w-[170px] mx-auto">(CCPS*2 + (CCR-1200)²/10 + CCNC*50)</div>
                                                         </th>
-                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[180px] whitespace-nowrap" onClick={() => handleSort('externalScores.codeforces')}>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer border-r border-gray-200 hover:bg-gray-100 min-w-[180px] whitespace-nowrap" onClick={() => handleSort('externalScores.codeforces')}>
                                                             <div>Codeforces</div>
                                                             <div className="text-[10px] font-normal text-gray-400 mt-1 normal-case leading-tight text-wrap max-w-[170px] mx-auto">(CFPS*2 + (CFR-800)²/10 + CFNC*50)</div>
                                                         </th>
@@ -972,7 +1097,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     return (
                                                         <th
                                                             key={contest.id}
-                                                            className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap border-l border-gray-100 cursor-pointer hover:bg-indigo-50 min-w-[160px]"
+                                                            className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap border-l border-gray-100 border-r border-gray-200 cursor-pointer hover:bg-indigo-50 min-w-[160px]"
                                                             onClick={() => handleSort(`internalContests.${contest.id}`)}
                                                             rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                         >
@@ -1076,16 +1201,25 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
                                             {filteredPracticeLeaderboard.map((entry, index) => {
-                                                const isCurrentUser = entry.rollNumber === user?.education?.rollNumber;
+                                                const actualUserId = user?._id || user?.id || tokenUserId || localUserData?._id || localUserData?.id;
+                                                const actualRoll = user?.education?.rollNumber || localUserData?.education?.rollNumber;
+                                                const actualUsername = user?.username || localUserData?.username;
+
+                                                const isCurrentUser = Boolean(
+                                                    (entry.studentId && actualUserId && String(entry.studentId) === String(actualUserId)) ||
+                                                    (actualRoll && entry.rollNumber && entry.rollNumber !== 'N/A' && String(entry.rollNumber).toLowerCase() === String(actualRoll).toLowerCase()) ||
+                                                    (actualUsername && entry.username && entry.username !== 'N/A' && String(entry.username).toLowerCase() === String(actualUsername).toLowerCase())
+                                                );
+
                                                 return (
                                                     <tr
-                                                        key={entry.rollNumber}
+                                                        key={`${entry.studentId || entry.rollNumber}-${index}`}
                                                         className={`group transition-colors ${isCurrentUser
-                                                            ? 'bg-purple-100 shadow-md relative z-30'
+                                                            ? 'bg-purple-100'
                                                             : 'hover:bg-gray-50'
                                                             }`}
                                                     >
-                                                        <td className={`px-4 py-3 whitespace-nowrap font-bold sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-center border-b border-gray-100 w-[90px] min-w-[90px] ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
+                                                        <td className={`px-4 py-3 whitespace-nowrap font-bold sticky left-0 z-10 text-center border-b border-gray-100 border-r border-gray-200 w-[90px] min-w-[90px] ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
                                                             }`}>
                                                             <div className="flex flex-col items-center justify-center mx-auto rounded-full font-bold text-sm">
                                                                 <div>
@@ -1096,24 +1230,24 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                     ) : entry.rank === 3 ? (
                                                                         <span className="text-2xl">🥉</span>
                                                                     ) : (
-                                                                        <span className="text-gray-500">#{entry.rank}</span>
+                                                                        <span className="text-gray-500">{entry.rank}</span>
                                                                     )}
                                                                 </div>
                                                                 <span className="text-[10px] text-gray-400 font-normal leading-none mt-1 whitespace-nowrap">({entry.globalRank || '-'})</span>
                                                             </div>
                                                         </td>
-                                                        <td className={`px-4 py-3 whitespace-nowrap sticky left-[90px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-gray-100 w-[130px] min-w-[130px] ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
+                                                        <td className={`px-4 py-3 whitespace-nowrap sticky left-[90px] z-10 border-b border-gray-100 border-r border-gray-200 w-[130px] min-w-[130px] ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
                                                             }`}>
                                                             {entry.rollNumber}
                                                         </td>
-                                                        <td className={`px-4 py-3 whitespace-nowrap font-medium sticky left-[220px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-gray-100 w-[260px] min-w-[260px] truncate ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
+                                                        <td className={`px-4 py-3 whitespace-nowrap font-medium sticky left-[220px] z-10 border-b border-gray-100 border-r border-gray-200 w-[260px] min-w-[260px] truncate ${isCurrentUser ? 'bg-purple-100' : 'bg-white group-hover:bg-gray-50'
                                                             }`} title={entry.name}>
                                                             {entry.name}
                                                         </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100">
+                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100 border-r border-gray-200">
                                                             {entry.branch}
                                                         </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100 hidden lg:table-cell">
+                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100 border-r border-gray-200 hidden lg:table-cell">
                                                             {entry.username && entry.username !== 'N/A' ? (
                                                                 <a href={`/profile/${entry.username}`} target="_blank" rel="noreferrer" className="text-blue-600 font-medium hover:text-blue-800 hover:underline transition-colors flex items-center gap-1">
                                                                     {entry.username}
@@ -1167,11 +1301,11 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100">{entry.externalScores?.hackerrank || 0}</td>
-                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100">{entry.externalScores?.leetcode || 0}</td>
-                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100">{entry.externalScores?.interviewbit || 0}</td>
-                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100">{entry.externalScores?.codechef || 0}</td>
-                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100">{entry.externalScores?.codeforces || 0}</td>
+                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100 border-r border-gray-200">{entry.externalScores?.hackerrank || 0}</td>
+                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100 border-r border-gray-200">{entry.externalScores?.leetcode || 0}</td>
+                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100 border-r border-gray-200">{entry.externalScores?.interviewbit || 0}</td>
+                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100 border-r border-gray-200">{entry.externalScores?.codechef || 0}</td>
+                                                                <td className="px-2 py-1.5 whitespace-nowrap text-center text-gray-700 border-b border-gray-100 border-r border-gray-200">{entry.externalScores?.codeforces || 0}</td>
                                                             </>
                                                         )}
 
@@ -1180,7 +1314,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                             const score = entry.internalContests?.[contest.id];
                                                             const participated = score !== undefined;
                                                             return (
-                                                                <td key={contest.id} className="px-3 py-2 whitespace-nowrap text-center text-gray-600 border-l border-gray-100 border-b border-gray-100">
+                                                                <td key={contest.id} className="px-3 py-2 whitespace-nowrap text-center text-gray-600 border-l border-gray-100 border-r border-gray-200 border-b border-gray-100">
                                                                     {participated ? (
                                                                         <span className={`font-semibold ${score > 0 ? 'text-indigo-700' : 'text-gray-400'}`}>
                                                                             {score}
@@ -1500,143 +1634,154 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-gray-200">
-                                                    {paginatedInternalData.map((entry, index) => (
-                                                        <tr
-                                                            key={`${entry.studentId}-${index}`}
-                                                            className={`hover:bg-gray-50 transition-colors bg-white ${entry.rollNumber === user?.education?.rollNumber
-                                                                ? 'bg-blue-50/60 ring-1 ring-blue-100'
-                                                                : ''
-                                                                }`}
-                                                        >
-                                                            <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-inherit z-10 border-r border-gray-100">
-                                                                <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm mx-auto">
-                                                                    {entry.rank === 1 ? (
-                                                                        <span className="text-2xl">🥇</span>
-                                                                    ) : entry.rank === 2 ? (
-                                                                        <span className="text-2xl">🥈</span>
-                                                                    ) : entry.rank === 3 ? (
-                                                                        <span className="text-2xl">🥉</span>
+                                                    {paginatedInternalData.map((entry, index) => {
+                                                        const actualUserId = user?._id || user?.id || tokenUserId || localUserData?._id || localUserData?.id;
+                                                        const actualRoll = user?.education?.rollNumber || localUserData?.education?.rollNumber;
+                                                        const actualUsername = user?.username || localUserData?.username;
+
+                                                        const isCurrentUser = Boolean(
+                                                            (entry.studentId && actualUserId && String(entry.studentId) === String(actualUserId)) ||
+                                                            (actualRoll && entry.rollNumber && entry.rollNumber !== 'N/A' && String(entry.rollNumber).toLowerCase() === String(actualRoll).toLowerCase()) ||
+                                                            (actualUsername && entry.username && entry.username !== 'N/A' && String(entry.username).toLowerCase() === String(actualUsername).toLowerCase())
+                                                        );
+                                                        return (
+                                                            <tr
+                                                                key={`${entry.studentId || entry.rollNumber}-${index}`}
+                                                                className={`hover:bg-gray-50 transition-colors ${isCurrentUser
+                                                                    ? 'bg-purple-100'
+                                                                    : 'bg-white'
+                                                                    }`}
+                                                            >
+                                                                <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-inherit z-10 border-r border-gray-100">
+                                                                    <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm mx-auto">
+                                                                        {entry.rank === 1 ? (
+                                                                            <span className="text-2xl">🥇</span>
+                                                                        ) : entry.rank === 2 ? (
+                                                                            <span className="text-2xl">🥈</span>
+                                                                        ) : entry.rank === 3 ? (
+                                                                            <span className="text-2xl">🥉</span>
+                                                                        ) : (
+                                                                            <span className="text-gray-500">#{entry.rank}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                {/* Roll No - sticky */}
+                                                                <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
+                                                                {/* Username Column */}
+                                                                <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={(entry.isSpotUser || entry.username?.startsWith('spot_')) ? '' : (entry.username !== 'N/A' && entry.username ? entry.username : entry.fullName)}>
+                                                                    {(entry.isSpotUser || entry.username?.startsWith('spot_')) ? (
+                                                                        <span className="text-gray-400 font-medium">-</span>
+                                                                    ) : entry.username !== 'N/A' && entry.username ? (
+                                                                        <a href={`/profile/${entry.username}`} target="_blank" rel="noreferrer" className="text-blue-600 font-medium hover:text-blue-800 hover:underline transition-colors flex items-center gap-1">
+                                                                            {entry.username}
+                                                                        </a>
                                                                     ) : (
-                                                                        <span className="text-gray-500">#{entry.rank}</span>
+                                                                        <span className="text-gray-500 italic">No Username</span>
                                                                     )}
-                                                                </div>
-                                                            </td>
-                                                            {/* Roll No - sticky */}
-                                                            <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
-                                                            {/* Username Column */}
-                                                            <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={(entry.isSpotUser || entry.username?.startsWith('spot_')) ? '' : (entry.username !== 'N/A' && entry.username ? entry.username : entry.fullName)}>
-                                                                {(entry.isSpotUser || entry.username?.startsWith('spot_')) ? (
-                                                                    <span className="text-gray-400 font-medium">-</span>
-                                                                ) : entry.username !== 'N/A' && entry.username ? (
-                                                                    <a href={`/profile/${entry.username}`} target="_blank" rel="noreferrer" className="text-blue-600 font-medium hover:text-blue-800 hover:underline transition-colors flex items-center gap-1">
-                                                                        {entry.username}
-                                                                    </a>
-                                                                ) : (
-                                                                    <span className="text-gray-500 italic">No Username</span>
-                                                                )}
-                                                            </td>
-                                                            {/* Full Name */}
-                                                            <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={entry.fullName}>{entry.fullName}</td>
-                                                            {/* Branch */}
-                                                            <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
+                                                                </td>
+                                                                {/* Full Name */}
+                                                                <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={entry.fullName}>{entry.fullName}</td>
+                                                                {/* Branch */}
+                                                                <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
 
-                                                            {/* Per-Problem Cells: status badge + tries + submission time */}
-                                                            {contestInfo?.problems?.map(prob => {
-                                                                const pData = entry.problems?.[prob._id];
-                                                                const status = pData?.status || 'Not Attempted';
-                                                                const rawTime = pData?.submittedAt;
-                                                                let formattedSubTime = null;
-                                                                if (rawTime !== undefined && rawTime !== null) {
-                                                                    if (rawTime < 60) {
-                                                                        formattedSubTime = `${rawTime}m`;
-                                                                    } else {
-                                                                        const h = Math.floor(rawTime / 60);
-                                                                        const m = rawTime % 60;
-                                                                        formattedSubTime = `${h}:${m.toString().padStart(2, '0')}h`;
+                                                                {/* Per-Problem Cells: status badge + tries + submission time */}
+                                                                {contestInfo?.problems?.map(prob => {
+                                                                    const pData = entry.problems?.[prob._id];
+                                                                    const status = pData?.status || 'Not Attempted';
+                                                                    const rawTime = pData?.submittedAt;
+                                                                    let formattedSubTime = null;
+                                                                    if (rawTime !== undefined && rawTime !== null) {
+                                                                        if (rawTime < 60) {
+                                                                            formattedSubTime = `${rawTime}m`;
+                                                                        } else {
+                                                                            const h = Math.floor(rawTime / 60);
+                                                                            const m = rawTime % 60;
+                                                                            formattedSubTime = `${h}:${m.toString().padStart(2, '0')}h`;
+                                                                        }
                                                                     }
-                                                                }
 
-                                                                let bgClass = 'bg-gray-50 border-gray-200';
-                                                                let textClass = 'text-gray-400';
-                                                                let statusText = 'Not Tried';
-                                                                let statusIcon = '—';
+                                                                    let bgClass = 'bg-gray-50 border-gray-200';
+                                                                    let textClass = 'text-gray-400';
+                                                                    let statusText = 'Not Tried';
+                                                                    let statusIcon = '—';
 
-                                                                if (status === 'Accepted') {
-                                                                    bgClass = 'bg-green-50 border-green-200';
-                                                                    textClass = 'text-green-700';
-                                                                    statusText = 'Accepted';
-                                                                    statusIcon = '✓';
-                                                                } else if (status === 'Wrong Answer') {
-                                                                    bgClass = 'bg-red-50 border-red-200';
-                                                                    textClass = 'text-red-600';
-                                                                    statusText = 'Wrong Ans';
-                                                                    statusIcon = '✗';
-                                                                }
+                                                                    if (status === 'Accepted') {
+                                                                        bgClass = 'bg-green-50 border-green-200';
+                                                                        textClass = 'text-green-700';
+                                                                        statusText = 'Accepted';
+                                                                        statusIcon = '✓';
+                                                                    } else if (status === 'Wrong Answer') {
+                                                                        bgClass = 'bg-red-50 border-red-200';
+                                                                        textClass = 'text-red-600';
+                                                                        statusText = 'Wrong Ans';
+                                                                        statusIcon = '✗';
+                                                                    }
 
-                                                                return (
-                                                                    <td key={prob._id} className="px-2 py-2 text-center border-l border-gray-100 min-w-[160px]">
-                                                                        <div className={`rounded border inline-flex flex-col items-center gap-0.5 px-3 py-1.5 min-w-[130px] ${bgClass}`}>
-                                                                            <span className={`text-xs font-bold ${textClass}`}>
-                                                                                {statusIcon} {statusText}
-                                                                            </span>
-                                                                            {(pData?.tries > 0 || formattedSubTime) && (
-                                                                                <span className="text-[11px] text-gray-500 font-medium">
-                                                                                    {pData.tries > 0 ? `${pData.tries} ${pData.tries === 1 ? 'try' : 'tries'}` : ''}
-                                                                                    {pData.tries > 0 && formattedSubTime ? ` · ${formattedSubTime}` : formattedSubTime}
-                                                                                </span>
-                                                                            )}
-                                                                        </div>
-                                                                    </td>
-                                                                );
-                                                            })}
-
-                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">
-                                                                {entry.time < 60 ? `${entry.time}m` : `${Math.floor(entry.time / 60)}:${(entry.time % 60).toString().padStart(2, '0')}h`}
-                                                            </td>
-                                                            <td className="px-3 py-2 whitespace-nowrap text-center">
-                                                                <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
-                                                                    {entry.problemsSolved}/{contestInfo?.totalProblems || contestInfo?.problems?.length || 0}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                <span className={entry.tabSwitchCount > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                    {entry.tabSwitchCount || 0}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                <span className={entry.fullscreenExits > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                    {entry.fullscreenExits || 0}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                {(() => {
-                                                                    const total = (entry.tabSwitchCount || 0) + (entry.fullscreenExits || 0);
                                                                     return (
-                                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${total === 0 ? 'bg-green-100 text-green-800'
-                                                                            : total < 3 ? 'bg-yellow-100 text-yellow-800'
-                                                                                : 'bg-red-100 text-red-800'
-                                                                            }`}>
-                                                                            {total}
-                                                                        </span>
+                                                                        <td key={prob._id} className="px-2 py-2 text-center border-l border-gray-100 min-w-[160px]">
+                                                                            <div className={`rounded border inline-flex flex-col items-center gap-0.5 px-3 py-1.5 min-w-[130px] ${bgClass}`}>
+                                                                                <span className={`text-xs font-bold ${textClass}`}>
+                                                                                    {statusIcon} {statusText}
+                                                                                </span>
+                                                                                {(pData?.tries > 0 || formattedSubTime) && (
+                                                                                    <span className="text-[11px] text-gray-500 font-medium">
+                                                                                        {pData.tries > 0 ? `${pData.tries} ${pData.tries === 1 ? 'try' : 'tries'}` : ''}
+                                                                                        {pData.tries > 0 && formattedSubTime ? ` · ${formattedSubTime}` : formattedSubTime}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
                                                                     );
-                                                                })()}
-                                                            </td>
-                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                {entry.isCompleted ? (
-                                                                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200 inline-block">
-                                                                        Finished
+                                                                })}
+
+                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">
+                                                                    {entry.time < 60 ? `${entry.time}m` : `${Math.floor(entry.time / 60)}:${(entry.time % 60).toString().padStart(2, '0')}h`}
+                                                                </td>
+                                                                <td className="px-3 py-2 whitespace-nowrap text-center">
+                                                                    <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
+                                                                        {entry.problemsSolved}/{contestInfo?.totalProblems || contestInfo?.problems?.length || 0}
                                                                     </span>
-                                                                ) : (
-                                                                    <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200 inline-block">
-                                                                        In Progress
+                                                                </td>
+                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                    <span className={entry.tabSwitchCount > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                        {entry.tabSwitchCount || 0}
                                                                     </span>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-3 py-3 whitespace-nowrap text-center sticky right-0 bg-inherit z-10 border-l border-gray-100 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                                                                <span className="font-bold text-lg text-blue-600">{entry.score}</span>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                                </td>
+                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                    <span className={entry.fullscreenExits > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                        {entry.fullscreenExits || 0}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                    {(() => {
+                                                                        const total = (entry.tabSwitchCount || 0) + (entry.fullscreenExits || 0);
+                                                                        return (
+                                                                            <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${total === 0 ? 'bg-green-100 text-green-800'
+                                                                                : total < 3 ? 'bg-yellow-100 text-yellow-800'
+                                                                                    : 'bg-red-100 text-red-800'
+                                                                                }`}>
+                                                                                {total}
+                                                                            </span>
+                                                                        );
+                                                                    })()}
+                                                                </td>
+                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                    {entry.isCompleted ? (
+                                                                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200 inline-block">
+                                                                            Finished
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200 inline-block">
+                                                                            In Progress
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-3 py-3 whitespace-nowrap text-center sticky right-0 bg-inherit z-10 border-l border-gray-100 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                                                    <span className="font-bold text-lg text-blue-600">{entry.score}</span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>

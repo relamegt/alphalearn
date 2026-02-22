@@ -119,6 +119,7 @@ const getBatchLeaderboard = async (req, res) => {
                 const overallScore = alphaCoins + externalTotal;
 
                 return {
+                    studentId: studentId.toString(),
                     rank: entry.rank,
                     globalRank: entry.globalRank,
                     rollNumber: user?.education?.rollNumber || entry.rollNumber || 'N/A',

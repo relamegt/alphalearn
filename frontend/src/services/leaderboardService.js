@@ -1,33 +1,16 @@
-import axios from 'axios';
-import Cookies from 'js-cookie';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-const apiClient = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    withCredentials: true,
-});
-
-apiClient.interceptors.request.use((config) => {
-    const accessToken = Cookies.get('accessToken');
-    if (accessToken) {
-        config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-});
+import apiClient from './apiClient';
 
 // Cache keys
 const CACHE_KEYS = {
-    PRACTICE_LEADERBOARD: 'alphaknowledge_practice_leaderboard_',
-    EXTERNAL_DATA: 'alphaknowledge_external_data_',
-    CACHE_TIMESTAMP: 'alphaknowledge_cache_timestamp_',
+    PRACTICE_LEADERBOARD: 'alphaknowledge_practice_leaderboard_v2_',
+    EXTERNAL_DATA: 'alphaknowledge_external_data_v2_',
+    CACHE_TIMESTAMP: 'alphaknowledge_cache_timestamp_v2_',
 };
 
 // Cache duration: 24 hours
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
+
+const PENDING_CALLS = {};
 
 const leaderboardService = {
     // Check if cache is valid
@@ -94,23 +77,35 @@ const leaderboardService = {
             }
         }
 
-        try {
-            console.log('🌐 Fetching practice leaderboard from API...');
-            const response = await apiClient.get(`/reports/leaderboard/batch/${batchId}`);
-
-            // Save to cache
-            leaderboardService.saveToCache(cacheKey, response.data);
-
-            return response.data;
-        } catch (error) {
-            // If API fails, try to return cached data even if expired
-            const cachedData = leaderboardService.getFromCache(cacheKey);
-            if (cachedData) {
-                console.warn('⚠️ API failed, using cached data');
-                return cachedData;
-            }
-            throw error.response?.data || { message: 'Failed to fetch leaderboard' };
+        const pendingKey = `batch_${batchId}_${forceRefresh}`;
+        if (PENDING_CALLS[pendingKey]) {
+            return await PENDING_CALLS[pendingKey];
         }
+
+        const promise = (async () => {
+            try {
+                console.log('🌐 Fetching practice leaderboard from API...');
+                const response = await apiClient.get(`/reports/leaderboard/batch/${batchId}`);
+
+                // Save to cache
+                leaderboardService.saveToCache(cacheKey, response.data);
+
+                return response.data;
+            } catch (error) {
+                // If API fails, try to return cached data even if expired
+                const cachedData = leaderboardService.getFromCache(cacheKey);
+                if (cachedData) {
+                    console.warn('⚠️ API failed, using cached data');
+                    return cachedData;
+                }
+                throw error.response?.data || { message: 'Failed to fetch leaderboard' };
+            } finally {
+                delete PENDING_CALLS[pendingKey];
+            }
+        })();
+
+        PENDING_CALLS[pendingKey] = promise;
+        return promise;
     },
 
     // Get ALL External Data with caching
@@ -126,23 +121,35 @@ const leaderboardService = {
             }
         }
 
-        try {
-            console.log('🌐 Fetching external data from API...');
-            const response = await apiClient.get(`/reports/leaderboard/batch/${batchId}/external-all`);
-
-            // Save to cache
-            leaderboardService.saveToCache(cacheKey, response.data);
-
-            return response.data;
-        } catch (error) {
-            // If API fails, try to return cached data even if expired
-            const cachedData = leaderboardService.getFromCache(cacheKey);
-            if (cachedData) {
-                console.warn('⚠️ API failed, using cached data');
-                return cachedData;
-            }
-            throw error.response?.data || { message: 'Failed to fetch external data' };
+        const pendingKey = `ext_${batchId}_${forceRefresh}`;
+        if (PENDING_CALLS[pendingKey]) {
+            return await PENDING_CALLS[pendingKey];
         }
+
+        const promise = (async () => {
+            try {
+                console.log('🌐 Fetching external data from API...');
+                const response = await apiClient.get(`/reports/leaderboard/batch/${batchId}/external-all`);
+
+                // Save to cache
+                leaderboardService.saveToCache(cacheKey, response.data);
+
+                return response.data;
+            } catch (error) {
+                // If API fails, try to return cached data even if expired
+                const cachedData = leaderboardService.getFromCache(cacheKey);
+                if (cachedData) {
+                    console.warn('⚠️ API failed, using cached data');
+                    return cachedData;
+                }
+                throw error.response?.data || { message: 'Failed to fetch external data' };
+            } finally {
+                delete PENDING_CALLS[pendingKey];
+            }
+        })();
+
+        PENDING_CALLS[pendingKey] = promise;
+        return promise;
     },
 
     // Get FULL Internal Contest Leaderboard (NO CACHE - real-time)

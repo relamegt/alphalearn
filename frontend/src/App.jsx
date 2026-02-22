@@ -118,11 +118,21 @@ const PublicRoute = ({ children }) => {
     return children;
 };
 
+const DynamicToaster = () => {
+    const location = useLocation();
+    // Use top-center for coding interfaces to avoid overlaying run/submit buttons (usually on the right)
+    const isCodingInterface =
+        location.pathname.match(/^\/student\/problems\/.+/) ||
+        location.pathname.match(/^\/contests\/.+/);
+
+    return <Toaster position={isCodingInterface ? "top-center" : "top-right"} />;
+};
+
 function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <Toaster position="top-right" />
+                <DynamicToaster />
                 <SecurityWrapper>
                     <Routes>
                         {/* ... existing routes ... */}
