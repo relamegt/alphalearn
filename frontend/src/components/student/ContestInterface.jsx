@@ -548,9 +548,9 @@ const ContestInterface = ({ isPractice = false }) => {
         setCurrentLang(saved.lang);
         setSelectedProblem(problem);
         setSampleTestCases(problem.testCases?.filter(tc => !tc.isHidden) || []);
-        // Restore previous results for this problem (if any), otherwise clear
-        setConsoleOutput(consoleOutputMap[problem._id] ?? null);
-        setBottomTab(consoleOutputMap[problem._id] ? 'results' : 'testcases');
+        // Always clear results when switching problems — never carry over from previous
+        setConsoleOutput(null);
+        setBottomTab('testcases');
         setActiveInputCase(0);
         setActiveResultCase(0);
         setShowEditorial(false);

@@ -483,7 +483,7 @@ const CodeEditor = () => {
     const [resultsAnimKey, setResultsAnimKey] = useState(0);
     const [isResizing, setIsResizing] = useState(false);
 
-    const { running, submitting, runResult, submitResult, runCode, submitCode, error: execError } = useCodeExecution();
+    const { running, submitting, runResult, submitResult, runCode, submitCode, resetResults, error: execError } = useCodeExecution();
 
     // ───── fetch problem ──────────────────────────────────────────────────────
     useEffect(() => {
@@ -553,6 +553,13 @@ const CodeEditor = () => {
             });
         return () => { mounted = false; };
     }, [problemId, user, navigate]);
+
+    // ───── reset run/submit results when problem changes ─────────────────────
+    useEffect(() => {
+        resetResults();
+        setActiveResultCase(0);
+        setBottomTab('testcases');
+    }, [problemId, resetResults]);
 
     // ───── load code draft/submission ─────────────────────────────────────────
     useEffect(() => {

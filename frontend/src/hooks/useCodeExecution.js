@@ -162,9 +162,16 @@ const useCodeExecution = () => {
         }
     }, []);
 
+    const resetResults = useCallback(() => {
+        setRunResult(null);
+        setSubmitResult(null);
+        setError(null);
+    }, []);
+
     return {
         runCode,
         submitCode,
+        resetResults,
         running,
         submitting,
         runResult,
