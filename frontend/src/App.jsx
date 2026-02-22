@@ -12,6 +12,9 @@ import Navbar from './components/shared/Navbar';
 import SecurityWrapper from './components/shared/SecurityWrapper';
 import ExtensionCheck from './components/shared/ExtensionCheck';
 
+// Public Components
+import PublicProfile from './components/public/PublicProfile';
+
 // Admin Components
 import AdminDashboard from './components/admin/AdminDashboard';
 import BatchManager from './components/admin/BatchManager';
@@ -160,6 +163,10 @@ function App() {
                                     <CompleteProfile />
                                 </ProtectedRoute>
                             }
+                        />
+                        <Route
+                            path="/profile/:username"
+                            element={<PublicProfile />}
                         />
                         {/* Admin Routes */}
                         <Route

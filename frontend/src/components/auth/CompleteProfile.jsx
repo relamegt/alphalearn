@@ -11,9 +11,11 @@ const CompleteProfile = () => {
     const { user, logout } = useAuth();
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1);
+    const [sameWhatsapp, setSameWhatsapp] = useState(false);
 
     const [formData, setFormData] = useState({
         // Basic Info
+        username: '',
         firstName: '',
         lastName: '',
         newPassword: '',
@@ -46,6 +48,67 @@ const CompleteProfile = () => {
 
     const [errors, setErrors] = useState({});
     const [availableBranches, setAvailableBranches] = useState([]);
+
+    // Live username checking states
+    const [usernameStatus, setUsernameStatus] = useState(null); // 'checking', 'available', 'unavailable', 'invalid'
+    const [usernameMessage, setUsernameMessage] = useState('');
+
+    // No longer auto-filling username based on email
+
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        const checkUsername = async () => {
+            const val = formData.username;
+            if (!val || val.length < 3 || val.length > 10) {
+                setUsernameStatus('invalid');
+                setUsernameMessage('Username must be 3-10 characters long');
+                return;
+            }
+            if (!/^[a-z0-9_.]+$/.test(val)) {
+                setUsernameStatus('invalid');
+                setUsernameMessage('Only lowercase letters, numbers, dots and underscores allowed');
+                return;
+            }
+            if (!/^[a-z]/.test(val)) {
+                setUsernameStatus('invalid');
+                setUsernameMessage('Username must start with a letter');
+                return;
+            }
+
+            setUsernameStatus('checking');
+            try {
+                const axios = (await import('axios')).default;
+                const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+                const res = await axios.get(`${API_BASE_URL}/public/check-username/${val}`, { signal });
+                if (res.data.available) {
+                    setUsernameStatus('available');
+                    setUsernameMessage(res.data.message);
+                } else {
+                    setUsernameStatus('unavailable');
+                    setUsernameMessage(res.data.message);
+                }
+            } catch (err) {
+                if (err.name !== 'CanceledError') {
+                    setUsernameStatus('invalid');
+                    setUsernameMessage('Error checking availability');
+                }
+            }
+        };
+
+        const timer = setTimeout(() => {
+            if (formData.username) {
+                checkUsername();
+            }
+        }, 1200);
+
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [formData.username]);
 
     // Fetch user data to pre-fill education from batch
     useEffect(() => {
@@ -136,6 +199,10 @@ const CompleteProfile = () => {
     const validateStep1 = () => {
         const newErrors = {};
 
+        if (!formData.username.trim() || usernameStatus !== 'available') {
+            newErrors.username = 'Please choose a valid and available username';
+        }
+
         if (!formData.firstName.trim()) {
             newErrors.firstName = 'First name is required';
         }
@@ -164,10 +231,12 @@ const CompleteProfile = () => {
     const validateStep2 = () => {
         const newErrors = {};
 
-        if (!formData.phone.trim()) {
-            newErrors.phone = 'Phone number is required';
-        } else if (!/^\d{10}$/.test(formData.phone)) {
+        if (formData.phone.trim() && !/^\d{10}$/.test(formData.phone)) {
             newErrors.phone = 'Phone number must be 10 digits';
+        }
+
+        if (!formData.dob) {
+            newErrors.dob = 'Date of Birth is required';
         }
 
         if (!formData.gender) {
@@ -237,12 +306,13 @@ const CompleteProfile = () => {
             }
 
             const profileData = {
+                username: formData.username,
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 newPassword: formData.newPassword,
                 profilePicture: profilePictureUrl,
-                phone: formData.phone,
-                whatsapp: formData.whatsapp || formData.phone,
+                phone: formData.phone || null,
+                whatsapp: sameWhatsapp ? (formData.phone || null) : (formData.whatsapp || null),
                 dob: formData.dob || null,
                 gender: formData.gender,
                 tshirtSize: formData.tshirtSize || null,
@@ -315,7 +385,7 @@ const CompleteProfile = () => {
 
                 {/* Form Card */}
                 <div className="bg-white rounded-lg shadow-xl p-8">
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} noValidate>
                         {/* Step 1: Basic Info */}
                         {step === 1 && (
                             <div className="space-y-6">
@@ -326,7 +396,7 @@ const CompleteProfile = () => {
                                 {/* Profile Picture Upload */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Profile Picture (Optional)
+                                        Profile Picture
                                     </label>
                                     <div className="flex items-center space-x-4">
                                         {formData.profilePicture && (
@@ -386,6 +456,51 @@ const CompleteProfile = () => {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Username *
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 font-medium">@</span>
+                                        <input
+                                            type="text"
+                                            name="username"
+                                            value={formData.username}
+                                            onChange={(e) => {
+                                                // Convert to lowercase and strip invalid characters
+                                                const sanitizedValue = e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, '');
+                                                handleChange({ target: { name: 'username', value: sanitizedValue } });
+                                                setUsernameStatus(null);
+                                            }}
+                                            maxLength="10"
+                                            className={`input-field pl-8 ${errors.username || usernameStatus === 'unavailable' || usernameStatus === 'invalid' ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : usernameStatus === 'available' ? 'border-green-500 focus:ring-green-500 focus:border-green-500' : ''}`}
+                                            placeholder="johndoe123"
+                                        />
+                                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                            {usernameStatus === 'checking' && (
+                                                <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                            )}
+                                            {usernameStatus === 'available' && (
+                                                <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                            )}
+                                            {(usernameStatus === 'unavailable' || usernameStatus === 'invalid') && (
+                                                <svg className="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {usernameMessage && (
+                                        <p className={`text-xs mt-1.5 font-medium ${usernameStatus === 'available' ? 'text-green-600' : 'text-red-500'}`}>
+                                            {usernameMessage}
+                                        </p>
+                                    )}
+                                    {errors.username && !usernameMessage && (
+                                        <p className="text-red-500 text-xs mt-1">{errors.username}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         New Password *
                                     </label>
                                     <input
@@ -433,7 +548,7 @@ const CompleteProfile = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Phone Number *
+                                            Phone Number
                                         </label>
                                         <input
                                             type="tel"
@@ -450,17 +565,29 @@ const CompleteProfile = () => {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            WhatsApp Number
-                                        </label>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                WhatsApp Number
+                                            </label>
+                                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                                <span className="text-xs text-gray-500">Same as phone</span>
+                                                <div
+                                                    onClick={() => setSameWhatsapp(v => !v)}
+                                                    className={`w-9 h-5 rounded-full relative transition-colors duration-200 ${sameWhatsapp ? 'bg-blue-600' : 'bg-gray-200'}`}
+                                                >
+                                                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${sameWhatsapp ? 'translate-x-4' : ''}`} />
+                                                </div>
+                                            </label>
+                                        </div>
                                         <input
                                             type="tel"
                                             name="whatsapp"
-                                            value={formData.whatsapp}
+                                            value={sameWhatsapp ? formData.phone : formData.whatsapp}
                                             onChange={handleChange}
                                             className="input-field"
-                                            placeholder="Same as phone (optional)"
+                                            placeholder="WhatsApp number"
                                             maxLength="10"
+                                            disabled={sameWhatsapp}
                                         />
                                     </div>
                                 </div>
@@ -468,15 +595,18 @@ const CompleteProfile = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Date of Birth
+                                            Date of Birth *
                                         </label>
                                         <input
                                             type="date"
                                             name="dob"
                                             value={formData.dob}
                                             onChange={handleChange}
-                                            className="input-field"
+                                            className={`input-field ${errors.dob ? 'border-red-500' : ''}`}
                                         />
+                                        {errors.dob && (
+                                            <p className="text-red-500 text-xs mt-1">{errors.dob}</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -501,12 +631,11 @@ const CompleteProfile = () => {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        T-Shirt Size (Optional)
+                                        T-Shirt Size
                                     </label>
                                     <CustomDropdown
                                         options={[
                                             { value: '', label: 'Select Size' },
-                                            { value: 'XS', label: 'XS' },
                                             { value: 'S', label: 'S' },
                                             { value: 'M', label: 'M' },
                                             { value: 'L', label: 'L' },
@@ -521,7 +650,7 @@ const CompleteProfile = () => {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Address (Optional)
+                                        Address
                                     </label>
                                     <div className="space-y-3">
                                         <input
@@ -541,22 +670,32 @@ const CompleteProfile = () => {
                                             placeholder="Street"
                                         />
                                         <div className="grid grid-cols-2 gap-3">
-                                            <input
-                                                type="text"
-                                                name="address.city"
-                                                value={formData.address.city}
-                                                onChange={handleChange}
-                                                className="input-field"
-                                                placeholder="City"
-                                            />
-                                            <input
-                                                type="text"
-                                                name="address.state"
-                                                value={formData.address.state}
-                                                onChange={handleChange}
-                                                className="input-field"
-                                                placeholder="State"
-                                            />
+                                            <div>
+                                                <input
+                                                    type="text"
+                                                    name="address.city"
+                                                    value={formData.address.city}
+                                                    onChange={handleChange}
+                                                    className={`input-field ${errors['address.city'] ? 'border-red-500' : ''}`}
+                                                    placeholder="City"
+                                                />
+                                                {errors['address.city'] && (
+                                                    <p className="text-red-500 text-xs mt-1">{errors['address.city']}</p>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <input
+                                                    type="text"
+                                                    name="address.state"
+                                                    value={formData.address.state}
+                                                    onChange={handleChange}
+                                                    className={`input-field ${errors['address.state'] ? 'border-red-500' : ''}`}
+                                                    placeholder="State"
+                                                />
+                                                {errors['address.state'] && (
+                                                    <p className="text-red-500 text-xs mt-1">{errors['address.state']}</p>
+                                                )}
+                                            </div>
                                         </div>
                                         <input
                                             type="text"
@@ -592,7 +731,6 @@ const CompleteProfile = () => {
                                                 onChange={handleChange}
                                                 className={`input-field ${errors.rollNumber ? 'border-red-500' : ''}`}
                                                 placeholder="20XX-DEPT-XXX"
-                                                required
                                             />
                                             {errors.rollNumber && (
                                                 <p className="text-red-500 text-xs mt-1">{errors.rollNumber}</p>

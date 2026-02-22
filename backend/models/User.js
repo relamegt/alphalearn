@@ -21,6 +21,7 @@ class User {
                 isActive: true,
                 isFirstLogin: true,
                 profileCompleted: false,
+                isPublicProfile: userData.isPublicProfile !== undefined ? userData.isPublicProfile : true,
                 activeSessionToken: null,
                 deviceFingerprint: null,
                 profile: {
@@ -81,6 +82,21 @@ class User {
     // Find user by email
     static async findByEmail(email) {
         return await collections.users.findOne({ email: email.toLowerCase() });
+    }
+
+    // Find user by username (checks username field first, falls back to email prefix)
+    static async findByUsername(username) {
+        // First try explicit username field
+        let user = await collections.users.findOne({ username: username.toLowerCase() });
+        // Fallback: The original implementation attempted to match email prefix via regex,
+        // which Astra DB Document API does not natively support without specific indexing.
+        // For public profiles, if the username doesn't strictly exist, we'll return null rather than risk an unsupported regex crash.
+        return user;
+    }
+
+    // Find user strictly by explicit username field (for availability checks)
+    static async findByUsernameExact(username) {
+        return await collections.users.findOne({ username: username.toLowerCase() });
     }
 
     // Find user by ID
@@ -374,6 +390,7 @@ class User {
                     isActive: true,
                     isFirstLogin: true,
                     profileCompleted: false,
+                    isPublicProfile: true,
                     activeSessionToken: null,
                     deviceFingerprint: null,
                     profile: {

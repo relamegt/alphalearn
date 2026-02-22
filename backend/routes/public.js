@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const publicController = require('../controllers/publicController');
+const { optionalAuth } = require('../middleware/auth');
 
 // Get public stats for homepage (no auth required)
 router.get('/stats', async (req, res) => {
@@ -20,5 +22,11 @@ router.get('/stats', async (req, res) => {
         });
     }
 });
+
+// Get user public profile
+router.get('/profile/:username', optionalAuth, publicController.getPublicProfile);
+
+// Check if username exists
+router.get('/check-username/:username', publicController.checkUsername);
 
 module.exports = router;

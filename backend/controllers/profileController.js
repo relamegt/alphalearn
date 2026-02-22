@@ -140,6 +140,7 @@ const updateProfile = async (req, res) => {
         const updateData = {};
 
         // Profile fields
+        if (req.body.isPublicProfile !== undefined) updateData.isPublicProfile = req.body.isPublicProfile;
         if (req.body.profilePicture) updateData['profile.profilePicture'] = req.body.profilePicture;
         if (req.body.phone) updateData['profile.phone'] = req.body.phone;
         if (req.body.whatsapp) updateData['profile.whatsapp'] = req.body.whatsapp;

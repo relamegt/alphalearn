@@ -9,7 +9,12 @@ import CustomDropdown from '../../shared/CustomDropdown';
 const PersonalDetails = () => {
     const { updateUser } = useAuth();
     const [loading, setLoading] = useState(false);
+    const [sameWhatsapp, setSameWhatsapp] = useState(false);
     const [personalData, setPersonalData] = useState({
+        username: '',
+        firstName: '',
+        lastName: '',
+        email: '',
         profilePicture: '',
         profilePictureFile: null,
         phone: '',
@@ -41,6 +46,10 @@ const PersonalDetails = () => {
             try {
                 const userData = await authService.getCurrentUser();
                 setPersonalData({
+                    username: userData.username || '',
+                    firstName: userData.firstName || '',
+                    lastName: userData.lastName || '',
+                    email: userData.email || '',
                     profilePicture: userData.profile?.profilePicture || '',
                     phone: userData.profile?.phone || '',
                     whatsapp: userData.profile?.whatsapp || '',
@@ -90,6 +99,12 @@ const PersonalDetails = () => {
 
     const handleUpdatePersonal = async (e) => {
         e.preventDefault();
+
+        if (!personalData.gender) {
+            toast.error('Gender is required');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -153,24 +168,79 @@ const PersonalDetails = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Readonly Core details */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                        <input
+                            type="text"
+                            value={personalData.firstName}
+                            readOnly
+                            disabled
+                            className="input-field bg-gray-100/80 cursor-not-allowed text-gray-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                        <input
+                            type="text"
+                            value={personalData.lastName}
+                            readOnly
+                            disabled
+                            className="input-field bg-gray-100/80 cursor-not-allowed text-gray-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                        <input
+                            type="text"
+                            value={personalData.username}
+                            readOnly
+                            disabled
+                            className="input-field bg-gray-100/80 cursor-not-allowed text-gray-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        <input
+                            type="email"
+                            value={personalData.email}
+                            readOnly
+                            disabled
+                            className="input-field bg-gray-100/80 cursor-not-allowed text-gray-500"
+                        />
+                    </div>
+
+                    {/* Editable details */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone </label>
                         <input
                             type="tel"
                             value={personalData.phone}
                             onChange={(e) => setPersonalData({ ...personalData, phone: e.target.value })}
                             className="input-field"
-                            required
+                            maxLength="10"
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp *</label>
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="block text-sm font-medium text-gray-700">WhatsApp</label>
+                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                <span className="text-xs text-gray-500">Same as phone</span>
+                                <div
+                                    onClick={() => setSameWhatsapp(v => !v)}
+                                    className={`w-9 h-5 rounded-full relative transition-colors duration-200 ${sameWhatsapp ? 'bg-blue-600' : 'bg-gray-200'}`}
+                                >
+                                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${sameWhatsapp ? 'translate-x-4' : ''}`} />
+                                </div>
+                            </label>
+                        </div>
                         <input
                             type="tel"
-                            value={personalData.whatsapp}
+                            value={sameWhatsapp ? personalData.phone : personalData.whatsapp}
                             onChange={(e) => setPersonalData({ ...personalData, whatsapp: e.target.value })}
                             className="input-field"
-                            required
+                            maxLength="10"
+                            disabled={sameWhatsapp}
                         />
                     </div>
                     <div>
@@ -183,7 +253,7 @@ const PersonalDetails = () => {
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
                         <CustomDropdown
                             options={[
                                 { value: '', label: 'Select Gender' },
@@ -204,7 +274,8 @@ const PersonalDetails = () => {
                                 { value: 'M', label: 'M' },
                                 { value: 'L', label: 'L' },
                                 { value: 'XL', label: 'XL' },
-                                { value: 'XXL', label: 'XXL' }
+                                { value: 'XXL', label: 'XXL' },
+                                { value: 'XXXL', label: 'XXXL' }
                             ]}
                             value={personalData.tshirtSize}
                             onChange={(val) => setPersonalData({ ...personalData, tshirtSize: val })}

@@ -7,7 +7,7 @@ const getPublicProfile = async (req, res) => {
     try {
         const { username } = req.params;
 
-        // Find user by username
+        // Find user by username or email prefix
         const user = await User.findByUsername(username);
 
         if (!user) {
@@ -17,8 +17,49 @@ const getPublicProfile = async (req, res) => {
             });
         }
 
-        // Check if profile is public
-        if (!user.isPublicProfile) {
+        let canViewProfile = false;
+        let canViewPrivateDetails = false;
+        let canViewDashboard = false;
+
+        const isPublicProfile = user.isPublicProfile !== false;
+
+        if (req.user) {
+            const requesterId = req.user.userId;
+            const requesterRole = req.user.role;
+            const requesterBatchIds = [req.user.batchId, ...(req.user.assignedBatches || [])]
+                .filter(Boolean)
+                .map(id => id.toString());
+
+            const userBatchId = user.batchId ? user.batchId.toString() : null;
+            const isSameBatch = userBatchId && requesterBatchIds.includes(userBatchId);
+
+            if (requesterRole === 'admin') {
+                canViewProfile = true;
+                canViewPrivateDetails = true;
+                canViewDashboard = true;
+            } else if (requesterRole === 'instructor' && isSameBatch) {
+                canViewProfile = true;
+                canViewPrivateDetails = true;
+                canViewDashboard = true;
+            } else if (requesterRole === 'student' && isSameBatch) {
+                canViewProfile = true;
+                canViewDashboard = true;
+            }
+
+            // Self can view everything
+            if (requesterId === user._id.toString()) {
+                canViewProfile = true;
+                canViewPrivateDetails = true;
+                canViewDashboard = true;
+            }
+        }
+
+        // If explicitly public, anyone can view the basic profile
+        if (isPublicProfile) {
+            canViewProfile = true;
+        }
+
+        if (!canViewProfile) {
             return res.status(403).json({
                 success: false,
                 message: 'Private profile cannot be viewed'
@@ -27,91 +68,86 @@ const getPublicProfile = async (req, res) => {
 
         const studentId = user._id.toString();
 
-        // Get heatmap data
-        const heatmapData = await Submission.getHeatmapData(studentId);
+        let dashboard = null;
 
-        // Get verdict data
-        const verdictData = await Submission.getVerdictData(studentId);
+        // Only fetch dashboard if allowed and if the target user is a student
+        if (canViewDashboard && user.role === 'student') {
+            // Get heatmap data
+            const heatmapData = await Submission.getHeatmapData(studentId);
 
-        // Get recent submissions
-        const recentSubmissions = await Submission.findRecentSubmissions(studentId, 5);
+            // Get verdict data
+            const verdictData = await Submission.getVerdictData(studentId);
 
-        // Get language stats
-        const languageStats = await Submission.getLanguageStats(studentId);
+            // Get recent submissions
+            const recentSubmissions = await Submission.findRecentSubmissions(studentId, 5);
 
-        // Get progress (base stats from DB)
-        const progress = await Progress.getStatistics(studentId);
+            // Get language stats
+            const languageStats = await Submission.getLanguageStats(studentId);
 
-        // Compute streak
-        const activeDateStrings = new Set(
-            Object.entries(heatmapData)
-                .filter(([, count]) => count > 0)
-                .map(([dateStr]) => dateStr)
-        );
+            // Get progress (base stats from DB)
+            const progress = await Progress.getStatistics(studentId);
 
-        let currentStreak = 0;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        let checkDate = new Date(today);
-        while (activeDateStrings.has(checkDate.toDateString())) {
-            currentStreak++;
-            checkDate.setDate(checkDate.getDate() - 1);
-        }
-        if (currentStreak === 0) {
-            checkDate = new Date(today);
-            checkDate.setDate(checkDate.getDate() - 1);
+            // Compute streak
+            const activeDateStrings = new Set(
+                Object.entries(heatmapData || {})
+                    .filter(([, count]) => count > 0)
+                    .map(([dateStr]) => dateStr)
+            );
+
+            let currentStreak = 0;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            let checkDate = new Date(today);
             while (activeDateStrings.has(checkDate.toDateString())) {
                 currentStreak++;
                 checkDate.setDate(checkDate.getDate() - 1);
             }
-        }
-
-        const sortedDates = [...activeDateStrings]
-            .map(ds => new Date(ds))
-            .sort((a, b) => a - b);
-
-        let maxStreak = 0;
-        let runningStreak = 0;
-        let prevDate = null;
-        for (const d of sortedDates) {
-            if (!prevDate) {
-                runningStreak = 1;
-            } else {
-                const diff = Math.round((d - prevDate) / (1000 * 60 * 60 * 24));
-                runningStreak = diff === 1 ? runningStreak + 1 : 1;
+            if (currentStreak === 0) {
+                checkDate = new Date(today);
+                checkDate.setDate(checkDate.getDate() - 1);
+                while (activeDateStrings.has(checkDate.toDateString())) {
+                    currentStreak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                }
             }
-            if (runningStreak > maxStreak) maxStreak = runningStreak;
-            prevDate = d;
-        }
 
-        if (progress) {
-            progress.streakDays = currentStreak;
-            progress.maxStreakDays = maxStreak;
-        }
+            const sortedDates = [...activeDateStrings]
+                .map(ds => new Date(ds))
+                .sort((a, b) => a - b);
 
-        // Get external profile stats
-        const externalStats = await ExternalProfile.getStudentExternalStats(studentId);
-
-        let leaderboardStats = null;
-        try {
-            const LeaderboardModel = require('../models/Leaderboard');
-            if (typeof LeaderboardModel.getStudentRank === 'function') {
-                leaderboardStats = await LeaderboardModel.getStudentRank(studentId);
+            let maxStreak = 0;
+            let runningStreak = 0;
+            let prevDate = null;
+            for (const d of sortedDates) {
+                if (!prevDate) {
+                    runningStreak = 1;
+                } else {
+                    const diff = Math.round((d - prevDate) / (1000 * 60 * 60 * 24));
+                    runningStreak = diff === 1 ? runningStreak + 1 : 1;
+                }
+                if (runningStreak > maxStreak) maxStreak = runningStreak;
+                prevDate = d;
             }
-        } catch (lbErr) {
-            console.error('Leaderboard stats fetch failed (non-fatal):', lbErr.message);
-        }
 
-        res.json({
-            success: true,
-            user: {
-                firstName: user.firstName,
-                lastName: user.lastName,
-                username: user.username,
-                education: user.education,
-                profilePicture: user.profile?.profilePicture
-            },
-            dashboard: {
+            if (progress) {
+                progress.streakDays = currentStreak;
+                progress.maxStreakDays = maxStreak;
+            }
+
+            // Get external profile stats
+            const externalStats = await ExternalProfile.getStudentExternalStats(studentId);
+
+            let leaderboardStats = null;
+            try {
+                const LeaderboardModel = require('../models/Leaderboard');
+                if (typeof LeaderboardModel.getStudentRank === 'function') {
+                    leaderboardStats = await LeaderboardModel.getStudentRank(studentId);
+                }
+            } catch (lbErr) {
+                console.error('Leaderboard stats fetch failed (non-fatal):', lbErr.message);
+            }
+
+            dashboard = {
                 userSubmissionsHeatMapData: heatmapData,
                 userVerdictData: verdictData,
                 recentSubmissions: recentSubmissions.map(s => ({
@@ -128,7 +164,37 @@ const getPublicProfile = async (req, res) => {
                 progress,
                 externalContestStats: externalStats,
                 leaderboardStats
-            }
+            };
+        }
+
+        const userResponse = {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            username: user.username || user.email.split('@')[0],
+            education: user.education,
+            profilePicture: user.profile?.profilePicture,
+            aboutMe: user.profile?.aboutMe,
+            role: user.role
+        };
+
+        if (canViewPrivateDetails) {
+            userResponse.email = user.email;
+            userResponse.phone = user.profile?.phone;
+            userResponse.whatsapp = user.profile?.whatsapp;
+            userResponse.tshirtSize = user.profile?.tshirtSize;
+            userResponse.gender = user.profile?.gender;
+            userResponse.dob = user.profile?.dob;
+            userResponse.address = user.profile?.address;
+            userResponse.createdAt = user.createdAt;
+            userResponse.lastLogin = user.lastLogin;
+            userResponse.isActive = user.isActive;
+            userResponse.canViewPrivateDetails = true;
+        }
+
+        res.json({
+            success: true,
+            user: userResponse,
+            dashboard: dashboard
         });
     } catch (error) {
         console.error('Get public profile error:', error);
@@ -140,6 +206,60 @@ const getPublicProfile = async (req, res) => {
     }
 };
 
+const checkUsername = async (req, res) => {
+    try {
+        const { username } = req.params;
+
+        // Basic validation
+        if (!username || username.trim().length < 3) {
+            return res.json({
+                success: true,
+                available: false,
+                message: 'Username must be at least 3 characters long'
+            });
+        }
+        if (username.trim().length > 10) {
+            return res.json({
+                success: true,
+                available: false,
+                message: 'Username cannot be longer than 10 characters'
+            });
+        }
+
+        const validRegex = /^[a-z0-9_.]+$/;
+        if (!validRegex.test(username)) {
+            return res.json({
+                success: true,
+                available: false,
+                message: 'Only lowercase letters, numbers, dots and underscores allowed'
+            });
+        }
+        if (!/^[a-z]/.test(username)) {
+            return res.json({
+                success: true,
+                available: false,
+                message: 'Username must start with a letter'
+            });
+        }
+
+        const user = await User.findByUsernameExact(username);
+
+        res.json({
+            success: true,
+            available: !user,
+            message: user ? 'Username is already taken' : 'Username is available'
+        });
+    } catch (error) {
+        console.error('Check username error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to check username',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
-    getPublicProfile
+    getPublicProfile,
+    checkUsername
 };

@@ -15,7 +15,7 @@ import ScoreDistributionChart from './dashboard/ScoreDistributionChart';
 import HeatmapChart from '../shared/HeatmapChart';
 
 const Dashboard = () => {
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -117,6 +117,7 @@ const Dashboard = () => {
                 <div className="lg:col-span-1 space-y-6">
                     <ProfileCard
                         user={user}
+                        updateUser={updateUser}
                     />
 
                     {/* New Professional Stats Card */}

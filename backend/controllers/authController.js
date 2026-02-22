@@ -100,12 +100,14 @@ const login = async (req, res) => {
             user: {
                 id: user._id,
                 email: user.email,
+                username: user.username,
                 firstName: user.firstName,
                 lastName: user.lastName,
                 role: user.role,
                 batchId: user.batchId,
                 assignedBatches: user.assignedBatches || [],
-                profileCompleted: user.profileCompleted || false
+                profileCompleted: user.profileCompleted || false,
+                isPublicProfile: user.isPublicProfile !== false // defaults to true if undefined
             }
         });
     } catch (error) {
@@ -123,6 +125,7 @@ const completeFirstLoginProfile = async (req, res) => {
     try {
         const userId = req.user.userId;
         const {
+            username,
             firstName,
             lastName,
             newPassword,
@@ -159,6 +162,42 @@ const completeFirstLoginProfile = async (req, res) => {
             });
         }
 
+        // Validate username
+        if (!username || username.trim().length < 3) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username must be at least 3 characters long'
+            });
+        }
+        if (username.trim().length > 10) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username cannot be longer than 10 characters'
+            });
+        }
+        const validUsernameRegex = /^[a-z0-9_.]+$/;
+        if (!validUsernameRegex.test(username)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username can only contain lowercase letters, numbers, dots and underscores'
+            });
+        }
+        if (!/^[a-z]/.test(username)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username must start with a letter'
+            });
+        }
+
+        let existingUser = await User.findByUsernameExact(username);
+        // Exclude self if found (just in case they already claimed it somehow)
+        if (existingUser && existingUser._id.toString() !== userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username is already taken'
+            });
+        }
+
         // Hash new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
@@ -171,8 +210,16 @@ const completeFirstLoginProfile = async (req, res) => {
             });
         }
 
+        // Validate address if provided (optional)
+        if (address && typeof address !== 'object') {
+            return res.status(400).json({
+                success: false,
+                message: 'Address data structure is invalid'
+            });
+        }
         // Prepare update data
         const updateData = {
+            username: username.toLowerCase().trim(),
             firstName,
             lastName,
             password: hashedPassword,
@@ -318,6 +365,7 @@ const getCurrentUser = async (req, res) => {
             user: {
                 id: user._id,
                 email: user.email,
+                username: user.username,
                 firstName: user.firstName,
                 lastName: user.lastName,
                 role: user.role,
@@ -328,6 +376,7 @@ const getCurrentUser = async (req, res) => {
                 skills: user.skills,
                 isActive: user.isActive,
                 profileCompleted: user.profileCompleted || false,
+                isPublicProfile: user.isPublicProfile !== false, // defaults to true if undefined
                 isFirstLogin: user.isFirstLogin || false,
                 isSpotUser: req.user.isSpotUser || false,
                 registeredForContest: user.registeredForContest,
@@ -516,6 +565,7 @@ const verifySession = async (req, res) => {
             user: {
                 id: user._id,
                 email: user.email,
+                username: user.username,
                 role: user.role
             }
         });
