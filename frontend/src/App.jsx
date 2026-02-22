@@ -144,7 +144,7 @@ function App() {
                             }
                         />
                         <Route
-                            path="/reset-password/:token"
+                            path="/reset-password"
                             element={
                                 <PublicRoute>
                                     <ResetPassword />

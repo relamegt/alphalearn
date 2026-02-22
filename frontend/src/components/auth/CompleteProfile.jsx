@@ -344,15 +344,28 @@ const CompleteProfile = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl w-full">
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+            {/* Background elements */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+                <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-200/50 rounded-full mix-blend-multiply filter blur-[80px] animate-blob"></div>
+                <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] bg-indigo-200/50 rounded-full mix-blend-multiply filter blur-[80px] animate-blob" style={{ animationDelay: '2s' }}></div>
+            </div>
+
+            <div className="max-w-4xl w-full relative z-10">
                 {/* Header */}
                 <div className="text-center mb-10">
-                    <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
-                        Welcome to AlphaKnowledge!
+                    <div className="inline-flex justify-center mb-6 p-4 bg-white/50 backdrop-blur-sm rounded-full shadow-sm border border-white/50">
+                        <img
+                            src="/alphalogo.png"
+                            alt="AlphaKnowledge"
+                            className="w-16 h-16 object-contain drop-shadow"
+                        />
+                    </div>
+                    <h1 className="text-4xl sm:text-5xl font-extrabold text-indigo-950 tracking-tight mb-3">
+                        Welcome to AlphaKnowledge
                     </h1>
-                    <p className="text-lg text-gray-500">
-                        Let's set up your profile to get you started.
+                    <p className="text-lg text-indigo-800/80 font-medium max-w-2xl mx-auto">
+                        We're excited to have you on board! Let's get your profile set up so you can start accelerating your learning journey.
                     </p>
                 </div>
 
@@ -384,7 +397,7 @@ const CompleteProfile = () => {
                 </div>
 
                 {/* Form Card */}
-                <div className="bg-white rounded-lg shadow-xl p-8">
+                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-white p-8 sm:p-10 transition-all">
                     <form onSubmit={handleSubmit} noValidate>
                         {/* Step 1: Basic Info */}
                         {step === 1 && (
@@ -866,7 +879,10 @@ const CompleteProfile = () => {
                                 >
                                     {loading ? (
                                         <>
-                                            <span className="spinner mr-2"></span>
+                                            <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
                                             Submitting...
                                         </>
                                     ) : (

@@ -12,6 +12,8 @@ const ReportGenerator = () => {
     const [batches, setBatches] = useState([]);
     const [selectedBatch, setSelectedBatch] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isExportingCSV, setIsExportingCSV] = useState(false);
+    const [isExportingPDF, setIsExportingPDF] = useState(false);
 
     // Filter states for Export ONLY (Leaderboard handles its own display filtering)
     const [exportFilters, setExportFilters] = useState({
@@ -59,11 +61,14 @@ const ReportGenerator = () => {
             return;
         }
 
+        setIsExportingCSV(true);
         try {
             await reportService.exportCSVReport(batchToExport, exportFilters);
             toast.success('CSV report downloaded successfully');
         } catch (error) {
             toast.error('Failed to export CSV report');
+        } finally {
+            setIsExportingCSV(false);
         }
     };
 
@@ -75,11 +80,14 @@ const ReportGenerator = () => {
             return;
         }
 
+        setIsExportingPDF(true);
         try {
             await reportService.exportPDFReport(batchToExport, exportFilters);
             toast.success('PDF report downloaded successfully');
         } catch (error) {
             toast.error('Failed to export PDF report');
+        } finally {
+            setIsExportingPDF(false);
         }
     };
 
@@ -120,19 +128,43 @@ const ReportGenerator = () => {
                     <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                         <button
                             onClick={handleExportCSV}
-                            disabled={!selectedBatch && user?.role !== 'instructor'}
+                            disabled={!selectedBatch && user?.role !== 'instructor' || isExportingCSV}
                             className="bg-white border border-gray-200 hover:border-green-300 text-gray-700 hover:text-green-700 px-5 py-2.5 rounded-xl font-medium transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                         >
-                            <Database size={18} className="text-green-600" />
-                            Export CSV
+                            {isExportingCSV ? (
+                                <>
+                                    <svg className="animate-spin -ml-1 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Exporting...
+                                </>
+                            ) : (
+                                <>
+                                    <Database size={18} className="text-green-600" />
+                                    Export CSV
+                                </>
+                            )}
                         </button>
                         <button
                             onClick={handleExportPDF}
-                            disabled={!selectedBatch && user?.role !== 'instructor'}
+                            disabled={!selectedBatch && user?.role !== 'instructor' || isExportingPDF}
                             className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-sm hover:shadow-md shadow-primary-200 flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                         >
-                            <FileText size={18} />
-                            Export PDF
+                            {isExportingPDF ? (
+                                <>
+                                    <svg className="animate-spin -ml-1 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Exporting...
+                                </>
+                            ) : (
+                                <>
+                                    <FileText size={18} />
+                                    Export PDF
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>

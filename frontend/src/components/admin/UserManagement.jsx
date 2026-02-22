@@ -12,6 +12,7 @@ const UserManagement = () => {
     const [admins, setAdmins] = useState([]);
     const [availableInstructors, setAvailableInstructors] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
 
@@ -96,6 +97,7 @@ const UserManagement = () => {
 
     const handleAddSingleUser = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
         try {
             const response = await adminService.addUserToBatch(selectedBatch, singleUserData);
             toast.success(response.message);
@@ -105,11 +107,14 @@ const UserManagement = () => {
             fetchBatchUsers();
         } catch (error) {
             toast.error(error.message || 'Failed to add user');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const handleCreateAdmin = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
         try {
             const response = await adminService.createAdminUser(adminFormData.email);
             toast.success(response.message);
@@ -119,6 +124,8 @@ const UserManagement = () => {
             fetchAdmins();
         } catch (error) {
             toast.error(error.message || 'Failed to create admin');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -147,6 +154,7 @@ const UserManagement = () => {
             return;
         }
 
+        setIsSubmitting(true);
         try {
             const response = await adminService.bulkAddUsersToBatch(
                 selectedBatch,
@@ -170,6 +178,8 @@ const UserManagement = () => {
             fetchBatchUsers();
         } catch (error) {
             toast.error(error.message || 'Bulk upload failed');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -568,8 +578,16 @@ const UserManagement = () => {
                                     >
                                         Cancel
                                     </button>
-                                    <button type="submit" className="btn-primary">
-                                        Add User
+                                    <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                                        {isSubmitting ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Adding...
+                                            </>
+                                        ) : 'Add User'}
                                     </button>
                                 </div>
                             </form>
@@ -631,8 +649,16 @@ const UserManagement = () => {
                                     >
                                         Cancel
                                     </button>
-                                    <button type="submit" className="btn-primary bg-indigo-600 hover:bg-indigo-700 border-transparent">
-                                        Create Admin
+                                    <button type="submit" className="btn-primary bg-indigo-600 hover:bg-indigo-700 border-transparent" disabled={isSubmitting}>
+                                        {isSubmitting ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Creating...
+                                            </>
+                                        ) : 'Create Admin'}
                                     </button>
                                 </div>
                             </form>
@@ -732,8 +758,16 @@ const UserManagement = () => {
                                     >
                                         Cancel
                                     </button>
-                                    <button type="submit" className="btn-primary">
-                                        Upload Users
+                                    <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                                        {isSubmitting ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Uploading...
+                                            </>
+                                        ) : 'Upload Users'}
                                     </button>
                                 </div>
                             </form>

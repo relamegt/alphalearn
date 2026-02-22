@@ -36,6 +36,7 @@ const ProblemManager = () => {
     const [problems, setProblems] = useState([]);
     const [filteredProblems, setFilteredProblems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Search & Filter
     const [searchQuery, setSearchQuery] = useState('');
@@ -109,6 +110,7 @@ const ProblemManager = () => {
 
     const handleCreateProblem = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
         try {
             await problemService.createProblem(formData);
             toast.success('Problem created successfully');
@@ -117,6 +119,8 @@ const ProblemManager = () => {
             fetchProblems();
         } catch (error) {
             toast.error(error.message || 'Failed to create problem');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -127,6 +131,7 @@ const ProblemManager = () => {
             return;
         }
 
+        setIsSubmitting(true);
         try {
             const response = await problemService.bulkCreateProblems(bulkFile);
             toast.success(response.message);
@@ -135,11 +140,14 @@ const ProblemManager = () => {
             fetchProblems();
         } catch (error) {
             toast.error(error.message || 'Bulk upload failed');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const handleUpdateProblem = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
         try {
             await problemService.updateProblem(editingProblem._id, formData);
             toast.success('Problem updated successfully');
@@ -149,6 +157,8 @@ const ProblemManager = () => {
             fetchProblems();
         } catch (error) {
             toast.error(error.message || 'Failed to update problem');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -668,8 +678,16 @@ const ProblemManager = () => {
                             >
                                 Cancel
                             </button>
-                            <button type="submit" form="problemForm" className="btn-primary">
-                                {showEditModal ? 'Update Problem' : 'Create Problem'}
+                            <button type="submit" form="problemForm" className="btn-primary" disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                    <>
+                                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Saving...
+                                    </>
+                                ) : showEditModal ? 'Update Problem' : 'Create Problem'}
                             </button>
                         </div>
                     </div>
@@ -721,8 +739,16 @@ const ProblemManager = () => {
                                     >
                                         Cancel
                                     </button>
-                                    <button type="submit" className="btn-primary">
-                                        Upload
+                                    <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                                        {isSubmitting ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Uploading...
+                                            </>
+                                        ) : 'Upload'}
                                     </button>
                                 </div>
                             </form>
@@ -889,7 +915,13 @@ const ProblemManager = () => {
                                     onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(124,58,237,0.35)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                                 >
                                     {savingSolution ? (
-                                        <><span style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} /> Saving...</>
+                                        <>
+                                            <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Saving...
+                                        </>
                                     ) : (
                                         <><CheckCircle size={15} /> Save {solutionLang === 'cpp' ? 'C++' : solutionLang === 'javascript' ? 'JS' : solutionLang.toUpperCase()} Solution</>
                                     )}
