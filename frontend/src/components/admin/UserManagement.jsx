@@ -118,7 +118,7 @@ const UserManagement = () => {
         try {
             const response = await adminService.createAdminUser(adminFormData.email);
             toast.success(response.message);
-            toast(`Temp Password: ${response.admin.tempPassword}`, { duration: 10000 });
+            toast(`Temp Password: ${response.user.tempPassword}`, { duration: 10000 });
             setShowAddAdminModal(false);
             setAdminFormData({ email: '' });
             fetchAdmins();

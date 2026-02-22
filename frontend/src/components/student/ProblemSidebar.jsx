@@ -160,12 +160,58 @@ const ProblemSidebar = () => {
     const progressPct = problems.length ? Math.round(solvedCount / problems.length * 100) : 0;
     const circumference = 2 * Math.PI * 16; // Increased radius
 
-    if (loading) return (
-        <div className="flex flex-col items-center justify-center h-full gap-4">
-            <div className="w-8 h-8 rounded-full border-4 border-gray-200 border-t-primary-600 animate-spin" />
-            <span className="text-sm font-medium text-gray-400">Loading problems…</span>
-        </div>
-    );
+    if (loading) {
+        return (
+            <div className="flex flex-col h-full bg-white overflow-hidden border-r border-gray-200 animate-pulse">
+                {/* Header Skeleton */}
+                <div className="shrink-0 p-4 border-b border-gray-100 bg-white z-10">
+                    {/* Title row */}
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-6 h-6 rounded-full bg-gray-200"></div>
+                            <div className="space-y-2">
+                                <div className="w-24 h-4 bg-gray-200 rounded"></div>
+                                <div className="w-16 h-3 bg-gray-200 rounded"></div>
+                            </div>
+                        </div>
+                        {/* Circular progress dummy */}
+                        <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0"></div>
+                    </div>
+
+                    {/* Search Bar Skeleton */}
+                    <div className="w-full h-8 bg-gray-100 rounded-lg mb-3"></div>
+
+                    {/* Difficulty filter skeleton */}
+                    <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="flex-1 py-1.5 h-6 bg-gray-200 rounded-md"></div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* List Skeleton */}
+                <div className="flex-1 overflow-hidden p-4 space-y-4">
+                    {[1, 2, 3, 4].map((section) => (
+                        <div key={section} className="space-y-3">
+                            {/* Section header */}
+                            <div className="flex items-center gap-3 w-full">
+                                <div className="w-5 h-5 rounded bg-gray-200 shrink-0"></div>
+                                <div className="w-3/4 h-4 bg-gray-200 rounded"></div>
+                            </div>
+                            {/* Problem items */}
+                            {[1, 2].map(item => (
+                                <div key={item} className="flex items-center gap-3 pl-8">
+                                    <div className="w-4 h-4 rounded-full bg-gray-200 shrink-0"></div>
+                                    <div className="w-2/3 h-3 bg-gray-200 rounded"></div>
+                                    <div className="w-8 h-3 bg-gray-200 rounded ml-auto"></div>
+                                </div>
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-full bg-white overflow-hidden border-r border-gray-200">
@@ -283,7 +329,7 @@ const ProblemSidebar = () => {
                                                         problem={problem}
                                                         active={isActive(problem.id)}
                                                         indent="pl-12"
-                                                        onClick={() => navigate(`/problem/${problem.id}`)}
+                                                        onClick={() => navigate(`/problems/${problem.id}`)}
                                                     />
                                                 ))}
                                             </div>
@@ -312,7 +358,7 @@ const ProblemSidebar = () => {
                                     problem={problem}
                                     active={isActive(problem.id)}
                                     indent="pl-4"
-                                    onClick={() => navigate(`/problem/${problem.id}`)}
+                                    onClick={() => navigate(`/problems/${problem.id}`)}
                                 />
                             ))}
                         </div>

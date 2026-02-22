@@ -206,7 +206,7 @@ const Dashboard = () => {
                                                 <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                                                     <td className="px-6 py-4">
                                                         <Link
-                                                            to={`/problem/${submission.problemSlug || submission.problemId}?tab=submissions`}
+                                                            to={`/problems/${submission.problemSlug || submission.problemId}?tab=submissions`}
                                                             className="font-medium text-gray-900 line-clamp-1 hover:text-primary-600 transition-colors"
                                                             title={submission.problemTitle}
                                                         >

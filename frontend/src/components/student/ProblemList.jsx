@@ -35,10 +35,58 @@ const ProblemList = () => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-screen bg-gray-50">
-                <div className="flex flex-col items-center space-y-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-                    <p className="text-gray-500 font-medium">Loading your workspace...</p>
+            <div className="h-screen flex flex-col bg-gray-50">
+                {/* Header Skeleton */}
+                <div className="h-14 border-b border-gray-200 bg-white flex items-center px-4 justify-between animate-pulse">
+                    <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                        <div className="w-48 h-5 bg-gray-200 rounded"></div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="w-24 h-8 bg-gray-200 rounded"></div>
+                        <div className="w-24 h-8 bg-gray-200 rounded"></div>
+                    </div>
+                </div>
+
+                {/* Main Content Skeleton */}
+                <div className="flex-1 flex overflow-hidden animate-pulse">
+                    {/* Left Panel (Description) */}
+                    <div className="w-1/2 border-r border-gray-200 bg-white p-6 flex flex-col gap-4">
+                        <div className="w-3/4 h-8 bg-gray-200 rounded"></div>
+                        <div className="flex gap-2">
+                            <div className="w-16 h-6 bg-gray-200 rounded-full"></div>
+                            <div className="w-20 h-6 bg-gray-200 rounded-full"></div>
+                        </div>
+                        <div className="w-full h-4 bg-gray-200 rounded mt-4"></div>
+                        <div className="w-5/6 h-4 bg-gray-200 rounded"></div>
+                        <div className="w-full h-4 bg-gray-200 rounded"></div>
+                        <div className="w-4/5 h-4 bg-gray-200 rounded"></div>
+
+                        <div className="w-1/3 h-6 bg-gray-200 rounded mt-8 mb-2"></div>
+                        <div className="w-full h-32 bg-gray-100 rounded-lg"></div>
+                    </div>
+
+                    {/* Right Panel (Editor) */}
+                    <div className="w-1/2 flex flex-col">
+                        <div className="h-10 border-b border-gray-200 bg-white flex items-center px-4 gap-2">
+                            <div className="w-20 h-6 bg-gray-200 rounded"></div>
+                            <div className="w-20 h-6 bg-gray-200 rounded"></div>
+                        </div>
+                        <div className="flex-1 bg-white p-6 flex flex-col gap-4">
+                            <div className="w-1/3 h-4 bg-gray-200 rounded"></div>
+                            <div className="w-1/4 h-4 bg-gray-200 rounded ml-4"></div>
+                            <div className="w-1/2 h-4 bg-gray-200 rounded ml-4"></div>
+                        </div>
+                        {/* Terminal area */}
+                        <div className="h-48 border-t border-gray-200 bg-white p-4 flex flex-col gap-2">
+                            <div className="flex gap-4 border-b border-gray-100 pb-2">
+                                <div className="w-20 h-4 bg-gray-200 rounded"></div>
+                                <div className="w-20 h-4 bg-gray-200 rounded"></div>
+                            </div>
+                            <div className="w-1/2 h-4 bg-gray-200 rounded mt-2"></div>
+                            <div className="w-1/3 h-4 bg-gray-200 rounded"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         );

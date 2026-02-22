@@ -46,19 +46,35 @@ const Navbar = () => {
                 { to: '/admin/sections', label: 'Sections', icon: Icons.Leaderboard },
                 { to: '/admin/contests', label: 'Contests', icon: Icons.Contest },
                 { to: '/admin/reports', label: 'Reports', icon: Icons.Dashboard },
-                { to: '/admin/problems-workspace', label: 'Problems Workspace', icon: Icons.Practice, newTab: true },
+                { to: '/problems', label: 'Problems Workspace', icon: Icons.Practice, newTab: true },
+                {
+                    label: 'Settings',
+                    icon: Icons.Settings,
+                    children: [
+                        { to: '/admin/settings/personal', label: 'Personal details' },
+                        { to: '/admin/settings/security', label: 'Change password' },
+                    ]
+                },
             ],
             // ...
             instructor: [
                 { to: '/instructor/dashboard', label: 'Dashboard', icon: Icons.Dashboard },
                 { to: '/instructor/contests', label: 'Contests', icon: Icons.Contest },
                 { to: '/instructor/reports', label: 'Reports', icon: Icons.Dashboard },
-                { to: '/instructor/problems-workspace', label: 'Problems Workspace', icon: Icons.Practice, newTab: true },
+                { to: '/problems', label: 'Problems Workspace', icon: Icons.Practice, newTab: true },
                 { to: '/instructor/reset-profile', label: 'Reset Profile', icon: Icons.Profile },
+                {
+                    label: 'Settings',
+                    icon: Icons.Settings,
+                    children: [
+                        { to: '/instructor/settings/personal', label: 'Personal details' },
+                        { to: '/instructor/settings/security', label: 'Change password' },
+                    ]
+                },
             ],
             student: [
                 { to: '/student/dashboard', label: 'Dashboard', icon: Icons.Dashboard },
-                { to: '/student/problems', label: 'Practice', icon: Icons.Practice, newTab: true },
+                { to: '/problems', label: 'Practice Workspace', icon: Icons.Practice, newTab: true },
                 {
                     label: 'Contests',
                     icon: Icons.Contest,
@@ -67,7 +83,7 @@ const Navbar = () => {
                         { to: '/student/leaderboard?type=contest', label: 'External Contests' },
                     ]
                 },
-                { to: '/student/batch-leaderboard', label: 'Batch Leaderboard', icon: Icons.Leaderboard, newTab: true },
+                { to: `/${user?.batchName ? encodeURIComponent(user.batchName) : (user?.batchId || 'unassigned')}/leaderboard`, label: 'Batch Leaderboard', icon: Icons.Leaderboard, newTab: true },
                 {
                     label: 'Settings',
                     icon: Icons.Settings,

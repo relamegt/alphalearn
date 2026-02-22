@@ -3,12 +3,25 @@ const { collections } = require('../config/astra');
 
 const slugify = text => text ? text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : 'problem';
 
+// Generate a unique slug: tries clean slug first, then appends -2, -3, etc. only if already taken
+async function uniqueSlug(title) {
+    const base = slugify(title) || 'problem';
+    let candidate = base;
+    let counter = 2;
+    while (true) {
+        const existing = await collections.problems.findOne({ slug: candidate });
+        if (!existing) return candidate;
+        candidate = `${base}-${counter}`;
+        counter++;
+    }
+}
+
 class Problem {
     // Create new problem
     static async create(problemData) {
         const problem = {
             _id: new ObjectId(),
-            slug: slugify(problemData.title) + '-' + Math.floor(Math.random() * 10000), // Append random number to avoid collisions
+            slug: await uniqueSlug(problemData.title),
             title: problemData.title,
             section: problemData.section,
             difficulty: problemData.difficulty, // 'Easy' | 'Medium' | 'Hard'
@@ -150,9 +163,9 @@ class Problem {
 
     // Bulk create problems (JSON upload)
     static async bulkCreate(problemsData, createdBy) {
-        const problems = problemsData.map(p => ({
+        const problems = await Promise.all(problemsData.map(async p => ({
             _id: new ObjectId(),
-            slug: slugify(p.title) + '-' + Math.floor(Math.random() * 10000),
+            slug: await uniqueSlug(p.title),
             title: p.title,
             section: p.section,
             difficulty: p.difficulty,
@@ -169,8 +182,7 @@ class Problem {
             contestId: p.contestId ? new ObjectId(p.contestId) : null,
             createdBy: new ObjectId(createdBy),
             createdAt: new Date()
-        }));
-
+        })));
         const result = await collections.problems.insertMany(problems);
         return result;
     }

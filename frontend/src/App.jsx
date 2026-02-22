@@ -225,16 +225,19 @@ function App() {
                                 </ProtectedRoute>
                             }
                         />
+
                         <Route
-                            path="/admin/problems-workspace"
+                            path="/problems"
                             element={
-                                <ProtectedRoute allowedRoles={['admin']}>
-                                    <ProblemList />
+                                <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']}>
+                                    <ExtensionCheck>
+                                        <CodeEditor />
+                                    </ExtensionCheck>
                                 </ProtectedRoute>
                             }
                         />
                         <Route
-                            path="/problem/:problemId"
+                            path="/problems/:problemId"
                             element={
                                 <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']}>
                                     <ExtensionCheck>
@@ -277,29 +280,12 @@ function App() {
                                 </ProtectedRoute>
                             }
                         />
-                        <Route
-                            path="/instructor/problems-workspace"
-                            element={
-                                <ProtectedRoute allowedRoles={['instructor']}>
-                                    <ProblemList />
-                                </ProtectedRoute>
-                            }
-                        />
-
                         {/* Student Routes */}
                         <Route
                             path="/student/dashboard"
                             element={
                                 <ProtectedRoute allowedRoles={['student']}>
                                     <Dashboard />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/student/problems"
-                            element={
-                                <ProtectedRoute allowedRoles={['student']}>
-                                    <ProblemList />
                                 </ProtectedRoute>
                             }
                         />
@@ -341,9 +327,9 @@ function App() {
                         />
                         <Route path="/contest/*" element={<Navigate to={`/contests/${location.pathname.split('/').slice(2).join('/')}${location.search}`} replace />} />
                         <Route
-                            path="/student/batch-leaderboard"
+                            path="/:batchName/leaderboard"
                             element={
-                                <ProtectedRoute allowedRoles={['student', 'instructor']} hideNavbar={true}>
+                                <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']} hideNavbar={true}>
                                     <Leaderboard isBatchView={true} />
                                 </ProtectedRoute>
                             }
@@ -389,6 +375,40 @@ function App() {
                             path="/student/settings/security"
                             element={
                                 <ProtectedRoute allowedRoles={['student']}>
+                                    <SecuritySettings />
+                                </ProtectedRoute>
+                            }
+                        />
+                        {/* Admin Settings Routes */}
+                        <Route
+                            path="/admin/settings/personal"
+                            element={
+                                <ProtectedRoute allowedRoles={['admin']}>
+                                    <PersonalDetails />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/admin/settings/security"
+                            element={
+                                <ProtectedRoute allowedRoles={['admin']}>
+                                    <SecuritySettings />
+                                </ProtectedRoute>
+                            }
+                        />
+                        {/* Instructor Settings Routes */}
+                        <Route
+                            path="/instructor/settings/personal"
+                            element={
+                                <ProtectedRoute allowedRoles={['instructor']}>
+                                    <PersonalDetails />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/instructor/settings/security"
+                            element={
+                                <ProtectedRoute allowedRoles={['instructor']}>
                                     <SecuritySettings />
                                 </ProtectedRoute>
                             }

@@ -41,8 +41,40 @@ const ContestList = () => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-screen bg-gray-50">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <div className="min-h-screen bg-gray-50/50 pb-20">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+                    {/* Header Skeleton */}
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-200 pb-6 animate-pulse">
+                        <div>
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
+                                <div className="w-64 h-8 bg-gray-200 rounded"></div>
+                            </div>
+                            <div className="w-96 h-5 bg-gray-200 rounded mt-4 ml-1"></div>
+                        </div>
+                    </div>
+
+                    {/* Contests Section Skeleton */}
+                    <section className="animate-pulse">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-1.5 h-6 bg-gray-300 rounded-full"></div>
+                            <div className="w-48 h-6 bg-gray-200 rounded"></div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 flex flex-col h-64 shadow-sm">
+                                    <div className="w-3/4 h-6 bg-gray-200 rounded mb-4"></div>
+                                    <div className="w-full h-4 bg-gray-200 rounded mb-2"></div>
+                                    <div className="w-5/6 h-4 bg-gray-200 rounded mb-6"></div>
+                                    <div className="mt-auto space-y-3 bg-gray-50 rounded-xl p-4">
+                                        <div className="w-1/2 h-4 bg-gray-200 rounded"></div>
+                                        <div className="w-1/2 h-4 bg-gray-200 rounded"></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                </div>
             </div>
         );
     }

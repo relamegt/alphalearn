@@ -10,10 +10,7 @@ import CustomDropdown from '../shared/CustomDropdown';
 const PLATFORMS = [
     { value: 'leetcode', label: 'LeetCode' },
     { value: 'codechef', label: 'CodeChef' },
-    { value: 'codeforces', label: 'Codeforces' },
-    { value: 'hackerrank', label: 'HackerRank' },
-    { value: 'interviewbit', label: 'InterviewBit' },
-    // { value: 'spoj', label: 'SPOJ' },
+    { value: 'codeforces', label: 'Codeforces' }
 ];
 
 const Leaderboard = ({ batchId, isBatchView }) => {

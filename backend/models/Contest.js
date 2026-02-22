@@ -20,15 +20,25 @@ async function resolveProblemId(idOrSlug) {
     return null; // problem not found
 }
 
+// Generate a unique contest slug: tries clean slug first, then appends -2, -3, etc. if taken
+async function uniqueContestSlug(title) {
+    const base = (title || 'contest').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    let candidate = base;
+    let counter = 2;
+    while (true) {
+        const existing = await collections.contests.findOne({ slug: candidate });
+        if (!existing) return candidate;
+        candidate = `${base}-${counter}`;
+        counter++;
+    }
+}
+
 class Contest {
     // Create new contest
     static async create(contestData) {
-        const titleSlug = (contestData.title || 'contest').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        const randSuffix = Math.floor(Math.random() * 10000);
-
         const contest = {
             _id: new ObjectId(),
-            slug: `${titleSlug}-${randSuffix}`,
+            slug: await uniqueContestSlug(contestData.title),
             title: contestData.title,
             description: contestData.description || '',
             startTime: new Date(contestData.startTime),

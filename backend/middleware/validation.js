@@ -93,8 +93,8 @@ const validateExternalProfile = [
 
 // Profile update validation rules
 const validateProfileUpdate = [
-    body('phone').optional().isMobilePhone().withMessage('Valid phone number required'),
-    body('whatsapp').optional().isMobilePhone().withMessage('Valid WhatsApp number required'),
+    body('phone').optional({ nullable: true, checkFalsy: true }).isMobilePhone().withMessage('Valid phone number required'),
+    body('whatsapp').optional({ nullable: true, checkFalsy: true }).isMobilePhone().withMessage('Valid WhatsApp number required'),
     body('email').optional().isEmail().normalizeEmail().withMessage('Valid email is required'),
     body('aboutMe').optional().isLength({ max: 250 }).withMessage('About me must be less than 250 characters'),
     handleValidationErrors
@@ -163,8 +163,8 @@ const validateProfileCompletion = [
         .isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
         .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])/)
         .withMessage('Password must contain uppercase, lowercase, number, and special character'),
-    body('phone').optional().isMobilePhone().withMessage('Invalid phone number'),
-    body('whatsapp').optional().isMobilePhone().withMessage('Invalid WhatsApp number'),
+    body('phone').optional({ nullable: true, checkFalsy: true }).isMobilePhone().withMessage('Invalid phone number'),
+    body('whatsapp').optional({ nullable: true, checkFalsy: true }).isMobilePhone().withMessage('Invalid WhatsApp number'),
     handleValidationErrors
 ];
 

@@ -10,6 +10,7 @@ const PersonalDetails = () => {
     const { updateUser } = useAuth();
     const [loading, setLoading] = useState(false);
     const [sameWhatsapp, setSameWhatsapp] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
     const [personalData, setPersonalData] = useState({
         username: '',
         firstName: '',
@@ -43,6 +44,7 @@ const PersonalDetails = () => {
 
     useEffect(() => {
         const fetchUserProfile = async () => {
+            setInitialLoading(true);
             try {
                 const userData = await authService.getCurrentUser();
                 setPersonalData({
@@ -63,6 +65,8 @@ const PersonalDetails = () => {
                 });
             } catch (error) {
                 toast.error('Failed to load profile');
+            } finally {
+                setInitialLoading(false);
             }
         };
         fetchUserProfile();
@@ -127,6 +131,34 @@ const PersonalDetails = () => {
             setLoading(false);
         }
     };
+
+    if (initialLoading) {
+        return (
+            <div className="max-w-4xl mx-auto card animate-pulse">
+                <div className="w-48 h-6 bg-gray-200 rounded mb-6 pb-2 border-b border-gray-100"></div>
+                <div className="space-y-6 mt-4">
+                    {/* Profile Picture Skeleton */}
+                    <div className="flex items-center space-x-6">
+                        <div className="w-24 h-24 rounded-full bg-gray-200"></div>
+                        <div className="flex-1 space-y-2">
+                            <div className="w-1/3 h-8 bg-gray-200 rounded"></div>
+                            <div className="w-1/4 h-4 bg-gray-200 rounded"></div>
+                        </div>
+                    </div>
+                    {/* Basic info skeleton grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                            <div key={i}>
+                                <div className="w-32 h-4 bg-gray-200 rounded mb-1"></div>
+                                <div className="w-full h-10 bg-gray-200 rounded"></div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="w-full md:w-48 h-10 bg-gray-200 rounded mt-4"></div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-4xl mx-auto card animate-fade-in">
@@ -343,12 +375,12 @@ const PersonalDetails = () => {
                 <div className="flex justify-end pt-4">
                     <button type="submit" disabled={loading} className="btn-primary w-full md:w-auto px-8">
                         {loading ? (<>
-    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-    Saving...
-</>) : 'Save Changes'}
+                            <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Saving...
+                        </>) : 'Save Changes'}
                     </button>
                 </div>
             </form>

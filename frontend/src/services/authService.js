@@ -11,6 +11,10 @@ const apiClient = axios.create({
     withCredentials: true,
 });
 
+let meCache = null;
+let meCacheTime = 0;
+let mePromise = null;
+
 const authService = {
     // Login
     login: async (email, password) => {
@@ -22,6 +26,10 @@ const authService = {
                 Cookies.set('accessToken', response.data.tokens.accessToken, { expires: 1 }); // 24 hours
                 Cookies.set('refreshToken', response.data.tokens.refreshToken, { expires: 7 }); // 7 days
                 localStorage.setItem('user', JSON.stringify(response.data.user));
+
+                // Set cache
+                meCache = response.data.user;
+                meCacheTime = Date.now();
 
                 // Show notification if session was replaced
                 if (response.data.sessionReplaced) {
@@ -40,6 +48,9 @@ const authService = {
         Cookies.set('accessToken', token, { expires: 1 }); // 24 hours
         // No refresh token for spot users
         localStorage.setItem('user', JSON.stringify(user));
+
+        meCache = user;
+        meCacheTime = Date.now();
         return { success: true, user };
     },
 
@@ -107,12 +118,24 @@ const authService = {
             Cookies.remove('accessToken');
             Cookies.remove('refreshToken');
             localStorage.removeItem('user');
+            meCache = null;
+            mePromise = null;
+            meCacheTime = 0;
         }
     },
 
-    // Get current user
-    getCurrentUser: async () => {
+    // Get current user (with deduplication & short-term cache)
+    getCurrentUser: async (forceRefresh = false) => {
         try {
+            // 60-second in-memory cache to prevent spamming the server on rapid route navigation
+            if (!forceRefresh && meCache && Date.now() - meCacheTime < 60000) {
+                return meCache;
+            }
+            // Return ongoing promise to avoid duplicate concurrent calls
+            if (!forceRefresh && mePromise) {
+                return await mePromise;
+            }
+
             let accessToken = Cookies.get('accessToken');
 
             // Proactive refresh if access token missing but refresh token exists
@@ -121,19 +144,28 @@ const authService = {
                     await authService.refreshToken();
                     accessToken = Cookies.get('accessToken');
                 } catch (refreshError) {
-                    // If refresh fails, continue and let the API call fail naturally (or interceptor handle it)
                     console.warn('Proactive refresh failed:', refreshError);
                 }
             }
 
-            const response = await apiClient.get('/auth/me', {
+            mePromise = apiClient.get('/auth/me', {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                 },
+            }).then(response => {
+                meCache = response.data.user;
+                meCacheTime = Date.now();
+                mePromise = null;
+                return meCache;
+            }).catch(error => {
+                mePromise = null;
+                throw error;
             });
-            return response.data.user;
+
+            return await mePromise;
         } catch (error) {
-            throw error.response?.data || { message: 'Failed to fetch user' };
+            mePromise = null;
+            throw error?.response?.data || error || { message: 'Failed to fetch user' };
         }
     },
 

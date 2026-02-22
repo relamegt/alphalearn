@@ -176,8 +176,10 @@ const DragHandleV = ({ onMouseDown }) => (
 
 // ─── Module-level Cache for Problems & Submissions ───────────────────────────
 const PROBLEM_CACHE = {};
+const PENDING_PROBLEM_CALLS = {};
 // { [problemId]: Submission[] } — avoids re-fetching on language switch
 const SUBMISSIONS_CACHE = {};
+const PENDING_SUBMISSIONS_CALLS = {};
 
 // ─── Language & template data ────────────────────────────────────────────────
 const LANGUAGE_OPTIONS = [
@@ -417,8 +419,8 @@ const CodeEditor = () => {
 
     // ── problem data ──
     const [problem, setProblem] = useState(null);
-    const [pageLoading, setPageLoading] = useState(true);
-    const [loading, setLoading] = useState(true);
+    const [pageLoading, setPageLoading] = useState(!!problemId);
+    const [loading, setLoading] = useState(!!problemId);
     const { user } = useAuth();
 
     // ── settings & persistence ──
@@ -486,6 +488,15 @@ const CodeEditor = () => {
     // ───── fetch problem ──────────────────────────────────────────────────────
     useEffect(() => {
         let mounted = true;
+
+        if (!problemId) {
+            setPageLoading(false);
+            setLoading(false);
+            setShowSidebar(true);
+            return;
+        }
+
+        setPageLoading(true);
         setLoading(true);
 
         // Check cache first
@@ -498,7 +509,11 @@ const CodeEditor = () => {
             return;
         }
 
-        problemService.getProblemById(problemId)
+        if (!PENDING_PROBLEM_CALLS[problemId]) {
+            PENDING_PROBLEM_CALLS[problemId] = problemService.getProblemById(problemId);
+        }
+
+        PENDING_PROBLEM_CALLS[problemId]
             .then(data => {
                 if (!mounted) return;
                 setProblem(data.problem);
@@ -530,12 +545,12 @@ const CodeEditor = () => {
             .catch(() => {
                 if (!mounted) return;
                 toast.error('Failed to load problem');
-                const target = user?.role === 'admin' ? '/admin/problems-workspace' :
-                    user?.role === 'instructor' ? '/instructor/problems-workspace' :
-                        '/student/problems';
-                navigate(target);
+                navigate('/problems');
             })
-            .finally(() => { if (mounted) setLoading(false); });
+            .finally(() => {
+                if (mounted) setLoading(false);
+                delete PENDING_PROBLEM_CALLS[problemId];
+            });
         return () => { mounted = false; };
     }, [problemId, user, navigate]);
 
@@ -555,8 +570,14 @@ const CodeEditor = () => {
             // 2. Check Last Accepted Submission (cached per problem to avoid re-fetch on lang switch)
             try {
                 if (!SUBMISSIONS_CACHE[problemId]) {
-                    const data = await submissionService.getProblemSubmissions(problemId);
-                    SUBMISSIONS_CACHE[problemId] = data.submissions || [];
+                    if (!PENDING_SUBMISSIONS_CALLS[problemId]) {
+                        PENDING_SUBMISSIONS_CALLS[problemId] = submissionService.getProblemSubmissions(problemId);
+                    }
+                    const data = await PENDING_SUBMISSIONS_CALLS[problemId];
+                    if (!SUBMISSIONS_CACHE[problemId]) {
+                        SUBMISSIONS_CACHE[problemId] = data.submissions || [];
+                    }
+                    delete PENDING_SUBMISSIONS_CALLS[problemId];
                 }
                 const accepted = SUBMISSIONS_CACHE[problemId]?.find(s => s.verdict === 'Accepted' && s.language === language);
                 if (accepted) {
@@ -565,6 +586,7 @@ const CodeEditor = () => {
                 }
             } catch (err) {
                 console.error("Failed to fetch submissions", err);
+                delete PENDING_SUBMISSIONS_CALLS[problemId];
             }
 
             // 3. Default Template
@@ -801,19 +823,131 @@ const CodeEditor = () => {
     };
 
     // ───── derived ───────────────────────────────────────────────────────────
-    if (pageLoading) {
+    if (!problem || pageLoading) {
         return (
-            <div className="flex justify-center items-center h-screen bg-white fixed inset-0 z-[100]">
-                <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
-                    <p className="text-sm text-gray-500 font-medium">Loading workspace…</p>
+            <div
+                ref={containerRef}
+                className="flex flex-col bg-gray-50 text-gray-800 select-none overflow-hidden fixed inset-0 z-[100]"
+            >
+                {/* Header Skeleton/Empty */}
+                {/* <div className="h-14 border-b border-gray-200 bg-white flex items-center px-4 justify-between shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
+                                <Code2 className="w-4 h-4 text-gray-400" />
+                            </div>
+                            <span className="text-sm font-semibold text-gray-600">Practice Workspace</span>
+                        </div>
+                    </div>
+                </div> */}
+
+                <div className="flex-1 flex overflow-hidden relative">
+                    {/* ─ Col 1: Sidebar ─ */}
+                    <div
+                        style={{
+                            width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px`,
+                            transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                        }}
+                        className="relative flex flex-col shrink-0 border-r border-gray-200 bg-white z-20"
+                    >
+                        <div className="flex-1 overflow-hidden flex flex-col relative h-full">
+                            <div className={`flex-1 flex flex-col overflow-hidden h-full transition-opacity duration-300 ${showSidebar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none hidden'}`}>
+                                <ProblemSidebar />
+                            </div>
+
+                            {!showSidebar && (
+                                <div
+                                    className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors"
+                                    onClick={() => setShowSidebar(true)}
+                                >
+                                    <div style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-bold text-gray-400 tracking-widest uppercase select-none">
+                                        <span className="rotate-180">Problem List</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
+                            className="absolute -right-[14px] top-1/2 -translate-y-1/2 z-50 w-[14px] h-14 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md flex items-center justify-center text-gray-400 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                        >
+                            {showSidebar ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
+                        </button>
+                    </div>
+
+                    {showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
+
+                    {pageLoading ? (
+                        <div className="flex-1 flex overflow-hidden animate-pulse">
+                            {/* Left Panel (Description) */}
+                            <div className="w-1/2 border-r border-gray-200 bg-white flex flex-col">
+                                <div className="h-10 border-b border-gray-200 bg-white flex items-center px-4 gap-4 shrink-0">
+                                    <div className="w-20 h-4 bg-gray-200 rounded"></div>
+                                    <div className="w-20 h-4 bg-gray-200 rounded"></div>
+                                </div>
+                                <div className="p-6 flex flex-col gap-4 flex-1">
+                                    <div className="w-3/4 h-8 bg-gray-200 rounded"></div>
+                                    <div className="flex gap-2">
+                                        <div className="w-16 h-6 bg-gray-200 rounded-full"></div>
+                                        <div className="w-20 h-6 bg-gray-200 rounded-full"></div>
+                                    </div>
+                                    <div className="w-full h-4 bg-gray-200 rounded mt-4"></div>
+                                    <div className="w-5/6 h-4 bg-gray-200 rounded"></div>
+                                    <div className="w-full h-4 bg-gray-200 rounded"></div>
+                                    <div className="w-4/5 h-4 bg-gray-200 rounded"></div>
+
+                                    <div className="w-1/3 h-6 bg-gray-200 rounded mt-8 mb-2"></div>
+                                    <div className="w-full h-32 bg-gray-100 rounded-lg"></div>
+                                </div>
+                            </div>
+
+                            {/* Right Panel (Editor) */}
+                            <div className="w-1/2 flex flex-col">
+                                <div className="h-12 border-b border-gray-200 bg-white flex items-center justify-between px-3 shrink-0">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-32 h-8 bg-gray-200 rounded"></div>
+                                        <div className="w-24 h-6 bg-gray-200 rounded"></div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                                        <div className="w-32 h-8 bg-gray-200 rounded"></div>
+                                    </div>
+                                </div>
+                                <div className="flex-1 bg-white p-6 flex flex-col gap-4">
+                                    <div className="w-1/3 h-4 bg-gray-200 rounded"></div>
+                                    <div className="w-1/4 h-4 bg-gray-200 rounded ml-4"></div>
+                                    <div className="w-1/2 h-4 bg-gray-200 rounded ml-4"></div>
+                                </div>
+                                {/* Terminal area */}
+                                <div className="h-48 border-t border-gray-200 bg-white flex flex-col shrink-0">
+                                    <div className="h-9 border-b border-gray-200 bg-gray-50 flex items-center px-4 gap-4 w-full shrink-0">
+                                        <div className="w-20 h-4 bg-gray-300 rounded"></div>
+                                        <div className="w-20 h-4 bg-gray-200 rounded"></div>
+                                    </div>
+                                    <div className="p-4 flex flex-col gap-2">
+                                        <div className="w-1/2 h-4 bg-gray-200 rounded mt-2"></div>
+                                        <div className="w-1/3 h-4 bg-gray-200 rounded"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex-1 bg-gray-50 flex items-center justify-center relative">
+                            {/* Actual Empty State message */}
+                            <div className="flex flex-col items-center justify-center text-center p-8 max-w-sm animate-fade-in relative -top-10">
+                                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-gray-200 flex items-center justify-center mb-5 relative before:absolute before:inset-0 before:bg-primary-50 before:rounded-2xl before:-z-10 before:scale-110 before:opacity-50">
+                                    <Code2 className="w-8 h-8 text-primary-500" />
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-800 mb-2">Practice Workspace</h2>
+                                <p className="text-sm text-gray-500 leading-relaxed font-medium">
+                                    Select a problem from the sidebar to view its description and start writing your solution.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );
     }
-    if (!problem) return null;
-
-    if (!problem) return null;
 
     // Responsive width calculation
     // If sidebar is shown, it takes `sidebarW` %. If hidden, it takes fixed `COLLAPSED_SIDEBAR_WIDTH` px.

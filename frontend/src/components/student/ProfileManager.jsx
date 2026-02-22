@@ -23,6 +23,7 @@ const ProfileManager = () => {
     const [showLinkModal, setShowLinkModal] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [syncing, setSyncing] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
 
     const [personalData, setPersonalData] = useState({
         profilePicture: '',
@@ -78,8 +79,15 @@ const ProfileManager = () => {
     });
 
     useEffect(() => {
-        fetchUserProfile();
-        fetchExternalProfiles();
+        const loadInitialData = async () => {
+            setInitialLoading(true);
+            await Promise.all([
+                fetchUserProfile(),
+                fetchExternalProfiles()
+            ]);
+            setInitialLoading(false);
+        };
+        loadInitialData();
     }, []);
 
     const fetchUserProfile = async () => {
@@ -300,6 +308,53 @@ const ProfileManager = () => {
             toast.error(error.message || 'Failed to change password');
         }
     };
+
+    if (initialLoading) {
+        return (
+            <div className="p-6 bg-gray-50 min-h-screen">
+                {/* Header Skeleton */}
+                <div className="w-1/4 h-8 bg-gray-200 rounded mb-6 animate-pulse"></div>
+
+                {/* Tabs Skeleton */}
+                <div className="flex space-x-4 border-b border-gray-200 mb-6 pb-2 animate-pulse">
+                    <div className="w-32 h-6 bg-gray-200 rounded"></div>
+                    <div className="w-32 h-6 bg-gray-200 rounded"></div>
+                    <div className="w-32 h-6 bg-gray-200 rounded"></div>
+                    <div className="w-32 h-6 bg-gray-200 rounded"></div>
+                </div>
+
+                {/* Content Card Skeleton matching Personal Details tab */}
+                <div className="card animate-pulse">
+                    <div className="space-y-6">
+                        {/* Profile Picture Skeleton */}
+                        <div>
+                            <div className="w-1/4 h-4 bg-gray-200 rounded mb-2"></div>
+                            <div className="flex items-center space-x-4">
+                                <div className="w-24 h-24 bg-gray-200 rounded-full"></div>
+                                <div className="flex-1 space-y-2">
+                                    <div className="w-full h-10 bg-gray-200 rounded md:w-1/2"></div>
+                                    <div className="w-1/3 h-4 bg-gray-200 rounded"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Basic Details Grid Skeleton */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {[1, 2, 3, 4, 5, 6].map(i => (
+                                <div key={i}>
+                                    <div className="w-1/3 h-4 bg-gray-200 rounded mb-2"></div>
+                                    <div className="w-full h-10 bg-gray-200 rounded"></div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Save Button Skeleton */}
+                        <div className="w-full md:w-48 h-10 bg-gray-200 rounded mt-6"></div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6">
@@ -626,12 +681,12 @@ const ProfileManager = () => {
 
                         <button type="submit" disabled={loading} className="btn-primary w-full md:w-auto">
                             {loading ? (<>
-    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-    Saving...
-</>) : 'Save Personal Details'}
+                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Saving...
+                            </>) : 'Save Personal Details'}
                         </button>
                     </form>
                 </div>
@@ -734,12 +789,12 @@ const ProfileManager = () => {
 
                         <button type="submit" disabled={loading} className="btn-primary">
                             {loading ? (<>
-    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-    Saving...
-</>) : 'Save Professional Details'}
+                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Saving...
+                            </>) : 'Save Professional Details'}
                         </button>
                     </form>
                 </div>
@@ -823,12 +878,12 @@ const ProfileManager = () => {
                                 className="btn-primary"
                             >
                                 {loading ? (<>
-    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-    Saving...
-</>) : 'Update All Profiles'}
+                                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Saving...
+                                </>) : 'Update All Profiles'}
                             </button>
                         </div>
                     </form>

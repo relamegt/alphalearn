@@ -1,6 +1,19 @@
 const { ObjectId } = require('bson');
 const { collections } = require('../config/astra');
 
+// Generate a unique batch slug: tries clean slug first, then appends -2, -3, etc. if taken
+async function uniqueBatchSlug(name) {
+    const base = (name || 'batch').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    let candidate = base;
+    let counter = 2;
+    while (true) {
+        const existing = await collections.batches.findOne({ slug: candidate });
+        if (!existing) return candidate;
+        candidate = `${base}-${counter}`;
+        counter++;
+    }
+}
+
 class Batch {
     // Create new batch
     static async create(batchData) {
@@ -10,6 +23,7 @@ class Batch {
 
         const batch = {
             _id: new ObjectId(),
+            slug: await uniqueBatchSlug(batchData.name),
             name: batchData.name,
             startDate: new Date(batchData.startDate),
             endDate: new Date(batchData.endDate),

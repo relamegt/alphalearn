@@ -22,6 +22,10 @@ const getPublicProfile = async (req, res) => {
         let canViewDashboard = false;
 
         const isPublicProfile = user.isPublicProfile !== false;
+        const targetRole = user.role; // role of the profile being viewed
+
+        // Admin and instructor profiles are never publicly accessible to students
+        const isPrivilegedProfile = targetRole === 'admin' || targetRole === 'instructor';
 
         if (req.user) {
             const requesterId = req.user.userId;
@@ -33,33 +37,43 @@ const getPublicProfile = async (req, res) => {
             const userBatchId = user.batchId ? user.batchId.toString() : null;
             const isSameBatch = userBatchId && requesterBatchIds.includes(userBatchId);
 
-            if (requesterRole === 'admin') {
-                canViewProfile = true;
-                canViewPrivateDetails = true;
-                canViewDashboard = true;
-            } else if (requesterRole === 'instructor' && isSameBatch) {
-                canViewProfile = true;
-                canViewPrivateDetails = true;
-                canViewDashboard = true;
-            } else if (requesterRole === 'student' && isSameBatch) {
-                canViewProfile = true;
-                canViewDashboard = true;
-            }
-
             // Self can view everything
             if (requesterId === user._id.toString()) {
                 canViewProfile = true;
                 canViewPrivateDetails = true;
                 canViewDashboard = true;
+            } else if (requesterRole === 'admin') {
+                // Admins can view all profiles
+                canViewProfile = true;
+                canViewPrivateDetails = true;
+                canViewDashboard = true;
+            } else if (requesterRole === 'instructor' && isSameBatch) {
+                // Instructors can view all profiles in their batch
+                canViewProfile = true;
+                canViewPrivateDetails = true;
+                canViewDashboard = true;
+            } else if (requesterRole === 'student' && isSameBatch && !isPrivilegedProfile) {
+                // Students can only view other STUDENT profiles in the same batch
+                canViewProfile = true;
+                canViewDashboard = true;
             }
         }
 
-        // If explicitly public, anyone can view the basic profile
-        if (isPublicProfile) {
+        // Public profiles are visible to anyone — BUT only if target is a student
+        // Admin/instructor profiles are never exposed publicly to non-admins/non-instructors
+        if (isPublicProfile && !isPrivilegedProfile) {
             canViewProfile = true;
         }
 
         if (!canViewProfile) {
+            // Give a generic "not available" message for admin/instructor profiles
+            // so students can't even confirm the user exists
+            if (isPrivilegedProfile) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found'
+                });
+            }
             return res.status(403).json({
                 success: false,
                 message: 'Private profile cannot be viewed'
