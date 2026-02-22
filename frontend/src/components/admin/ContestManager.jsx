@@ -240,7 +240,7 @@ const ContestManager = () => {
                                                     </div>
 
                                                     <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 leading-tight group-hover:text-indigo-600 transition-colors" title={contest.title}>
-                                                        <Link to={`/contest/${contest.slug || contest._id}/leaderboard`} className="hover:underline focus:outline-none">
+                                                        <Link to={`/contests/${contest.slug || contest._id}/leaderboard`} className="hover:underline focus:outline-none">
                                                             {contest.title}
                                                         </Link>
                                                     </h3>
@@ -288,7 +288,7 @@ const ContestManager = () => {
                                                         <Trash2 size={14} />
                                                     </button>
                                                     <Link
-                                                        to={`/contest/${contest.slug || contest._id}/leaderboard`}
+                                                        to={`/contests/${contest.slug || contest._id}/leaderboard`}
                                                         className="flex-1 py-2 px-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center gap-2 shadow-sm"
                                                     >
                                                         <Trophy size={14} className={isActive ? "text-yellow-500" : "text-gray-400"} />

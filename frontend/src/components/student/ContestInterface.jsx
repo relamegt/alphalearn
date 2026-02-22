@@ -233,8 +233,7 @@ const ContestInterface = ({ isPractice = false }) => {
             setContestActive(false);
             localStorage.removeItem(`contest_${contestId}_codeMap`);
             setTimeout(() => {
-                if (user?.isSpotUser) setShowLeaderboard(true);
-                else navigate(`${basePath}/contests`);
+                navigate(`/contests/${contest?.slug || contestId}/leaderboard`, { replace: true });
             }, 2000);
         } catch (error) {
             toast.error(error.message || 'Auto-submission failed');
@@ -292,8 +291,7 @@ const ContestInterface = ({ isPractice = false }) => {
             setContestActive(false);
             localStorage.removeItem(`contest_${contestId}_codeMap`);
             setTimeout(() => {
-                if (user?.isSpotUser) setShowLeaderboard(true);
-                else navigate(`${basePath}/contests`);
+                navigate(`/contests/${contest?.slug || contestId}/leaderboard`, { replace: true });
             }, 2000);
         } catch (error) {
             toast.error(error.message || 'Failed to finish contest');
@@ -385,6 +383,10 @@ const ContestInterface = ({ isPractice = false }) => {
             } else {
                 if (contestData.contest.isSubmitted) {
                     // Contest already submitted — show past-contest view
+                    if (contestData.contest.type === 'global' || !contestData.contest.batchId) {
+                        navigate(`/contests/${contestData.contest.slug || contestId}/leaderboard`, { replace: true });
+                        return;
+                    }
                     setContestPast(true);
                     return;
                 }
@@ -396,6 +398,12 @@ const ContestInterface = ({ isPractice = false }) => {
                 }
                 if (now >= start && now <= end) setContestActive(true);
                 else if (now > end) {
+                    if (contestData.contest.type === 'global' || !contestData.contest.batchId) {
+                        // Try to auto-finish if not already submitted (non-blocking)
+                        contestService.finishContest(contestId, null).catch(e => { });
+                        navigate(`/contests/${contestData.contest.slug || contestId}/leaderboard`, { replace: true });
+                        return;
+                    }
                     // Show "Contest has ended" info page + leaderboard button
                     // Try to auto-finish if not already submitted (non-blocking)
                     contestService.finishContest(contestId, null).catch(e => { });
@@ -501,8 +509,7 @@ const ContestInterface = ({ isPractice = false }) => {
                     finishingRef.current = false;
                     // Navigate — read fresh user/navigate from refs, never stale
                     setTimeout(() => {
-                        if (userRef.current?.isSpotUser) setShowLeaderboard(true);
-                        else navigateRef.current(`${basePathRef.current}/contests`);
+                        navigateRef.current(`/contests/${contest?.slug || timeUpContestId.current}/leaderboard`, { replace: true });
                     }, 2000);
                 } catch (error) {
                     toast.error(error.message || 'Time-up submission failed. Please use Finish button.');
@@ -744,8 +751,33 @@ const ContestInterface = ({ isPractice = false }) => {
     const sortedLeaderboardData = (() => {
         if (!leaderboardData) return [];
         let data = [...leaderboardData];
+
+        const parseTime = (val) => {
+            if (!val) return 0;
+            const parsed = parseInt(String(val).replace('m', ''));
+            return isNaN(parsed) ? 0 : parsed;
+        };
+
+        // 1. First, always sort by score (desc), then time (asc) to assign global ranks
+        data.sort((a, b) => {
+            const scoreA = parseFloat(a.score) || 0;
+            const scoreB = parseFloat(b.score) || 0;
+            if (scoreA !== scoreB) return scoreB - scoreA;
+
+            const timeA = parseTime(a.time);
+            const timeB = parseTime(b.time);
+            return timeA - timeB; // lower time is better
+        });
+
+        // 2. Stamp the proper rank based on this internal sorting
+        let rankedData = data.map((entry, index) => ({
+            ...entry,
+            rank: index + 1
+        }));
+
+        // 3. Apply arbitrary user sorting config
         if (sortConfig.key) {
-            data.sort((a, b) => {
+            rankedData.sort((a, b) => {
                 let aValue = sortConfig.key === 'status' ? (a.isCompleted ? 1 : 0) : a[sortConfig.key];
                 let bValue = sortConfig.key === 'status' ? (b.isCompleted ? 1 : 0) : b[sortConfig.key];
 
@@ -756,8 +788,8 @@ const ContestInterface = ({ isPractice = false }) => {
 
                 // String sorting for username/time if needed (time is string "XXm")
                 if (sortConfig.key === 'time') {
-                    aValue = parseInt(aValue.replace('m', ''));
-                    bValue = parseInt(bValue.replace('m', ''));
+                    aValue = parseInt(String(aValue).replace('m', ''));
+                    bValue = parseInt(String(bValue).replace('m', ''));
                 }
 
                 if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -765,7 +797,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 return 0;
             });
         }
-        return data;
+        return rankedData;
     })();
 
     const totalPages = Math.ceil(sortedLeaderboardData.length / itemsPerPage) || 1;
@@ -803,7 +835,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 index + 1,
                 entry.rollNumber || 'N/A',
                 entry.fullName !== 'N/A' ? entry.fullName : entry.username,
-                entry.username,
+                (entry.isSpotUser || entry.username?.startsWith('spot_')) ? '-' : entry.username,
                 entry.branch || 'N/A',
                 ...problemStatuses,
                 solvedCell,
@@ -938,7 +970,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                 )}
                             </div>
                             <button
-                                onClick={() => navigate(`/contests/${contestId}/leaderboard`)}
+                                onClick={() => setShowLeaderboard(true)}
                                 className="btn btn-primary shrink-0 flex items-center gap-2"
                             >
                                 <Trophy size={16} />
@@ -1091,7 +1123,7 @@ const ContestInterface = ({ isPractice = false }) => {
                     )}
 
                     {!isPractice && (
-                        <button onClick={() => navigate(`/contests/${contestId}/leaderboard`)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                        <button onClick={() => setShowLeaderboard(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                             <Layout size={14} /> Leaderboard
                         </button>
                     )}
@@ -1819,111 +1851,122 @@ const ContestInterface = ({ isPractice = false }) => {
                                             </th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100 text-sm bg-white">
-                                        {paginatedData.map((entry, pageIndex) => {
-                                            const index = (currentPage - 1) * itemsPerPage + pageIndex;
-                                            const isCurrentUser = entry.studentId === user?.userId;
-                                            return (
-                                                <tr key={index} className={`hover:bg-gray-50 transition ${isCurrentUser ? 'bg-blue-50/60 ring-1 ring-blue-100' : 'bg-white'}`}>
-                                                    <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-inherit z-10 border-r border-gray-100">
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold text-xs ${index === 0 ? 'bg-yellow-100 text-yellow-700 text-2xl' :
-                                                            index === 1 ? 'bg-gray-100 text-gray-700 text-2xl' :
-                                                                index === 2 ? 'bg-orange-100 text-orange-700 text-2xl' : 'text-gray-500'
-                                                            }`}>
-                                                            {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                                                        </div>
-                                                    </td>
-                                                    {/* Roll No - sticky */}
-                                                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
-                                                    {/* Full Name - sticky */}
-                                                    <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={entry.fullName !== 'N/A' ? entry.fullName : entry.username}>
-                                                        {entry.fullName !== 'N/A' ? entry.fullName : entry.username}
-                                                    </td>
-                                                    {/* Username */}
-                                                    <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={entry.username}>{entry.username}</td>
-                                                    {/* Branch */}
-                                                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
+                                    {!loadingLeaderboard && (
+                                        <tbody className="divide-y divide-gray-100 text-sm bg-white">
+                                            {paginatedData.map((entry, pageIndex) => {
+                                                const index = (currentPage - 1) * itemsPerPage + pageIndex;
+                                                const isCurrentUser = entry.studentId === user?.userId;
+                                                const rowRank = entry.rank;
+                                                return (
+                                                    <tr key={index} className={`hover:bg-gray-50 transition ${isCurrentUser ? 'bg-blue-50/60 ring-1 ring-blue-100' : 'bg-white'}`}>
+                                                        <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-inherit z-10 border-r border-gray-100">
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold text-xs ${rowRank === 1 ? 'bg-yellow-100 text-yellow-700 text-2xl' :
+                                                                rowRank === 2 ? 'bg-gray-100 text-gray-700 text-2xl' :
+                                                                    rowRank === 3 ? 'bg-orange-100 text-orange-700 text-2xl' : 'text-gray-500'
+                                                                }`}>
+                                                                {rowRank === 1 ? '🥇' : rowRank === 2 ? '🥈' : rowRank === 3 ? '🥉' : `#${rowRank}`}
+                                                            </div>
+                                                        </td>
+                                                        {/* Roll No - sticky */}
+                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
+                                                        {/* Full Name - sticky */}
+                                                        <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={entry.fullName !== 'N/A' ? entry.fullName : entry.username}>
+                                                            {entry.fullName !== 'N/A' ? entry.fullName : entry.username}
+                                                        </td>
+                                                        {/* Username */}
+                                                        <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={(entry.isSpotUser || entry.username?.startsWith('spot_')) ? '' : entry.username}>
+                                                            {(entry.isSpotUser || entry.username?.startsWith('spot_')) ? <span className="font-medium text-gray-400">-</span> : entry.username}
+                                                        </td>
+                                                        {/* Branch */}
+                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
 
-                                                    {/* Problem Cells — order matches contest.problems */}
-                                                    {contest?.problems?.map(prob => {
-                                                        const pData = entry.problems?.[prob._id];
-                                                        const status = pData?.status || 'Not Attempted';
-                                                        let cellClass = 'bg-gray-50 text-gray-400';
-                                                        let icon = null;
+                                                        {/* Problem Cells — order matches contest.problems */}
+                                                        {contest?.problems?.map(prob => {
+                                                            const pData = entry.problems?.[prob._id];
+                                                            const status = pData?.status || 'Not Attempted';
+                                                            let cellClass = 'bg-gray-50 text-gray-400';
+                                                            let icon = null;
 
-                                                        if (status === 'Accepted') {
-                                                            cellClass = 'bg-green-50 text-green-700 font-semibold';
-                                                            icon = '✓';
-                                                        } else if (status === 'Wrong Answer') {
-                                                            cellClass = 'bg-red-50 text-red-600';
-                                                            icon = '—';
-                                                        }
+                                                            if (status === 'Accepted') {
+                                                                cellClass = 'bg-green-50 text-green-700 font-semibold';
+                                                                icon = '✓';
+                                                            } else if (status === 'Wrong Answer') {
+                                                                cellClass = 'bg-red-50 text-red-600';
+                                                                icon = '—';
+                                                            }
 
-                                                        return (
-                                                            <td key={prob._id} className="p-2 text-center border-r border-gray-50">
-                                                                <div className="flex flex-col items-center justify-center gap-0.5">
-                                                                    <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
-                                                                        {icon && <span className="font-bold">{icon}</span>}
-                                                                        {status === 'Not Attempted' ? '—' : status === 'Accepted' ? 'Accepted' : 'Wrong'}
+                                                            return (
+                                                                <td key={prob._id} className="p-2 text-center border-r border-gray-50">
+                                                                    <div className="flex flex-col items-center justify-center gap-0.5">
+                                                                        <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
+                                                                            {icon && <span className="font-bold">{icon}</span>}
+                                                                            {status === 'Not Attempted' ? '—' : status === 'Accepted' ? 'Accepted' : 'Wrong'}
+                                                                        </div>
+                                                                        {pData?.submittedAt !== undefined && pData?.submittedAt !== null && (
+                                                                            <span className="text-[10px] text-gray-500 font-mono tracking-tighter">
+                                                                                {pData.submittedAt}m
+                                                                            </span>
+                                                                        )}
                                                                     </div>
-                                                                    {pData?.submittedAt !== undefined && pData?.submittedAt !== null && (
-                                                                        <span className="text-[10px] text-gray-500 font-mono tracking-tighter">
-                                                                            {pData.submittedAt}m
+                                                                </td>
+                                                            );
+                                                        })}
+
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{entry.time}m</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-center">
+                                                            <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
+                                                                {entry.problemsSolved}/{contest?.problems?.length || 0}
+                                                            </span>
+                                                        </td>
+                                                        {contest?.proctoringEnabled && (() => {
+                                                            const ts = entry.tabSwitchCount || 0;
+                                                            const fse = entry.fullscreenExits || 0;
+                                                            const totalV = ts + fse;
+                                                            const limit = contest?.maxViolations || 5;
+                                                            const pct = Math.min(100, Math.round((totalV / limit) * 100));
+                                                            return (
+                                                                <>
+                                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                        <span className={ts > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                            {ts}
                                                                         </span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                        );
-                                                    })}
-
-                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{entry.time}m</td>
-                                                    <td className="px-3 py-2 whitespace-nowrap text-center">
-                                                        <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
-                                                            {entry.problemsSolved}/{contest?.problems?.length || 0}
-                                                        </span>
-                                                    </td>
-                                                    {contest?.proctoringEnabled && (() => {
-                                                        const ts = entry.tabSwitchCount || 0;
-                                                        const fse = entry.fullscreenExits || 0;
-                                                        const totalV = ts + fse;
-                                                        const limit = contest?.maxViolations || 5;
-                                                        const pct = Math.min(100, Math.round((totalV / limit) * 100));
-                                                        return (
-                                                            <>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                    <span className={ts > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                        {ts}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                    <span className={fse > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                        {fse}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-center">
-                                                                    <div className="flex flex-col items-center gap-1">
-                                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${totalV === 0 ? 'bg-green-100 text-green-800'
-                                                                            : pct >= 100 ? 'bg-red-100 text-red-800'
-                                                                                : 'bg-yellow-100 text-yellow-800'
-                                                                            }`}>{totalV}/{limit}</span>
-                                                                    </div>
-                                                                </td>
-                                                            </>
-                                                        );
-                                                    })()}
-                                                    <td className="p-4 text-center">
-                                                        {entry.isCompleted ? (
-                                                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">Finished</span>
-                                                        ) : (
-                                                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">In Progress</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-4 text-center font-bold text-blue-600 sticky right-0 bg-inherit z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-gray-100">{entry.score}</td>
-                                                </tr>
-                                            )
-                                        })}
-                                    </tbody>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                        <span className={fse > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                            {fse}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 whitespace-nowrap text-center">
+                                                                        <div className="flex flex-col items-center gap-1">
+                                                                            <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${totalV === 0 ? 'bg-green-100 text-green-800'
+                                                                                : pct >= 100 ? 'bg-red-100 text-red-800'
+                                                                                    : 'bg-yellow-100 text-yellow-800'
+                                                                                }`}>{totalV}/{limit}</span>
+                                                                        </div>
+                                                                    </td>
+                                                                </>
+                                                            );
+                                                        })()}
+                                                        <td className="p-4 text-center">
+                                                            {entry.isCompleted ? (
+                                                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">Finished</span>
+                                                            ) : (
+                                                                <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">In Progress</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-4 text-center font-bold text-blue-600 sticky right-0 bg-inherit z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-gray-100">{entry.score}</td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    )}
                                 </table>
+                                {loadingLeaderboard && (
+                                    <div className="flex flex-col items-center justify-center py-20 w-full min-w-max">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                        <p className="text-sm text-gray-500 font-medium mt-3">Refreshing leaderboard data...</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

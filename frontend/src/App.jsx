@@ -54,7 +54,7 @@ const ProtectedRoute = ({ children, allowedRoles, hideNavbar = false }) => {
     }
 
     if (!user) {
-        const contestMatch = location.pathname.match(/^\/contest\/([^/]+)/);
+        const contestMatch = location.pathname.match(/^\/contests\/([^/]+)/);
         if (contestMatch) {
             const contestId = contestMatch[1];
             if (contestId && !location.pathname.includes('/leaderboard')) {
@@ -65,10 +65,9 @@ const ProtectedRoute = ({ children, allowedRoles, hideNavbar = false }) => {
     }
 
     if (user.isSpotUser && user.registeredForContest) {
-        const theirContestUrl = `/contest/${user.registeredForContest}`;
-        // Allow them to access both /contest/id and /contest/id/leaderboard etc
-        if (!location.pathname.startsWith(theirContestUrl)) {
-            return <Navigate to={theirContestUrl} replace />;
+        const isContestPath = location.pathname.startsWith('/contests/') || location.pathname.startsWith('/join/');
+        if (!isContestPath) {
+            return <Navigate to={`/contests/${user.registeredForContest}`} replace />;
         }
     }
 
@@ -78,7 +77,7 @@ const ProtectedRoute = ({ children, allowedRoles, hideNavbar = false }) => {
 
     return (
         <>
-            {!hideNavbar && <Navbar />}
+            {!hideNavbar && !user.isSpotUser && <Navbar />}
             <div className="min-h-screen bg-gray-50">{children}</div>
         </>
     );
@@ -98,7 +97,7 @@ const PublicRoute = ({ children }) => {
 
     if (user) {
         if (user.isSpotUser && user.registeredForContest) {
-            return <Navigate to={`/contest/${user.registeredForContest}`} replace />;
+            return <Navigate to={`/contests/${user.registeredForContest}`} replace />;
         }
         // Redirect to role-based dashboard
         switch (user.role) {
@@ -306,7 +305,7 @@ function App() {
                             }
                         />
                         <Route
-                            path="/contest/:contestId"
+                            path="/contests/:contestId"
                             element={
                                 <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']} hideNavbar={true}>
                                     <ExtensionCheck>
@@ -316,7 +315,7 @@ function App() {
                             }
                         />
                         <Route
-                            path="/contest/:contestId/practice"
+                            path="/contests/:contestId/practice"
                             element={
                                 <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']} hideNavbar={true}>
                                     <ExtensionCheck>
@@ -326,13 +325,14 @@ function App() {
                             }
                         />
                         <Route
-                            path="/contest/:contestId/leaderboard"
+                            path="/contests/:contestId/leaderboard"
                             element={
                                 <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']}>
                                     <Leaderboard />
                                 </ProtectedRoute>
                             }
                         />
+                        <Route path="/contest/*" element={<Navigate to={`/contests/${location.pathname.split('/').slice(2).join('/')}${location.search}`} replace />} />
                         <Route
                             path="/student/batch-leaderboard"
                             element={

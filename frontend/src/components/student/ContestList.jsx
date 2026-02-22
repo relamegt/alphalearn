@@ -152,14 +152,14 @@ const ContestCard = ({ contest, status }) => {
                     {/* Title */}
                     {isPast ? (
                         <Link
-                            to={`/contest/${contest.slug || contest._id}/leaderboard`}
+                            to={`/contests/${contest.slug || contest._id}/leaderboard`}
                             className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight hover:text-indigo-600 transition-colors flex-1"
                         >
                             {contest.title}
                         </Link>
                     ) : (
                         <Link
-                            to={isLive ? (!isSubmitted ? `/contest/${contest.slug || contest._id}` : `/contest/${contest.slug || contest._id}/leaderboard`) : `/contest/${contest.slug || contest._id}/practice`}
+                            to={isLive ? (!isSubmitted ? `/contests/${contest.slug || contest._id}` : `/contests/${contest.slug || contest._id}/leaderboard`) : `/contests/${contest.slug || contest._id}/practice`}
                             className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight hover:text-indigo-600 transition-colors"
                         >
                             {contest.title}
@@ -205,14 +205,14 @@ const ContestCard = ({ contest, status }) => {
                     <div className="p-4">
                         {!isSubmitted ? (
                             <Link
-                                to={`/contest/${contest.slug || contest._id}`}
+                                to={`/contests/${contest.slug || contest._id}`}
                                 className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all py-3 gap-2 text-sm transform hover:-translate-y-0.5"
                             >
                                 Enter Contest <ArrowRight size={16} />
                             </Link>
                         ) : (
                             <Link
-                                to={`/contest/${contest.slug || contest._id}/leaderboard`}
+                                to={`/contests/${contest.slug || contest._id}/leaderboard`}
                                 target="_blank"
                                 className="flex w-full items-center justify-center rounded-xl border border-gray-200 text-gray-700 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all py-2.5 text-sm font-medium gap-2"
                             >
@@ -224,7 +224,7 @@ const ContestCard = ({ contest, status }) => {
                     /* Past contest: side by side colored links */
                     <div className="flex divide-x divide-gray-100 bg-gray-50/30">
                         <Link
-                            to={`/contest/${contest.slug || contest._id}/practice`}
+                            to={`/contests/${contest.slug || contest._id}/practice`}
                             className="flex-1 flex items-center justify-center gap-2 p-4 hover:bg-emerald-50 transition-colors group"
                         >
                             <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg group-hover:bg-emerald-200 transition-colors">
@@ -233,7 +233,7 @@ const ContestCard = ({ contest, status }) => {
                             <span className="text-sm font-semibold text-gray-700 group-hover:text-emerald-700">Practice</span>
                         </Link>
                         <Link
-                            to={`/contest/${contest.slug || contest._id}/leaderboard`}
+                            to={`/contests/${contest.slug || contest._id}/leaderboard`}
                             className="flex-1 flex items-center justify-center gap-2 p-4 hover:bg-indigo-50 transition-colors group"
                         >
                             <div className="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg group-hover:bg-indigo-200 transition-colors">

@@ -142,7 +142,7 @@ const ContestJoin = () => {
                 if (isUpcoming) {
                     toast.success('Registered! Please wait for the contest to start.');
                 } else {
-                    navigate(`/contest/${contestId}`);
+                    navigate(`/contests/${contest.slug || contestId}`);
                 }
             }
         } catch (err) {
@@ -153,7 +153,7 @@ const ContestJoin = () => {
     };
 
     const handleEnterContest = () => {
-        navigate(`/contest/${contestId}`);
+        navigate(`/contests/${contest.slug || contestId}`);
     };
 
     // ── loading / error screens ───────────────────────────────────────────────
@@ -174,12 +174,12 @@ const ContestJoin = () => {
                         {error === 'Contest not found.' ? 'Contest Not Found' : 'Unavailable'}
                     </h2>
                     <p className="text-gray-600 mb-6">{error}</p>
-                    <button
+                    {/* <button
                         onClick={() => navigate('/login')}
                         className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
                     >
                         Return Home
-                    </button>
+                    </button> */}
                 </div>
             </div>
         );
@@ -209,7 +209,7 @@ const ContestJoin = () => {
                 {/* Banner */}
                 <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white shrink-0">
                     <h1 className="text-3xl font-bold mb-2">{contest?.title || 'Contest'}</h1>
-                    <p className="text-indigo-100 opacity-90">{contest?.description || 'Global Programming Contest'}</p>
+                    <p className="text-indigo-100 opacity-90">{contest?.description}</p>
                 </div>
 
                 <div className="p-6 overflow-y-auto">

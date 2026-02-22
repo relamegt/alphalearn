@@ -521,7 +521,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         ) || [];
 
         const headers = [
-            'Rank', 'Roll No', 'Participant', 'Full Name', 'Branch',
+            'Rank', 'Roll No', 'Username', 'Full Name', 'Branch',
             ...problemHeaders,
             'Total Time (min)', 'Solved',
             'Tab Switches', 'FS Exits', 'Total Violations',
@@ -548,7 +548,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
             return [
                 index + 1,
                 entry.rollNumber,
-                entry.isSpotUser ? entry.fullName : (entry.username !== 'N/A' && entry.username ? entry.username : entry.fullName),
+                (entry.isSpotUser || entry.username?.startsWith('spot_')) ? '-' : (entry.username !== 'N/A' && entry.username ? entry.username : entry.fullName),
                 entry.fullName,
                 entry.branch,
                 ...problemCells,
@@ -983,7 +983,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                 {/* Contest link row */}
                                                                 <div className="flex items-center gap-1">
                                                                     <a
-                                                                        href={`/contest/${contest.id}/leaderboard`}
+                                                                        href={`/contests/${contest.id}/leaderboard`}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         onClick={e => e.stopPropagation()}
@@ -1208,7 +1208,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </div >
                 )
                 }
 
@@ -1301,11 +1301,11 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                     <div className="flex flex-col items-center justify-center font-bold text-sm w-full">
                                                                         <div>
                                                                             {entry.rank === 1 ? (
-                                                                        <span className="text-2xl">🥇</span>
-                                                                    ) : entry.rank === 2 ? (
-                                                                        <span className="text-2xl">🥈</span>
-                                                                    ) : entry.rank === 3 ? (
-                                                                        <span className="text-2xl">🥉</span>
+                                                                                <span className="text-2xl">🥇</span>
+                                                                            ) : entry.rank === 2 ? (
+                                                                                <span className="text-2xl">🥈</span>
+                                                                            ) : entry.rank === 3 ? (
+                                                                                <span className="text-2xl">🥉</span>
                                                                             ) : (
                                                                                 <span className="text-gray-500">#{entry.rank}</span>
                                                                             )}
@@ -1471,7 +1471,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                             Roll No {internalSortConfig.key === 'rollNumber' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
                                                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[170px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-200 min-w-[140px]" onClick={() => handleInternalSort('username')}>
-                                                            Participant {internalSortConfig.key === 'username' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                            Username {internalSortConfig.key === 'username' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
                                                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 min-w-[120px]" onClick={() => handleInternalSort('fullName')}>
                                                             Full Name {internalSortConfig.key === 'fullName' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -1526,9 +1526,11 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                             </td>
                                                             {/* Roll No - sticky */}
                                                             <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
-                                                            {/* Participant (Username for normal, Full Name for spot) */}
-                                                            <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={entry.username !== 'N/A' && entry.username ? entry.username : entry.fullName}>
-                                                                {entry.username !== 'N/A' && entry.username ? (
+                                                            {/* Username Column */}
+                                                            <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={(entry.isSpotUser || entry.username?.startsWith('spot_')) ? '' : (entry.username !== 'N/A' && entry.username ? entry.username : entry.fullName)}>
+                                                                {(entry.isSpotUser || entry.username?.startsWith('spot_')) ? (
+                                                                    <span className="text-gray-400 font-medium">-</span>
+                                                                ) : entry.username !== 'N/A' && entry.username ? (
                                                                     <a href={`/profile/${entry.username}`} target="_blank" rel="noreferrer" className="text-blue-600 font-medium hover:text-blue-800 hover:underline transition-colors flex items-center gap-1">
                                                                         {entry.username}
                                                                     </a>
@@ -1647,8 +1649,8 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                         </div>
                     )
                 }
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 
