@@ -40,7 +40,7 @@ import {
 
 import CustomDropdown from '../shared/CustomDropdown';
 
-/* ─── Helpers ─── */
+/* —"—"—" Helpers —"—"—" */
 const DragHandleH = ({ onMouseDown }) => (
     <div onMouseDown={onMouseDown} className="w-1.5 bg-gray-50 hover:bg-blue-100 border-l border-r border-gray-100 cursor-col-resize shrink-0 transition-colors z-10 relative group flex flex-col justify-center items-center">
         <div className="h-4 w-0.5 bg-gray-300 rounded-full group-hover:bg-blue-400" />
@@ -68,7 +68,7 @@ const DiffBadge = ({ d }) => {
     );
 };
 
-// ─── Verdict color helper ───
+// —"—"—" Verdict color helper —"—"—"
 const getVerdictColor = (verdict) => {
     switch (verdict) {
         case 'Accepted': return { text: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' };
@@ -148,7 +148,7 @@ const DEFAULT_CODE = {
     csharp: 'using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\nclass Program {\n    static void Main() {\n        // your code\n    }\n}',
 };
 
-/* ─── Main Component ─── */
+/* —"—"—" Main Component —"—"—" */
 const ContestInterface = ({ isPractice = false }) => {
     const { contestId } = useParams();
     const navigate = useNavigate();
@@ -189,10 +189,11 @@ const ContestInterface = ({ isPractice = false }) => {
     const [activeInputCase, setActiveInputCase] = useState(0);
     // Custom input removed for contest mode
     const [showLeaderboard, setShowLeaderboard] = useState(false);
+    const [contestPast, setContestPast] = useState(false); // true when contest has ended and user visits URL
     const [leaderboardData, setLeaderboardData] = useState([]);
     const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 20;
+    const [itemsPerPage, setItemsPerPage] = useState(50);
     const [totalParticipants, setTotalParticipants] = useState(0);
     const [isResizing, setIsResizing] = useState(false);
     const [resultsAnimKey, setResultsAnimKey] = useState(0);
@@ -268,7 +269,7 @@ const ContestInterface = ({ isPractice = false }) => {
         autoSubmitTriggered.current = true;
 
         if (isTimeUp) {
-            toast('⏰ Time up! Submitting the contest...');
+            toast('⏱ Time up! Submitting the contest...');
         }
 
         // Mark as finishing FIRST so fullscreen exit is NOT counted as a violation
@@ -302,7 +303,7 @@ const ContestInterface = ({ isPractice = false }) => {
         }
     }, [contestId, contestSubmitted, finishing, user, navigate, basePath, markAsFinishing, exitFullscreenSilently]);
 
-    /* ─── WebSocket ─── */
+    /* —"—"—" WebSocket —"—"—" */
     const handleContestEnd = useCallback(async () => {
         if (!contestSubmitted && !isPractice) {
             await handleFinishContest(true, true);
@@ -350,7 +351,7 @@ const ContestInterface = ({ isPractice = false }) => {
         };
     }, [contestActive, contest, contestId, contestSubmitted, handleWebSocketMessage, isPractice]);
 
-    /* ─── Data Fetching ─── */
+    /* —"—"—" Data Fetching —"—"—" */
     const fetchContest = async () => {
         try {
             const [contestData, submissionsData] = await Promise.all([
@@ -383,21 +384,23 @@ const ContestInterface = ({ isPractice = false }) => {
                 setContestActive(true);
             } else {
                 if (contestData.contest.isSubmitted) {
-                    if (user?.isSpotUser) setShowLeaderboard(true);
-                    else setTimeout(() => navigate(`${basePath}/contests`), 2000);
+                    // Contest already submitted — show past-contest view
+                    setContestPast(true);
+                    return;
+                }
+                if (now < start) {
+                    // Contest hasn't started yet — redirect to contests list
+                    toast(`"${contestData.contest.title}" starts on ${new Date(contestData.contest.startTime).toLocaleString()}`, { icon: '', duration: 5000 });
+                    navigate(`${basePath}/contests`, { replace: true });
                     return;
                 }
                 if (now >= start && now <= end) setContestActive(true);
                 else if (now > end) {
-                    toast('Contest has ended. Submitting final results...', { duration: 2000 });
-                    try {
-                        await contestService.finishContest(contestId, null);
-                        setContestSubmitted(true);
-                    } catch (e) { }
-                    setTimeout(() => {
-                        if (user?.isSpotUser) setShowLeaderboard(true);
-                        else navigate(`${basePath}/contests`);
-                    }, 2000);
+                    // Show "Contest has ended" info page + leaderboard button
+                    // Try to auto-finish if not already submitted (non-blocking)
+                    contestService.finishContest(contestId, null).catch(e => { });
+                    setContestSubmitted(true);
+                    setContestPast(true);
                 }
             }
 
@@ -454,7 +457,7 @@ const ContestInterface = ({ isPractice = false }) => {
 
     // (old timer that called handleContestEnd removed — replaced by the ref-safe timer below)
 
-    // ─── Dedicated time-up handler — uses refs only, NO stale closure issues ───
+    // —"—"—" Dedicated time-up handler — uses refs only, NO stale closure issues —"—"—"
     // This is kept separate from `handleContestEnd` so the setInterval callback
     // never captures a stale version of the async submission logic.
     const timeUpContestId = useRef(contestId);
@@ -486,7 +489,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 setFinishing(true);
                 finishingRef.current = true;
 
-                toast('⏰ Time up! Submitting the contest...');
+                toast('⏱ Time up! Submitting the contest...');
 
                 try {
                     const result = await contestService.finishContest(timeUpContestId.current, violationsRef.current);
@@ -514,7 +517,7 @@ const ContestInterface = ({ isPractice = false }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [contest, contestActive, contestSubmitted, isPractice]);
 
-    /* ─── Handlers ─── */
+    /* —"—"—" Handlers —"—"—" */
     const handleProblemChange = (problem, isInit = false) => {
         if (!isInit && !isPractice && contestSubmitted) return toast.error('Contest submitted');
 
@@ -581,7 +584,7 @@ const ContestInterface = ({ isPractice = false }) => {
             });
             setRunning(false);
 
-            // ── Detect compilation error from results array (backend puts it there) ──
+            // —"—" Detect compilation error from results array (backend puts it there) —"—"
             const firstResult = result.results?.[0];
             if (firstResult?.verdict === 'Compilation Error') {
                 const errMsg = firstResult.error || result.error || 'Compilation Error in your code';
@@ -620,10 +623,10 @@ const ContestInterface = ({ isPractice = false }) => {
                 isPractice
             });
 
-            // ── Stop loading spinner IMMEDIATELY before any other logic ──
+            // —"—" Stop loading spinner IMMEDIATELY before any other logic —"—"
             setSubmitting(false);
 
-            // ── Detect compilation error from the verdict (backend stores it in submission.verdict) ──
+            // —"—" Detect compilation error from the verdict (backend stores it in submission.verdict) —"—"
             const verdict = result.submission?.verdict;
             if (verdict === 'Compilation Error') {
                 // Find the error message: it lives in the first result's error field
@@ -709,7 +712,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 toast.error(result.submission.verdict || 'Wrong Answer');
             }
 
-            // ── Refresh leaderboard in background (non-blocking) ──
+            // —"—" Refresh leaderboard in background (non-blocking) —"—"
             if (!isPractice) {
                 contestService.getContestLeaderboard(contestId)
                     .then(lb => setLeaderboardData(lb.leaderboard || []))
@@ -726,7 +729,7 @@ const ContestInterface = ({ isPractice = false }) => {
     };
 
 
-    /* ─── Sorting & CSV ─── */
+    /* —"—"—" Sorting & CSV —"—"—" */
     const handleSort = (key) => {
         let direction = 'desc'; // Default desc for score/solved
         if (sortConfig.key === key && sortConfig.direction === 'desc') {
@@ -833,7 +836,7 @@ const ContestInterface = ({ isPractice = false }) => {
         document.body.removeChild(link);
     };
 
-    /* ─── Drag Logic (useEffect-based for smooth resize like CodeEditor) ─── */
+    /* —"—"—" Drag Logic (useEffect-based for smooth resize like CodeEditor) —"—"—" */
     const onMouseMoveResize = useCallback((e) => {
         const d = dragging.current;
         if (!d || !containerRef.current) return;
@@ -895,6 +898,88 @@ const ContestInterface = ({ isPractice = false }) => {
     };
 
     // Render Helpers
+    // —"—" Past Contest View (contest has ended, show info + leaderboard button) —"—"
+    if (contestPast && contest && !contestActive) {
+        const durationMs = new Date(contest.endTime) - new Date(contest.startTime);
+        const durationHrs = Math.floor(durationMs / 3600000);
+        const durationMins = Math.floor((durationMs % 3600000) / 60000);
+        const durationStr = durationHrs > 0
+            ? `${durationHrs} hr${durationHrs > 1 ? 's' : ''} ${durationMins > 0 ? durationMins + ' min' : ''}`
+            : `${durationMins} min`;
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col">
+                {/* Minimal header */}
+                <header className="h-14 bg-white border-b border-gray-200 flex items-center px-6 gap-4 shadow-sm">
+                    <img src="/alphalogo.png" alt="AlphaKnowledge" className="h-8 w-auto object-contain" />
+                    <span className="font-bold text-gray-700 text-sm">AlphaKnowledge</span>
+                    <div className="ml-auto">
+                        <button
+                            onClick={() => navigate(`${basePath}/contests`)}
+                            className="text-sm text-gray-500 hover:text-gray-700 transition flex items-center gap-1.5"
+                        >
+                            ← Back to Contests
+                        </button>
+                    </div>
+                </header>
+
+                <div className="flex-1 flex flex-col items-center justify-center p-6">
+                    {/* Contest ended card */}
+                    <div className="card w-full max-w-3xl">
+                        {/* Title row */}
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                            <div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <span className="bg-gray-700 text-white text-[10px] font-bold px-2.5 py-1 rounded uppercase tracking-wider">PAST</span>
+                                    <span className="text-sm text-gray-500">{contest.type === 'global' ? 'Global Contest' : 'Internal Assessment'}</span>
+                                </div>
+                                <h1 className="text-2xl font-bold text-gray-900">{contest.title}</h1>
+                                {contestSubmitted && (
+                                    <p className="text-sm text-gray-500 mt-1.5">Contest has ended</p>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => navigate(`/contests/${contestId}/leaderboard`)}
+                                className="btn btn-primary shrink-0 flex items-center gap-2"
+                            >
+                                <Trophy size={16} />
+                                View Leaderboard
+                            </button>
+                        </div>
+
+                        {/* Stats row */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4 border-t border-b border-gray-100 mb-4">
+                            <div className="text-center">
+                                <div className="text-xs text-gray-500 uppercase font-medium mb-1">Total Problems</div>
+                                <div className="text-2xl font-bold text-gray-900">{contest.problems?.length || 0}</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-xs text-gray-500 uppercase font-medium mb-1">Contest Duration</div>
+                                <div className="text-lg font-bold text-gray-900">{durationStr}</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-xs text-gray-500 uppercase font-medium mb-1">Start Time</div>
+                                <div className="text-sm font-semibold text-gray-900">{new Date(contest.startTime).toLocaleString()}</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-xs text-gray-500 uppercase font-medium mb-1">End Time</div>
+                                <div className="text-sm font-semibold text-gray-900">{new Date(contest.endTime).toLocaleString()}</div>
+                            </div>
+                        </div>
+
+                        {/* Description / instructions */}
+                        {contest.description && (
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2">Description</h3>
+                                <p className="text-gray-600 text-sm leading-relaxed">{contest.description}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+            </div>
+        );
+    }
+
     if (!contest) {
         // Show "not found" or generic error when fetch has completed
         if (contestError) {
@@ -924,7 +1009,7 @@ const ContestInterface = ({ isPractice = false }) => {
         return (
             <div className="flex flex-col h-screen items-center justify-center bg-gray-50 text-gray-600 gap-3">
                 <Loader2 className="animate-spin text-blue-600" size={32} />
-                <p className="font-medium">Loading Contest Environment...</p>
+                <p className="font-medium">Loading Contest...</p>
             </div>
         );
     }
@@ -957,7 +1042,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 />
             )}
 
-            {/* ─── Minimal Header ─── */}
+            {/* —"—"—" Minimal Header —"—"—" */}
             <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-20 shrink-0 shadow-sm relative">
                 <div className="flex items-center gap-4 min-w-0">
 
@@ -1006,7 +1091,7 @@ const ContestInterface = ({ isPractice = false }) => {
                     )}
 
                     {!isPractice && (
-                        <button onClick={() => setShowLeaderboard(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                        <button onClick={() => navigate(`/contests/${contestId}/leaderboard`)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                             <Layout size={14} /> Leaderboard
                         </button>
                     )}
@@ -1042,10 +1127,10 @@ const ContestInterface = ({ isPractice = false }) => {
                 </div>
             </header>
 
-            {/* ── Main 3‑column area ─────────────────────────────────────── */}
+            {/* —"—" Main 3—column area —"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—" */}
             <div className="flex-1 flex overflow-hidden relative">
 
-                {/* ─ Col 1: Sidebar ─ */}
+                {/* —" Col 1: Sidebar —" */}
                 <div
                     style={{
                         width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px`,
@@ -1107,7 +1192,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                     }`}>
                                                     <span className="truncate">{p.title}</span>
                                                     {isLocked && (
-                                                        <span title="Problem Locked – Solved!" className="shrink-0 inline-flex">
+                                                        <span title="Problem Locked — Solved!" className="shrink-0 inline-flex">
                                                             <CiLock
                                                                 size={14}
                                                                 style={{
@@ -1163,7 +1248,7 @@ const ContestInterface = ({ isPractice = false }) => {
 
                 {showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
 
-                {/* ─ Col 2: Description / Editorial ─ */}
+                {/* —" Col 2: Description / Editorial —" */}
                 <div style={{ width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 bg-white">
 
                     <div className="flex items-center h-12 border-b border-gray-200 bg-white shrink-0 pl-0 pr-4 overflow-x-auto no-scrollbar">
@@ -1443,7 +1528,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                     {bottomTab === 'results' && (
                                         <div className="h-full overflow-y-auto flex flex-col" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
 
-                                            {/* ── Compilation Error ── */}
+                                            {/* —"—" Compilation Error —"—" */}
                                             {!running && !submitting && isCompileErr && (
                                                 <div className="flex flex-col bg-orange-50/30">
                                                     <div className="bg-orange-50 border-b border-orange-100 px-4 py-3 flex items-center gap-2 shrink-0">
@@ -1463,10 +1548,10 @@ const ContestInterface = ({ isPractice = false }) => {
                                                 </div>
                                             )}
 
-                                            {/* ── Has results ── */}
+                                            {/* —"—" Has results —"—" */}
                                             {!running && !submitting && !isCompileErr && displayResult && (
                                                 <div className="flex flex-col h-full">
-                                                    {/* ── LeetCode-style Verdict Header ── */}
+                                                    {/* —"—" LeetCode-style Verdict Header —"—" */}
                                                     {(() => {
                                                         const vc = getVerdictColor(displayResult.verdict);
                                                         const isAccepted = displayResult.verdict === 'Accepted';
@@ -1497,7 +1582,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                         );
                                                     })()}
 
-                                                    {/* ── Test Case Tabs (LeetCode style) ── */}
+                                                    {/* —"—" Test Case Tabs (LeetCode style) —"—" */}
                                                     {displayResult.results?.length > 0 && (
                                                         <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0 bg-white">
                                                             {displayResult.results.map((r, i) => {
@@ -1523,16 +1608,16 @@ const ContestInterface = ({ isPractice = false }) => {
                                                         </div>
                                                     )}
 
-                                                    {/* ── Result Details ── */}
+                                                    {/* —"—" Result Details —"—" */}
                                                     <div className="flex-1 p-4 overflow-y-auto">
                                                         {displayResult.results?.[activeResultCase] ? (
                                                             <div className="space-y-4 max-w-3xl">
                                                                 {/* Hidden test case placeholder */}
                                                                 {displayResult.results[activeResultCase].isHidden ? (
-                                                                    <div className={`p-10 text-center border-2 border-dashed rounded-xl ${displayResult.results[activeResultCase].passed ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'}`}>
-                                                                        <Lock size={24} className={`mx-auto mb-3 ${displayResult.results[activeResultCase].passed ? 'text-green-400' : 'text-red-400'}`} />
+                                                                    <div className={`p-10 text-center border-2 border-dashed rounded-xl ${displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}`}>
+                                                                        <Lock size={24} className={`mx-auto mb-3 ${displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}`} />
                                                                         <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Hidden Test Case</p>
-                                                                        <p className={`text-sm font-semibold mt-2 ${displayResult.results[activeResultCase].passed ? 'text-green-600' : 'text-red-600'}`}>
+                                                                        <p className={`text-sm font-semibold mt-2 ${displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}`}>
                                                                             {displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}
                                                                         </p>
                                                                         <p className="text-[10px] text-gray-400 mt-1">Input and expected output are hidden</p>
@@ -1540,7 +1625,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                 ) : (
                                                                     <>
                                                                         {/* Pass / Fail badge */}
-                                                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${displayResult.results[activeResultCase].passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}`}>
                                                                             {displayResult.results[activeResultCase].passed
                                                                                 ? <><CheckCircle size={12} /> Passed</>
                                                                                 : <><XCircle size={12} /> {displayResult.results[activeResultCase].verdict || 'Failed'}</>
@@ -1599,7 +1684,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                 </div>
                                             )}
 
-                                            {/* ── No results yet ── */}
+                                            {/* —"—" No results yet —"—" */}
                                             {!running && !submitting && !displayResult && !consoleOutput?.error && (
                                                 <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
                                                     <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
@@ -1609,7 +1694,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                 </div>
                                             )}
 
-                                            {/* ── Generic error (no results) ── */}
+                                            {/* —"—" Generic error (no results) —"—" */}
                                             {!running && !submitting && consoleOutput?.error && !displayResult && (
                                                 <div className="p-4">
                                                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -1627,7 +1712,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 </div>
             </div>
 
-            {/* ─── Modals ─── */}
+            {/* —"—"—" Modals —"—"—" */}
             {showLeaderboard && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-6 animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden border border-gray-200" onClick={e => e.stopPropagation()}>
@@ -1674,174 +1759,172 @@ const ContestInterface = ({ isPractice = false }) => {
                                 </button>
                             </div>
                         </div>
+                        {/* Page size selector for inline leaderboard modal */}
+                        <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50/40 shrink-0">
+                            <span className="text-xs text-gray-500 font-medium">Show:</span>
+                            {[20, 50, 100, 200, 500].map(size => (
+                                <button key={size} onClick={() => { setItemsPerPage(size); setCurrentPage(1); }}
+                                    className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors ${itemsPerPage === size ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400 hover:text-blue-600'
+                                        }`}>{size}</button>
+                            ))}
+                            <span className="ml-auto text-xs text-gray-400">{sortedLeaderboardData.length} total</span>
+                        </div>
                         {/* Single Rankings view — no separate violations tab */}
                         <div className="flex-1 overflow-auto scrollbar-thin bg-gray-50/50 relative">
-                            {loadingLeaderboard ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-20">
-                                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-2"></div>
-                                    <p className="text-sm text-gray-500 font-medium">Updating Leaderboard...</p>
-                                </div>
-                            ) : leaderboardData.length === 0 ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                                    <Trophy size={48} className="mb-4 opacity-20" />
-                                    <p>No participants yet</p>
-                                </div>
-                            ) : (
-                                <div className="overflow-auto">
-                                    <table className="w-full text-left border-collapse min-w-max">
-                                        <thead className="bg-white sticky top-0 z-10 shadow-sm text-xs uppercase tracking-wider text-gray-500">
-                                            <tr>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[60px]" onClick={() => handleSort('rank')}>
-                                                    Rank {sortConfig.key === 'rank' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                                </th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[60px] bg-gray-50 z-20 border-r border-gray-200 min-w-[110px]" onClick={() => handleSort('rollNumber')}>
-                                                    Roll No {sortConfig.key === 'rollNumber' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                                </th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[170px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-200 min-w-[140px]" onClick={() => handleSort('fullName')}>
-                                                    Full Name {sortConfig.key === 'fullName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                                </th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 min-w-[120px]" onClick={() => handleSort('username')}>
-                                                    Username {sortConfig.key === 'username' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                                </th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('branch')}>
-                                                    Branch {sortConfig.key === 'branch' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                                </th>
+                            <div className="overflow-auto">
+                                <table className="w-full text-left border-collapse min-w-max">
+                                    <thead className="bg-white sticky top-0 z-10 shadow-sm text-xs uppercase tracking-wider text-gray-500">
+                                        <tr>
+                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[60px]" onClick={() => handleSort('rank')}>
+                                                Rank {sortConfig.key === 'rank' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[60px] bg-gray-50 z-20 border-r border-gray-200 min-w-[110px]" onClick={() => handleSort('rollNumber')}>
+                                                Roll No {sortConfig.key === 'rollNumber' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[170px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-200 min-w-[140px]" onClick={() => handleSort('fullName')}>
+                                                Full Name {sortConfig.key === 'fullName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 min-w-[120px]" onClick={() => handleSort('username')}>
+                                                Username {sortConfig.key === 'username' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('branch')}>
+                                                Branch {sortConfig.key === 'branch' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
 
-                                                {/* Problem Columns — in contest order */}
-                                                {contest?.problems?.map((prob, i) => (
-                                                    <th key={prob._id} className="p-4 font-bold text-center whitespace-nowrap min-w-[130px]">
-                                                        P{i + 1}: {prob.title?.length > 12 ? prob.title.slice(0, 12) + '…' : prob.title}
-                                                    </th>
-                                                ))}
-
-                                                <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('time')}>
-                                                    Time {sortConfig.key === 'time' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            {/* Problem Columns — in contest order */}
+                                            {contest?.problems?.map((prob, i) => (
+                                                <th key={prob._id} className="p-4 font-bold text-center whitespace-nowrap min-w-[130px]">
+                                                    P{i + 1}: {prob.title?.length > 12 ? prob.title.slice(0, 12) + '—' : prob.title}
                                                 </th>
-                                                <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('problemsSolved')}>
-                                                    Solved {sortConfig.key === 'problemsSolved' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                                </th>
-                                                {contest?.proctoringEnabled && (
-                                                    <>
-                                                        <th className="p-4 font-bold text-center whitespace-nowrap">Tab Switches</th>
-                                                        <th className="p-4 font-bold text-center whitespace-nowrap">FS Exits</th>
-                                                        <th className="p-4 font-bold text-center whitespace-nowrap text-amber-600">⚠ Violations</th>
-                                                    </>
-                                                )}
-                                                <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('status')}>
-                                                    Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                                </th>
-                                                <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap sticky right-0 bg-white z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleSort('score')}>
-                                                    Score {sortConfig.key === 'score' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100 text-sm bg-white">
-                                            {paginatedData.map((entry, pageIndex) => {
-                                                const index = (currentPage - 1) * itemsPerPage + pageIndex;
-                                                const isCurrentUser = entry.studentId === user?.userId;
-                                                return (
-                                                    <tr key={index} className={`hover:bg-gray-50 transition ${isCurrentUser ? 'bg-blue-50/60 ring-1 ring-blue-100' : 'bg-white'}`}>
-                                                        <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-inherit z-10 border-r border-gray-100">
-                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold text-xs ${index === 0 ? 'bg-yellow-100 text-yellow-700 text-2xl' :
-                                                                index === 1 ? 'bg-gray-100 text-gray-700 text-2xl' :
-                                                                    index === 2 ? 'bg-orange-100 text-orange-700 text-2xl' : 'text-gray-500'
-                                                                }`}>
-                                                                {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                                                            </div>
-                                                        </td>
-                                                        {/* Roll No - sticky */}
-                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
-                                                        {/* Full Name - sticky */}
-                                                        <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={entry.fullName !== 'N/A' ? entry.fullName : entry.username}>
-                                                            {entry.fullName !== 'N/A' ? entry.fullName : entry.username}
-                                                        </td>
-                                                        {/* Username */}
-                                                        <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={entry.username}>{entry.username}</td>
-                                                        {/* Branch */}
-                                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
+                                            ))}
 
-                                                        {/* Problem Cells — order matches contest.problems */}
-                                                        {contest?.problems?.map(prob => {
-                                                            const pData = entry.problems?.[prob._id];
-                                                            const status = pData?.status || 'Not Attempted';
-                                                            let cellClass = 'bg-gray-50 text-gray-400';
-                                                            let icon = null;
+                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('time')}>
+                                                Time {sortConfig.key === 'time' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('problemsSolved')}>
+                                                Solved {sortConfig.key === 'problemsSolved' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            {contest?.proctoringEnabled && (
+                                                <>
+                                                    <th className="p-4 font-bold text-center whitespace-nowrap">Tab Switches</th>
+                                                    <th className="p-4 font-bold text-center whitespace-nowrap">FS Exits</th>
+                                                    <th className="p-4 font-bold text-center whitespace-nowrap text-amber-600">—  Violations</th>
+                                                </>
+                                            )}
+                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('status')}>
+                                                Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap sticky right-0 bg-white z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleSort('score')}>
+                                                Score {sortConfig.key === 'score' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 text-sm bg-white">
+                                        {paginatedData.map((entry, pageIndex) => {
+                                            const index = (currentPage - 1) * itemsPerPage + pageIndex;
+                                            const isCurrentUser = entry.studentId === user?.userId;
+                                            return (
+                                                <tr key={index} className={`hover:bg-gray-50 transition ${isCurrentUser ? 'bg-blue-50/60 ring-1 ring-blue-100' : 'bg-white'}`}>
+                                                    <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-inherit z-10 border-r border-gray-100">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold text-xs ${index === 0 ? 'bg-yellow-100 text-yellow-700 text-2xl' :
+                                                            index === 1 ? 'bg-gray-100 text-gray-700 text-2xl' :
+                                                                index === 2 ? 'bg-orange-100 text-orange-700 text-2xl' : 'text-gray-500'
+                                                            }`}>
+                                                            {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                                                        </div>
+                                                    </td>
+                                                    {/* Roll No - sticky */}
+                                                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-inherit z-10 border-r border-gray-100">{entry.rollNumber}</td>
+                                                    {/* Full Name - sticky */}
+                                                    <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-inherit z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={entry.fullName !== 'N/A' ? entry.fullName : entry.username}>
+                                                        {entry.fullName !== 'N/A' ? entry.fullName : entry.username}
+                                                    </td>
+                                                    {/* Username */}
+                                                    <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={entry.username}>{entry.username}</td>
+                                                    {/* Branch */}
+                                                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
 
-                                                            if (status === 'Accepted') {
-                                                                cellClass = 'bg-green-50 text-green-700 font-semibold';
-                                                                icon = '✓';
-                                                            } else if (status === 'Wrong Answer') {
-                                                                cellClass = 'bg-red-50 text-red-600';
-                                                                icon = '✗';
-                                                            }
+                                                    {/* Problem Cells — order matches contest.problems */}
+                                                    {contest?.problems?.map(prob => {
+                                                        const pData = entry.problems?.[prob._id];
+                                                        const status = pData?.status || 'Not Attempted';
+                                                        let cellClass = 'bg-gray-50 text-gray-400';
+                                                        let icon = null;
 
-                                                            return (
-                                                                <td key={prob._id} className="p-2 text-center border-r border-gray-50">
-                                                                    <div className="flex flex-col items-center justify-center gap-0.5">
-                                                                        <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
-                                                                            {icon && <span className="font-bold">{icon}</span>}
-                                                                            {status === 'Not Attempted' ? '—' : status === 'Accepted' ? 'Accepted' : 'Wrong'}
-                                                                        </div>
-                                                                        {pData?.submittedAt !== undefined && pData?.submittedAt !== null && (
-                                                                            <span className="text-[10px] text-gray-500 font-mono tracking-tighter">
-                                                                                {pData.submittedAt}m
-                                                                            </span>
-                                                                        )}
+                                                        if (status === 'Accepted') {
+                                                            cellClass = 'bg-green-50 text-green-700 font-semibold';
+                                                            icon = '✓';
+                                                        } else if (status === 'Wrong Answer') {
+                                                            cellClass = 'bg-red-50 text-red-600';
+                                                            icon = '—';
+                                                        }
+
+                                                        return (
+                                                            <td key={prob._id} className="p-2 text-center border-r border-gray-50">
+                                                                <div className="flex flex-col items-center justify-center gap-0.5">
+                                                                    <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
+                                                                        {icon && <span className="font-bold">{icon}</span>}
+                                                                        {status === 'Not Attempted' ? '—' : status === 'Accepted' ? 'Accepted' : 'Wrong'}
+                                                                    </div>
+                                                                    {pData?.submittedAt !== undefined && pData?.submittedAt !== null && (
+                                                                        <span className="text-[10px] text-gray-500 font-mono tracking-tighter">
+                                                                            {pData.submittedAt}m
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    })}
+
+                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{entry.time}m</td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-center">
+                                                        <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
+                                                            {entry.problemsSolved}/{contest?.problems?.length || 0}
+                                                        </span>
+                                                    </td>
+                                                    {contest?.proctoringEnabled && (() => {
+                                                        const ts = entry.tabSwitchCount || 0;
+                                                        const fse = entry.fullscreenExits || 0;
+                                                        const totalV = ts + fse;
+                                                        const limit = contest?.maxViolations || 5;
+                                                        const pct = Math.min(100, Math.round((totalV / limit) * 100));
+                                                        return (
+                                                            <>
+                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                    <span className={ts > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                        {ts}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                    <span className={fse > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                        {fse}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-3 py-2 whitespace-nowrap text-center">
+                                                                    <div className="flex flex-col items-center gap-1">
+                                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${totalV === 0 ? 'bg-green-100 text-green-800'
+                                                                            : pct >= 100 ? 'bg-red-100 text-red-800'
+                                                                                : 'bg-yellow-100 text-yellow-800'
+                                                                            }`}>{totalV}/{limit}</span>
                                                                     </div>
                                                                 </td>
-                                                            );
-                                                        })}
-
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{entry.time}m</td>
-                                                        <td className="px-3 py-2 whitespace-nowrap text-center">
-                                                            <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
-                                                                {entry.problemsSolved}/{contest?.problems?.length || 0}
-                                                            </span>
-                                                        </td>
-                                                        {contest?.proctoringEnabled && (() => {
-                                                            const ts = entry.tabSwitchCount || 0;
-                                                            const fse = entry.fullscreenExits || 0;
-                                                            const totalV = ts + fse;
-                                                            const limit = contest?.maxViolations || 5;
-                                                            const pct = Math.min(100, Math.round((totalV / limit) * 100));
-                                                            return (
-                                                                <>
-                                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                        <span className={ts > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                            {ts}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                        <span className={fse > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                            {fse}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="px-3 py-2 whitespace-nowrap text-center">
-                                                                        <div className="flex flex-col items-center gap-1">
-                                                                            <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${totalV === 0 ? 'bg-green-100 text-green-800'
-                                                                                : pct >= 100 ? 'bg-red-100 text-red-800'
-                                                                                    : 'bg-yellow-100 text-yellow-800'
-                                                                                }`}>{totalV}/{limit}</span>
-                                                                        </div>
-                                                                    </td>
-                                                                </>
-                                                            );
-                                                        })()}
-                                                        <td className="p-4 text-center">
-                                                            {entry.isCompleted ? (
-                                                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">Finished</span>
-                                                            ) : (
-                                                                <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">In Progress</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="p-4 text-center font-bold text-blue-600 sticky right-0 bg-inherit z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-gray-100">{entry.score}</td>
-                                                    </tr>
-                                                )
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
+                                                            </>
+                                                        );
+                                                    })()}
+                                                    <td className="p-4 text-center">
+                                                        {entry.isCompleted ? (
+                                                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">Finished</span>
+                                                        ) : (
+                                                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">In Progress</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-4 text-center font-bold text-blue-600 sticky right-0 bg-inherit z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-gray-100">{entry.score}</td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         {/* Pagination Controls */}
