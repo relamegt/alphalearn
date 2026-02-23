@@ -154,8 +154,7 @@ const ContestCard = ({ contest, status }) => {
             day: 'numeric',
             year: 'numeric',
             hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
+            minute: '2-digit'
         });
     };
 

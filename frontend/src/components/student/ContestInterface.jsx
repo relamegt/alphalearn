@@ -392,7 +392,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 }
                 if (now < start) {
                     // Contest hasn't started yet — redirect to contests list
-                    toast(`"${contestData.contest.title}" starts on ${new Date(contestData.contest.startTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}`, { icon: '', duration: 5000 });
+                    toast(`"${contestData.contest.title}" starts on ${new Date(contestData.contest.startTime).toLocaleString()}`, { icon: '', duration: 5000 });
                     navigate(`${basePath}/contests`, { replace: true });
                     return;
                 }
@@ -990,11 +990,11 @@ const ContestInterface = ({ isPractice = false }) => {
                             </div>
                             <div className="text-center">
                                 <div className="text-xs text-gray-500 uppercase font-medium mb-1">Start Time</div>
-                                <div className="text-sm font-semibold text-gray-900">{new Date(contest.startTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</div>
+                                <div className="text-sm font-semibold text-gray-900">{new Date(contest.startTime).toLocaleString()}</div>
                             </div>
                             <div className="text-center">
                                 <div className="text-xs text-gray-500 uppercase font-medium mb-1">End Time</div>
-                                <div className="text-sm font-semibold text-gray-900">{new Date(contest.endTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</div>
+                                <div className="text-sm font-semibold text-gray-900">{new Date(contest.endTime).toLocaleString()}</div>
                             </div>
                         </div>
 

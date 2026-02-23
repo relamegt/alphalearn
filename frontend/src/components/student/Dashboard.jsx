@@ -235,12 +235,11 @@ const Dashboard = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-right text-gray-500 font-mono text-xs">
-                                                        {new Date(submission.submittedAt).toLocaleString('en-US', {
+                                                        {new Date(submission.submittedAt).toLocaleDateString(undefined, {
                                                             month: 'short',
                                                             day: 'numeric',
-                                                            hour: 'numeric',
-                                                            minute: '2-digit',
-                                                            hour12: true
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
                                                         })}
                                                     </td>
                                                 </tr>
