@@ -392,7 +392,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 }
                 if (now < start) {
                     // Contest hasn't started yet — redirect to contests list
-                    toast(`"${contestData.contest.title}" starts on ${new Date(contestData.contest.startTime).toLocaleString()}`, { icon: '', duration: 5000 });
+                    toast(`"${contestData.contest.title}" starts on ${new Date(contestData.contest.startTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}`, { icon: '', duration: 5000 });
                     navigate(`${basePath}/contests`, { replace: true });
                     return;
                 }
