@@ -211,7 +211,7 @@ const InstructorDashboard = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right text-sm text-gray-500">
-                                                {new Date(sub.submittedAt || sub.createdAt).toLocaleString()}
+                                                {new Date(sub.submittedAt || sub.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                                             </td>
                                         </tr>
                                     ))}

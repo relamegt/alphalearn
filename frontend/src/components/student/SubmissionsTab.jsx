@@ -150,7 +150,7 @@ const SubmissionModal = ({ sub, onClose }) => {
                             <>
                                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 px-2.5 py-1 rounded-full">
                                     <Calendar size={11} className="text-gray-400" />
-                                    {format(submittedDate, 'MMM d, yyyy HH:mm')}
+                                    {format(submittedDate, 'MMM d, yyyy h:mm a')}
                                 </span>
                                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 px-2.5 py-1 rounded-full">
                                     <Clock size={11} className="text-gray-400" />
@@ -326,7 +326,7 @@ const SubmissionsTab = ({ problemId }) => {
                             <div className="flex items-center gap-3 flex-shrink-0">
                                 {submittedDate && (
                                     <span className="text-[11px] text-gray-400 hidden sm:block">
-                                        {format(submittedDate, 'MMM d, HH:mm')}
+                                        {format(submittedDate, 'MMM d, h:mm a')}
                                     </span>
                                 )}
                                 <ChevronRight

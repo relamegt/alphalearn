@@ -267,7 +267,7 @@ const ContestManager = () => {
                                                             {start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                                         </span>
                                                         <span>
-                                                            {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            {start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                                                         </span>
                                                     </div>
                                                 </div>

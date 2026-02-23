@@ -107,9 +107,9 @@ const LoginForm = () => {
                     <h1 className="text-4xl lg:text-5xl font-extrabold text-white mb-6 tracking-tight leading-tight">
                         Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300">AlphaKnowledge</span>
                     </h1>
-                    <p className="text-lg lg:text-xl text-blue-100/90 leading-relaxed font-light">
+                    {/* <p className="text-lg lg:text-xl text-blue-100/90 leading-relaxed font-light">
                         Accelerate your learning journey with cutting-edge tools, comprehensive resources, and a vibrant community.
-                    </p>
+                    </p> */}
                 </div>
             </div>
 

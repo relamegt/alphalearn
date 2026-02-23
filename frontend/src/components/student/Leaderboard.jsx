@@ -1503,11 +1503,17 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                         </div>
                                         <div>
                                             <span className="font-medium">Start:</span>{' '}
-                                            {new Date(contestInfo.startTime).toLocaleString()}
+                                            {new Date(contestInfo.startTime).toLocaleString('en-US', {
+                                                month: 'short', day: 'numeric', year: 'numeric',
+                                                hour: 'numeric', minute: '2-digit', hour12: true
+                                            })}
                                         </div>
                                         <div>
                                             <span className="font-medium">End:</span>{' '}
-                                            {new Date(contestInfo.endTime).toLocaleString()}
+                                            {new Date(contestInfo.endTime).toLocaleString('en-US', {
+                                                month: 'short', day: 'numeric', year: 'numeric',
+                                                hour: 'numeric', minute: '2-digit', hour12: true
+                                            })}
                                         </div>
                                     </div>
                                 </div>
