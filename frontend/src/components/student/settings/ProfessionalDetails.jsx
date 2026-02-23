@@ -25,7 +25,7 @@ const ProfessionalDetails = () => {
         const fetchUserProfile = async () => {
             setInitialLoading(true);
             try {
-                const userData = await authService.getCurrentUser();
+                const userData = await authService.getCurrentUser(true); // force refresh for latest education data
                 setProfessionalData({
                     education: userData.education || {},
                     skills: userData.skills || [],

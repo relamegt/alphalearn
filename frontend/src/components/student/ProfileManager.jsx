@@ -56,7 +56,7 @@ const ProfileManager = () => {
         education: {
             institution: '',
             degree: '',
-            stream: '',
+            branch: '',
             rollNumber: '',
             startYear: '',
             endYear: '',
@@ -92,7 +92,7 @@ const ProfileManager = () => {
 
     const fetchUserProfile = async () => {
         try {
-            const userData = await authService.getCurrentUser();
+            const userData = await authService.getCurrentUser(true); // force refresh for latest education data
 
             setPersonalData({
                 profilePicture: userData.profile?.profilePicture || '',
@@ -748,7 +748,7 @@ const ProfileManager = () => {
                                     <label className="block text-sm font-medium text-gray-700">Branch/Stream (Selected During Profile Completion)</label>
                                     <input
                                         type="text"
-                                        value={professionalData.education.stream || ''}
+                                        value={professionalData.education.branch || ''}
                                         readOnly
                                         disabled
                                         className="mt-1 input-field bg-gray-100 cursor-not-allowed"

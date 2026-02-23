@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
         const initAuth = async () => {
             try {
                 if (authService.isAuthenticated()) {
-                    const userData = await authService.getCurrentUser();
+                    const userData = await authService.getCurrentUser(true); // force refresh for latest education/profile data
                     setUser(userData);
                     setIsAuthenticated(true);
 

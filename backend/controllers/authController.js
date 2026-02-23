@@ -106,8 +106,13 @@ const login = async (req, res) => {
                 role: user.role,
                 batchId: user.batchId,
                 assignedBatches: user.assignedBatches || [],
+                profile: user.profile,
+                education: user.education,
+                skills: user.skills || [],
                 profileCompleted: user.profileCompleted || false,
-                isPublicProfile: user.isPublicProfile !== false // defaults to true if undefined
+                isPublicProfile: user.isPublicProfile !== false, // defaults to true if undefined
+                isFirstLogin: user.isFirstLogin || false,
+                isSpotUser: false
             }
         });
     } catch (error) {

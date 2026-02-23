@@ -114,26 +114,33 @@ const CompleteProfile = () => {
     useEffect(() => {
         const fetchUserData = async () => {
             try {
-                const userData = await authService.getCurrentUser();
-                if (userData && userData.education) {
-                    setFormData(prev => ({
-                        ...prev,
-                        institution: userData.education.institution || '',
-                        degree: userData.education.degree || '',
-                        startYear: userData.education.startYear || '',
-                        endYear: userData.education.endYear || ''
-                        // branch and rollNumber remain empty for user to fill
-                    }));
-                }
+                const userData = await authService.getCurrentUser(true); // force refresh to get education from batch
 
-                // Fetch batch data to get available branches
+                // Pre-fill from batch data first (as baseline)
+                let batchEducation = {};
                 if (userData && userData.batchId) {
                     try {
                         const batchData = await authService.getBatchDetails(userData.batchId);
                         setAvailableBranches(batchData.branches || []);
+                        // Use batch education as fallback values
+                        if (batchData.education) {
+                            batchEducation = batchData.education;
+                        }
                     } catch (error) {
                         console.error('Error fetching batch branches:', error);
                     }
+                }
+
+                // User's own education overrides batch defaults (user data takes priority)
+                if (userData) {
+                    setFormData(prev => ({
+                        ...prev,
+                        institution: userData.education?.institution || batchEducation?.institution || '',
+                        degree: userData.education?.degree || batchEducation?.degree || '',
+                        startYear: userData.education?.startYear || batchEducation?.startYear || '',
+                        endYear: userData.education?.endYear || batchEducation?.endYear || ''
+                        // branch and rollNumber remain empty for user to fill
+                    }));
                 }
             } catch (error) {
                 console.error('Error fetching user data:', error);
