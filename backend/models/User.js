@@ -114,9 +114,10 @@ class User {
         return await collections.users.find({ role }).toArray();
     }
 
-    // Find all users
-    static async findAll() {
-        return await collections.users.find({}).toArray();
+    // Find all users (with pagination to prevent OOM)
+    static async findAll(page = 1, limit = 50) {
+        const skip = (page - 1) * limit;
+        return await collections.users.find({}).skip(skip).limit(limit).toArray();
     }
 
     // Compare password
@@ -352,11 +353,10 @@ class User {
     // Count students in a batch
     static async countStudentsInBatch(batchId) {
         try {
-            const students = await collections.users.find({
+            return await collections.users.countDocuments({
                 batchId: new ObjectId(batchId),
                 role: 'student'
-            }).toArray();
-            return students.length;
+            }, { upperBound: 10000 });
         } catch (error) {
             console.error('Count students in batch error:', error);
             throw error;
@@ -366,8 +366,7 @@ class User {
     // Count users by role
     static async countByRole(role) {
         try {
-            const users = await collections.users.find({ role }).toArray();
-            return users.length;
+            return await collections.users.countDocuments({ role }, { upperBound: 100000 });
         } catch (error) {
             console.error('Count by role error:', error);
             throw error;
@@ -508,44 +507,28 @@ class User {
             return { success: true, deletedCount: 0 };
         }
 
-        // Delete ALL data for ALL users in batch
-        await Promise.all([
-            // Delete all user accounts
-            collections.users.deleteMany({ batchId: batchObjectId }),
+        // Delete ALL data for ALL users in batch in chunks
+        const CHUNK_SIZE = 100;
 
-            // Delete all practice submissions
-            collections.submissions.deleteMany({ studentId: { $in: userIds } }),
+        await collections.users.deleteMany({ batchId: batchObjectId });
 
-            // Delete all progress
-            collections.progress.deleteMany({ studentId: { $in: userIds } }),
+        for (let i = 0; i < userIds.length; i += CHUNK_SIZE) {
+            const chunk = userIds.slice(i, i + CHUNK_SIZE);
 
-            // Delete all contest submissions
-            collections.contestSubmissions.deleteMany({ studentId: { $in: userIds } }),
-
-            // Delete all external profiles
-            collections.externalProfiles.deleteMany({ studentId: { $in: userIds } }),
-
-            // Delete all leaderboard entries
-            collections.leaderboard.deleteMany({ studentId: { $in: userIds } }),
-
-            // Delete all contest leaderboard entries
-            collections.contestLeaderboard?.deleteMany({ studentId: { $in: userIds } }),
-
-            // Delete all notifications
-            collections.notifications?.deleteMany({ userId: { $in: userIds } }),
-
-            // Delete all sessions
-            collections.sessions?.deleteMany({ userId: { $in: userIds } }),
-
-            // Delete all saved problems
-            collections.savedProblems?.deleteMany({ studentId: { $in: userIds } }),
-
-            // Delete all discussion posts
-            collections.discussions?.deleteMany({ userId: { $in: userIds } }),
-
-            // Delete all comments
-            collections.comments?.deleteMany({ userId: { $in: userIds } })
-        ]);
+            await Promise.all([
+                collections.submissions.deleteMany({ studentId: { $in: chunk } }),
+                collections.progress.deleteMany({ studentId: { $in: chunk } }),
+                collections.contestSubmissions.deleteMany({ studentId: { $in: chunk } }),
+                collections.externalProfiles.deleteMany({ studentId: { $in: chunk } }),
+                collections.leaderboard.deleteMany({ studentId: { $in: chunk } }),
+                collections.contestLeaderboard?.deleteMany({ studentId: { $in: chunk } }),
+                collections.notifications?.deleteMany({ userId: { $in: chunk } }),
+                collections.sessions?.deleteMany({ userId: { $in: chunk } }),
+                collections.savedProblems?.deleteMany({ studentId: { $in: chunk } }),
+                collections.discussions?.deleteMany({ userId: { $in: chunk } }),
+                collections.comments?.deleteMany({ userId: { $in: chunk } })
+            ]);
+        }
 
         return {
             success: true,
@@ -607,6 +590,35 @@ class User {
                 accountCredentials: true
             }
         };
+    }
+
+    // Delete all users registered for a specific contest (Bulk cleanup for spot users)
+    static async deleteByContest(contestId) {
+        const contestObjectId = (typeof contestId === 'string') ? new ObjectId(contestId) : contestId;
+
+        // Find all users first so we can cascade delete their data
+        const users = await collections.users.find({
+            registeredForContest: contestObjectId
+        }, { projection: { _id: 1 } }).toArray();
+
+        const userIds = users.map(u => u._id);
+        if (userIds.length === 0) return { success: true, deletedCount: 0 };
+
+        // Bulk delete everything associated with these users in chunks
+        const CHUNK_SIZE = 100;
+
+        for (let i = 0; i < userIds.length; i += CHUNK_SIZE) {
+            const chunk = userIds.slice(i, i + CHUNK_SIZE);
+            await Promise.all([
+                collections.users.deleteMany({ _id: { $in: chunk } }),
+                collections.contestSubmissions.deleteMany({ studentId: { $in: chunk } }),
+                collections.externalProfiles.deleteMany({ studentId: { $in: chunk } }),
+                collections.leaderboard.deleteMany({ studentId: { $in: chunk } }),
+                collections.sessions?.deleteMany({ userId: { $in: chunk } })
+            ]);
+        }
+
+        return { success: true, deletedCount: userIds.length };
     }
 }
 

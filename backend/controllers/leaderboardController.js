@@ -5,6 +5,8 @@ const Contest = require('../models/Contest');
 const User = require('../models/User');
 const Batch = require('../models/Batch');
 const Problem = require('../models/Problem');
+const { collections } = require('../config/astra');
+const { ObjectId } = require('bson');
 
 // Get FULL batch leaderboard (NO FILTERS)
 const getBatchLeaderboard = async (req, res) => {
@@ -26,29 +28,62 @@ const getBatchLeaderboard = async (req, res) => {
         const leaderboardMap = new Map();
         leaderboard.forEach(entry => leaderboardMap.set(entry.studentId.toString(), entry));
 
-        // Build map of studentId -> { contestId -> baseScore }
-        // Compute the actual leaderboard for all contests in this batch so we have their actual dynamic scores.
+        // Pre-fetch ALL external profiles for this batch to avoid N+1 queries
+        const externalProfiles = await ExternalProfile.getBatchExternalStats(batchId);
+        const externalProfilesMap = new Map();
+        externalProfiles.forEach(p => {
+            const sid = p.studentId.toString();
+            if (!externalProfilesMap.has(sid)) externalProfilesMap.set(sid, []);
+            externalProfilesMap.get(sid).push(p);
+        });
+
+        // Compute the actual leaderboard scores for all contests in this batch using a single bulk query
         const contestScoresByStudent = new Map(); // studentId -> Map(contestId -> score)
 
-        await Promise.all(allContests.map(async (contest) => {
-            const cid = contest._id.toString();
-            try {
-                const cLeaderboard = await ContestSubmission.getLeaderboard(cid);
-                cLeaderboard.forEach(ce => {
-                    // Check if they actually participated
-                    const participated = ce.isCompleted || (ce.problems && Object.values(ce.problems).some(p => p.tries > 0));
-                    if (participated) {
-                        const sidStr = ce.studentId.toString();
-                        if (!contestScoresByStudent.has(sidStr)) {
-                            contestScoresByStudent.set(sidStr, new Map());
-                        }
-                        contestScoresByStudent.get(sidStr).set(cid, ce.score);
-                    }
-                });
-            } catch (e) {
-                console.error(`Failed to fetch leaderboard for contest ${cid}:`, e.message);
+        // 3. Bulk fetch ALL submissions and problems for all contests in this batch
+        const batchContestIdsArray = Array.from(batchContestIds).map(id => new ObjectId(id));
+
+        // Stream submissions via async cursor instead of .toArray() to avoid RAM exhaustion
+        // for large batches with many submissions.
+        const submissionsCursor = collections.contestSubmissions.find({
+            contestId: { $in: batchContestIdsArray }
+        }, { projection: { studentId: 1, contestId: 1, verdict: 1, problemId: 1, submittedAt: 1 } });
+
+        const allContestProblems = await collections.problems.find({
+            contestId: { $in: batchContestIdsArray }
+        }, { projection: { _id: 1, points: 1, contestId: 1 } }).toArray();
+
+        const problemPointsMap = new Map();
+        allContestProblems.forEach(p => problemPointsMap.set(p._id.toString(), p.points || 0));
+
+        // Organize submissions by student and contest, and calculate scores in-memory
+        const acceptedByStudentContest = new Map();
+
+        for await (const sub of submissionsCursor) {
+            if (sub.verdict === 'Accepted' && sub.problemId) {
+                const sid = sub.studentId.toString();
+                const cid = sub.contestId.toString();
+                const pid = sub.problemId.toString();
+                const key = `${sid}_${cid}_${pid}`;
+                const subDate = new Date(sub.submittedAt).getTime();
+
+                if (!acceptedByStudentContest.has(key) || subDate < acceptedByStudentContest.get(key)) {
+                    acceptedByStudentContest.set(key, subDate);
+                }
             }
-        }));
+        }
+
+        // Sum up the points for each student per contest
+        acceptedByStudentContest.forEach((_, key) => {
+            const [sid, cid, pid] = key.split('_');
+            const points = problemPointsMap.get(pid) || 0;
+
+            if (!contestScoresByStudent.has(sid)) {
+                contestScoresByStudent.set(sid, new Map());
+            }
+            const studentMap = contestScoresByStudent.get(sid);
+            studentMap.set(cid, (studentMap.get(cid) || 0) + points);
+        });
 
         // Process every student in the batch
         const enrichedLeaderboard = (await Promise.all(
@@ -59,8 +94,8 @@ const getBatchLeaderboard = async (req, res) => {
                 // Get leaderboard entry or use stub for contest-only participants
                 const entry = leaderboardMap.get(studentId) || {
                     studentId,
-                    rank: 9999,
-                    globalRank: 9999,
+                    rank: 0,
+                    globalRank: 0,
                     rollNumber: user.education?.rollNumber || 'N/A',
                     username: user.username || user.email?.split('@')[0] || 'N/A',
                     overallScore: 0,
@@ -70,13 +105,19 @@ const getBatchLeaderboard = async (req, res) => {
                     lastUpdated: user.createdAt
                 };
 
-                const externalProfiles = await ExternalProfile.findByStudent(studentId);
+                // Compute externalTotal from profiles map (NO N+1)
+                const studentProfiles = externalProfilesMap.get(studentId) || [];
+                const scoreCalculator = require('../utils/scoreCalculator');
+                let externalTotal = 0;
+                studentProfiles.forEach(profile => {
+                    externalTotal += scoreCalculator.calculatePlatformScore(profile.platform, profile.stats) || 0;
+                });
 
                 // Detailed Stats Builder
                 const detailedStats = {};
                 const platforms = ['leetcode', 'codechef', 'codeforces', 'hackerrank', 'interviewbit'];
                 platforms.forEach(p => {
-                    const profile = externalProfiles.find(ep => ep.platform === p);
+                    const profile = studentProfiles.find(ep => ep.platform === p);
                     if (profile) {
                         detailedStats[p] = {
                             problemsSolved: profile.stats.problemsSolved || 0,
@@ -108,13 +149,6 @@ const getBatchLeaderboard = async (req, res) => {
                 const alphaCoins = (user.alphacoins != null) ? user.alphacoins
                     : (entry.alphaCoins != null) ? entry.alphaCoins : 0;
 
-                // Compute externalTotal from live externalProfiles fetched above (not stale entry)
-                const scoreCalculator = require('../utils/scoreCalculator');
-                let externalTotal = 0;
-                externalProfiles.forEach(profile => {
-                    externalTotal += scoreCalculator.calculatePlatformScore(profile.platform, profile.stats) || 0;
-                });
-
                 // overallScore = practice coins + external (NO internal contest scores)
                 const overallScore = alphaCoins + externalTotal;
 
@@ -140,9 +174,48 @@ const getBatchLeaderboard = async (req, res) => {
         // Sort by overall score descending
         enrichedLeaderboard.sort((a, b) => b.overallScore - a.overallScore);
 
-        // Re-assign ranks
+        // === GLOBAL RANK CALCULATION ===
+        // Uses the EXACT same method as the Dashboard's global rank card:
+        //   countDocuments('leaderboard', { overallScore: { $gt: score } }) + 1
+        // This is proven to work in Astra DB. Keyed by overallScore.
+        // Results cached in Redis for 5 min — zero DB queries on warm cache.
+        const { countDocuments } = require('../utils/dbHelper');
+        const redis = require('../config/redis').getRedis();
+        const rankCacheKey = `global:ranks:${batchId}`;
+        let scoreRankMap = {};
+
+        try {
+            const cached = await redis.get(rankCacheKey);
+            if (cached) scoreRankMap = JSON.parse(cached);
+        } catch (_) { }
+
+        // Unique overallScore values in this batch (typically 10-30 for 100 students)
+        const uniqueScores = [...new Set(enrichedLeaderboard.map(e => e.overallScore))];
+        const missing = uniqueScores.filter(s => scoreRankMap[s] === undefined);
+
+        if (missing.length > 0) {
+            // BUG #5 FIX: Changed from Promise.all (N parallel DB queries) to sequential for...of.
+            // Previously, 100 unique scores would fire 100 simultaneous countDocuments calls,
+            // exhausting Astra DB's connection pool and causing cascading timeouts for all other
+            // in-flight requests. Sequential execution is slightly slower but safe under load.
+            for (const score of missing) {
+                try {
+                    const higherCount = await countDocuments('leaderboard', { overallScore: { $gt: score } });
+                    scoreRankMap[score] = higherCount + 1;
+                } catch (e) {
+                    console.error('[GlobalRank] countDocuments failed for score=' + score + ':', e.message);
+                    scoreRankMap[score] = null; // will be patched below
+                }
+            }
+            try { await redis.setex(rankCacheKey, 300, JSON.stringify(scoreRankMap)); } catch (_) { }
+        }
+
+        // Assign batch rank and global rank
         enrichedLeaderboard.forEach((item, index) => {
             item.rank = index + 1;
+            const gr = scoreRankMap[item.overallScore];
+            // gr null means countDocuments failed for this score — show batch rank as proxy
+            item.globalRank = (gr && gr > 0) ? gr : (index + 1);
         });
 
         // Calculate max score for each contest across all students
@@ -195,6 +268,11 @@ const getAllExternalData = async (req, res) => {
         // Get ALL external profiles for the batch
         const profiles = await ExternalProfile.getBatchExternalStats(batchId);
 
+        // Fetch ALL users for this batch once to avoid N+1 queries
+        const batchUsers = await User.getStudentsByBatch(batchId);
+        const userMap = new Map();
+        batchUsers.forEach(u => userMap.set(u._id.toString(), u));
+
         // Group by platform
         const platformData = {};
 
@@ -221,7 +299,7 @@ const getAllExternalData = async (req, res) => {
                         const contestData = contestsMap.get(contest.contestName);
                         contestData.participants++;
 
-                        const user = await User.findById(profile.studentId);
+                        const user = userMap.get(profile.studentId.toString());
                         contestData.leaderboard.push({
                             rollNumber: user?.education?.rollNumber || 'N/A',
                             username: profile.username,
@@ -282,44 +360,57 @@ const getInternalContestLeaderboard = async (req, res) => {
         }
 
         const currentUserId = req.user?.userId || req.user?._id;
-        const leaderboard = await ContestSubmission.getLeaderboard(contestId, currentUserId);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const { leaderboard, total, totalPages } = await ContestSubmission.getLeaderboard(contestId, currentUserId, false, page, limit);
 
         let problems = [];
         if (contest.problems && contest.problems.length > 0) {
             problems = await Problem.findByIds(contest.problems);
         }
 
-        // Enrich with user data
-        const enrichedLeaderboard = await Promise.all(
-            leaderboard.map(async (entry) => {
-                const user = await User.findById(entry.studentId);
-                return {
-                    rank: entry.rank,
-                    studentId: entry.studentId,
-                    rollNumber: entry.rollNumber,
-                    fullName: entry.fullName,
-                    username: entry.username,
-                    branch: user?.education?.branch || 'N/A',
-                    section: user?.profile?.section || 'N/A',
-                    score: entry.score,
-                    time: entry.time,
-                    problemsSolved: entry.problemsSolved,
-                    problems: entry.problems,
-                    tabSwitchCount: entry.tabSwitchCount || 0,
+        // Fix #18: getLeaderboard already fetched and enriched user data.
+        // We only need section which isn't included in the base enrichment.
+        // Fetch it with a targeted projection to avoid a full user re-fetch.
+        const studentIds = leaderboard.map(e => e.studentId);
+        const sectionMap = new Map();
+        if (studentIds.length > 0) {
+            const sectionDocs = await collections.users.find(
+                { _id: { $in: studentIds } },
+                { projection: { 'profile.section': 1 } }
+            ).toArray();
+            sectionDocs.forEach(u => sectionMap.set(u._id.toString(), u.profile?.section || 'N/A'));
+        }
+
+        // Enrich with section data
+        const enrichedLeaderboard = leaderboard.map((entry) => {
+            const section = sectionMap.get(entry.studentId.toString()) || 'N/A';
+            return {
+                rank: entry.rank,
+                studentId: entry.studentId,
+                rollNumber: entry.rollNumber,
+                fullName: entry.fullName,
+                username: entry.username,
+                branch: entry.branch || 'N/A',
+                section: section,
+                score: entry.score,
+                time: entry.time,
+                problemsSolved: entry.problemsSolved,
+                problems: entry.problems,
+                tabSwitchCount: entry.tabSwitchCount || 0,
+                tabSwitchDuration: entry.tabSwitchDuration || 0,
+                fullscreenExits: entry.fullscreenExits || 0,
+                pasteAttempts: entry.pasteAttempts || 0,
+                violations: {
+                    tabSwitches: entry.tabSwitchCount || 0,
                     tabSwitchDuration: entry.tabSwitchDuration || 0,
-                    fullscreenExits: entry.fullscreenExits || 0,
                     pasteAttempts: entry.pasteAttempts || 0,
-                    violations: {
-                        tabSwitches: entry.tabSwitchCount || 0,
-                        tabSwitchDuration: entry.tabSwitchDuration || 0,
-                        pasteAttempts: entry.pasteAttempts || 0,
-                        fullscreenExits: entry.fullscreenExits || 0,
-                        total: (entry.tabSwitchCount || 0) + (entry.pasteAttempts || 0) + (entry.fullscreenExits || 0)
-                    },
-                    isCompleted: entry.isCompleted || false
-                };
-            })
-        );
+                    fullscreenExits: entry.fullscreenExits || 0,
+                    total: (entry.tabSwitchCount || 0) + (entry.pasteAttempts || 0) + (entry.fullscreenExits || 0)
+                },
+                isCompleted: entry.isCompleted || false
+            };
+        });
 
         res.json({
             success: true,
@@ -336,6 +427,10 @@ const getInternalContestLeaderboard = async (req, res) => {
                 problems: problems
             },
             count: enrichedLeaderboard.length,
+            total,
+            page,
+            limit,
+            totalPages,
             leaderboard: enrichedLeaderboard
         });
     } catch (error) {

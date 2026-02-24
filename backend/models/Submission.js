@@ -95,12 +95,22 @@ class Submission {
             .limit(limit)
             .toArray();
 
-        const Problem = require('./Problem');
-        const User = require('./User');
+        const [usersIds, problemsIds] = [
+            [...new Set(submissions.map(s => s.studentId.toString()))],
+            [...new Set(submissions.map(s => s.problemId.toString()))]
+        ];
 
-        return await Promise.all(submissions.map(async (sub) => {
-            const user = await User.findById(sub.studentId);
-            const problem = await Problem.findById(sub.problemId);
+        const [users, problems] = await Promise.all([
+            collections.users.find({ _id: { $in: usersIds.map(id => new ObjectId(id)) } }).toArray(),
+            collections.problems.find({ _id: { $in: problemsIds.map(id => new ObjectId(id)) } }).toArray()
+        ]);
+
+        const userMap = new Map(users.map(u => [u._id.toString(), u]));
+        const problemMap = new Map(problems.map(p => [p._id.toString(), p]));
+
+        return submissions.map(sub => {
+            const user = userMap.get(sub.studentId.toString());
+            const problem = problemMap.get(sub.problemId.toString());
             return {
                 _id: sub._id,
                 code: sub.code,
@@ -110,7 +120,7 @@ class Submission {
                 user: user ? { username: user.username, email: user.email } : null,
                 problem: problem ? { title: problem.title } : null
             };
-        }));
+        });
     }
 
     // Get submission heatmap data (365 days)
@@ -137,9 +147,7 @@ class Submission {
 
     // Get verdict breakdown (pie chart data)
     static async getVerdictData(studentId) {
-        const submissions = await collections.submissions
-            .find({ studentId: new ObjectId(studentId) })
-            .toArray();
+        const submissions = await collections.submissions.find({ studentId: new ObjectId(studentId) }).toArray();
 
         const verdictCounts = {
             'Accepted': 0,
@@ -149,20 +157,11 @@ class Submission {
             'Runtime Error': 0,
             'Compilation Error': 0
         };
-
-        submissions.forEach(sub => {
-            if (sub.verdict === 'Accepted') {
-                verdictCounts['Accepted']++;
-            } else if (sub.testCasesPassed > 0 && sub.testCasesPassed < sub.totalTestCases) {
-                verdictCounts['Partially Accepted']++;
-            } else if (sub.verdict === 'Wrong Answer') {
-                verdictCounts['Wrong Answer']++;
-            } else if (sub.verdict === 'TLE') {
+        submissions.forEach(s => {
+            if (verdictCounts.hasOwnProperty(s.verdict)) {
+                verdictCounts[s.verdict]++;
+            } else if (s.verdict === 'TLE') {
                 verdictCounts['Time Limit Exceeded']++;
-            } else if (sub.verdict === 'Runtime Error') {
-                verdictCounts['Runtime Error']++;
-            } else if (sub.verdict === 'Compilation Error') {
-                verdictCounts['Compilation Error']++;
             }
         });
 
@@ -210,51 +209,24 @@ class Submission {
         const uniqueProblemIds = [...new Set(acceptedSubmissions.map(sub => sub.problemId.toString()))];
         return uniqueProblemIds.map(id => new ObjectId(id));
     }
-    // backend/models/ContestSubmission.js (Add this method)
-    // Add to existing ContestSubmission class
 
-    static async getProblemStatistics(contestId) {
-        const submissions = await ContestSubmission.findByContest(contestId);
-        const Contest = require('./Contest');
-        const contest = await Contest.findById(contestId);
-
-        if (!contest) return [];
-
-        const problemStats = contest.problems.map(problemId => {
-            const problemSubs = submissions.filter(s => s.problemId.toString() === problemId.toString());
-            const accepted = problemSubs.filter(s => s.verdict === 'Accepted').length;
-            const uniqueSolvers = new Set(
-                problemSubs.filter(s => s.verdict === 'Accepted').map(s => s.studentId.toString())
-            ).size;
-
-            return {
-                problemId,
-                totalSubmissions: problemSubs.length,
-                acceptedSubmissions: accepted,
-                uniqueSolvers,
-                acceptanceRate: problemSubs.length > 0 ? ((accepted / problemSubs.length) * 100).toFixed(2) : 0
-            };
-        });
-
-        return problemStats;
-    }
 
     // Get solved problems count by difficulty
     static async getSolvedCountByDifficulty(studentId) {
-        const Problem = require('./Problem');
         const solvedProblemIds = await Submission.getSolvedProblems(studentId);
+        if (solvedProblemIds.length === 0) return { easy: 0, medium: 0, hard: 0 };
 
-        const solvedProblems = await Promise.all(
-            solvedProblemIds.map(id => Problem.findById(id))
-        );
+        // Optimized: Fetch all difficulties in ONE bulk query
+        const problems = await collections.problems.find(
+            { _id: { $in: solvedProblemIds } },
+            { projection: { difficulty: 1 } }
+        ).toArray();
 
         const counts = { easy: 0, medium: 0, hard: 0 };
-        solvedProblems.forEach(problem => {
-            if (problem) {
-                if (problem.difficulty === 'Easy') counts.easy++;
-                else if (problem.difficulty === 'Medium') counts.medium++;
-                else if (problem.difficulty === 'Hard') counts.hard++;
-            }
+        problems.forEach(problem => {
+            if (problem.difficulty === 'Easy') counts.easy++;
+            else if (problem.difficulty === 'Medium') counts.medium++;
+            else if (problem.difficulty === 'Hard') counts.hard++;
         });
 
         return counts;

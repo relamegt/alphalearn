@@ -1,5 +1,9 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { getRedis } = require('../config/redis');
+
+const USER_AUTH_CACHE_TTL = 60; // seconds — brief enough to catch deactivation quickly
+const getUserAuthCacheKey = (userId) => `user:auth:${userId}`;
 
 // Verify JWT Access Token
 const verifyToken = async (req, res, next) => {
@@ -19,8 +23,41 @@ const verifyToken = async (req, res, next) => {
         // Verify token using JWT
         const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
 
-        // Get user to check if active
-        const user = await User.findById(decoded.userId);
+        // Fix #11: Check Redis cache before hitting DB on every request
+        const redis = getRedis();
+        const cacheKey = getUserAuthCacheKey(decoded.userId);
+        let user;
+
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                user = JSON.parse(cached);
+            }
+        } catch (cacheErr) {
+            console.warn('[Auth] Redis cache miss (non-fatal):', cacheErr.message);
+        }
+
+        if (!user) {
+            // Cache miss — fetch from DB and populate cache
+            user = await User.findById(decoded.userId);
+            if (user) {
+                try {
+                    // Cache only the fields needed for auth validation
+                    const cachePayload = JSON.stringify({
+                        _id: user._id,
+                        isActive: user.isActive,
+                        tokenVersion: user.tokenVersion,
+                        batchId: user.batchId,
+                        role: user.role,
+                        isFirstLogin: user.isFirstLogin,
+                        profileCompleted: user.profileCompleted
+                    });
+                    await redis.setex(cacheKey, USER_AUTH_CACHE_TTL, cachePayload);
+                } catch (cacheErr) {
+                    console.warn('[Auth] Redis cache write error (non-fatal):', cacheErr.message);
+                }
+            }
+        }
 
         if (!user) {
             return res.status(401).json({
@@ -38,8 +75,6 @@ const verifyToken = async (req, res, next) => {
 
 
         // SINGLE SESSION ENFORCEMENT: Verify Token Version
-        // If the token version in the payload is different from the user's current version,
-        // it means a new login (or logout) occurred, invalidating this token.
         if (decoded.tokenVersion !== undefined && user.tokenVersion !== decoded.tokenVersion) {
             return res.status(401).json({
                 success: false,
@@ -65,6 +100,8 @@ const verifyToken = async (req, res, next) => {
             batchId: user.batchId,
             isSpotUser: decoded.isSpotUser || false
         };
+        // Fix #12: Attach cached user object so requireProfileCompletion avoids a second DB call
+        req.cachedAuthUser = user;
 
         next();
     } catch (error) {
@@ -103,8 +140,38 @@ const optionalAuth = async (req, res, next) => {
             // Verify token
             const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
 
-            // Get user
-            const user = await User.findById(decoded.userId);
+            // BUG #4 FIX: Apply the same Redis cache pattern as verifyToken.
+            // Previously, optionalAuth did a raw DB lookup on every public request.
+            // Under a public contest with 1,000 spot users, this causes 1,000 needless
+            // DB reads per cycle. Now it reads from Redis cache (60s TTL) first.
+            const redis = getRedis();
+            const cacheKey = getUserAuthCacheKey(decoded.userId);
+            let user = null;
+
+            try {
+                const cached = await redis.get(cacheKey);
+                if (cached) {
+                    user = JSON.parse(cached);
+                }
+            } catch (cacheErr) { /* non-fatal – fall through to DB */ }
+
+            if (!user) {
+                user = await User.findById(decoded.userId);
+                if (user) {
+                    try {
+                        const cachePayload = JSON.stringify({
+                            _id: user._id,
+                            isActive: user.isActive,
+                            tokenVersion: user.tokenVersion,
+                            batchId: user.batchId,
+                            role: user.role,
+                            isFirstLogin: user.isFirstLogin,
+                            profileCompleted: user.profileCompleted
+                        });
+                        await redis.setex(cacheKey, USER_AUTH_CACHE_TTL, cachePayload);
+                    } catch (cacheErr) { /* non-fatal */ }
+                }
+            }
 
             if (user && user.isActive) {
                 req.user = {
@@ -123,17 +190,18 @@ const optionalAuth = async (req, res, next) => {
     }
 };
 
+
 // Middleware to block access if first login is not completed
 const requireProfileCompletion = async (req, res, next) => {
     try {
-        const userId = req.user.userId;
-
         // Admins, instructors, and spot users do not require profile completion checks
         if (req.user.role === 'admin' || req.user.role === 'instructor' || req.user.isSpotUser) {
             return next();
         }
 
-        const user = await User.findById(userId);
+        // Fix #12: reuse the user object already fetched by verifyToken (attached to req.cachedAuthUser)
+        // Avoids a second DB call on every authenticated route that uses both middlewares.
+        const user = req.cachedAuthUser || await User.findById(req.user.userId);
 
         if (!user) {
             return res.status(404).json({

@@ -262,9 +262,12 @@ const submitCode = async (req, res) => {
                 await Progress.updateProblemsSolved(studentId, problem._id);
                 await Promise.all([
                     Progress.recalculateSectionProgress(studentId),
-                    Progress.updateStreak(studentId),
-                    Leaderboard.recalculateScores(studentId, problem._id)
+                    Progress.updateStreak(studentId)
                 ]);
+                // Fix #25: Offload score recalculation to BullMQ background worker.
+                // Previously Leaderboard.recalculateScores() blocked the HTTP response.
+                const { addScoreJob } = require('../config/queue');
+                await addScoreJob(studentId);
             } catch (progressErr) {
                 console.error('   ⚠️ Progress/Leaderboard update error (non-fatal):', progressErr.message);
             }

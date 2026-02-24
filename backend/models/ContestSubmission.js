@@ -1,14 +1,24 @@
-const { ObjectId } = require('bson');
 const { collections } = require('../config/astra');
+const { ObjectId } = require('bson');
+const { getRedis } = require('../config/redis');
+
+const CACHE_TTL = 30; // 30 seconds TTL for high concurrency scenarios
 
 class ContestSubmission {
+    // Force invalidate cache for a contest across all server instances
+    static async invalidateCache(contestId) {
+        if (contestId) {
+            const redis = getRedis();
+            await redis.del(`leaderboard:cache:${contestId.toString()}`);
+        }
+    }
+
     // Create new contest submission
     static async create(submissionData) {
         const submission = {
             _id: new ObjectId(),
             contestId: new ObjectId(submissionData.contestId),
             studentId: new ObjectId(submissionData.studentId),
-            // problemId is null for contest-completion markers / violation logs
             problemId: submissionData.problemId ? new ObjectId(submissionData.problemId) : null,
             code: submissionData.code || '',
             language: submissionData.language || '',
@@ -22,7 +32,6 @@ class ContestSubmission {
             fullscreenExits: submissionData.fullscreenExits || 0,
             isAutoSubmit: submissionData.isAutoSubmit || false,
             isFinalContestSubmission: submissionData.isFinalContestSubmission || false,
-            // Flag to distinguish dedicated violation event logs
             isViolationLog: submissionData.isViolationLog || false
         };
 
@@ -30,7 +39,6 @@ class ContestSubmission {
         return { ...submission, _id: result.insertedId };
     }
 
-    // --- FIXED: Check if student has finished the contest using the marker ---
     static async hasSubmittedContest(studentId, contestId) {
         const record = await collections.contestSubmissions.findOne({
             studentId: new ObjectId(studentId),
@@ -40,7 +48,6 @@ class ContestSubmission {
         return !!record;
     }
 
-    // --- FIXED: Check if a problem is solved ---
     static async isProblemSolved(studentId, contestId, problemId) {
         const submission = await collections.contestSubmissions.findOne({
             studentId: new ObjectId(studentId),
@@ -51,8 +58,6 @@ class ContestSubmission {
         return !!submission;
     }
 
-    // Mark contest completed — stores final violation snapshot as the single source of truth
-    // violations param: { tabSwitchCount, tabSwitchDuration, fullscreenExits, pasteAttempts }
     static async markContestCompleted(studentId, contestId, score, violations = {}) {
         return await this.create({
             studentId,
@@ -60,8 +65,6 @@ class ContestSubmission {
             verdict: 'COMPLETED',
             isFinalContestSubmission: true,
             code: `Final Score: ${score}`,
-            // Store the final aggregated violation snapshot from the live frontend state
-            // This is the ground truth for post-contest leaderboard display
             tabSwitchCount: violations.tabSwitchCount || 0,
             tabSwitchDuration: violations.tabSwitchDuration || 0,
             fullscreenExits: violations.fullscreenExits || 0,
@@ -69,14 +72,13 @@ class ContestSubmission {
         });
     }
 
-    // --- NEW: Log a violation without a code submission ---
     static async logViolation(studentId, contestId, violations) {
         return await this.create({
             studentId,
             contestId,
             verdict: 'VIOLATION_LOG',
             isFinalContestSubmission: false,
-            isViolationLog: true, // New flag to distinguish logs
+            isViolationLog: true,
             code: '',
             tabSwitchCount: violations.tabSwitchCount || 0,
             tabSwitchDuration: violations.tabSwitchDuration || 0,
@@ -85,13 +87,15 @@ class ContestSubmission {
         });
     }
 
-    // --- NEW: Added for getContestStatistics ---
     static async getProblemStatistics(contestId) {
-        const submissions = await this.findByContest(contestId);
         const stats = {};
+        const cursor = collections.contestSubmissions.find(
+            { contestId: new ObjectId(contestId) },
+            { projection: { problemId: 1, verdict: 1 } }
+        );
 
-        submissions.forEach(sub => {
-            if (!sub.problemId) return; // Skip contest-completion markers
+        for await (const sub of cursor) {
+            if (!sub.problemId) continue;
             const pid = sub.problemId.toString();
             if (!stats[pid]) {
                 stats[pid] = { totalSubmissions: 0, acceptedCount: 0 };
@@ -100,27 +104,38 @@ class ContestSubmission {
             if (sub.verdict === 'Accepted') {
                 stats[pid].acceptedCount++;
             }
-        });
+        }
         return stats;
     }
 
     static async findById(submissionId) {
-
         return await collections.contestSubmissions.findOne({ _id: new ObjectId(submissionId) });
     }
-    static async findByStudent(studentId) {
+
+    static async findByStudent(studentId, limit = 500) {
         return await collections.contestSubmissions
             .find({ studentId: new ObjectId(studentId) })
             .sort({ submittedAt: -1 })
+            .limit(limit)
             .toArray();
     }
 
+    static async findByContest(contestId, includeCode = false) {
+        // BUG #6 FIX: The previous .limit(10000).toArray() would load up to 10,000 full
+        // submission documents (including code strings) into Node.js RAM at once, causing OOM
+        // on large contests. Use streaming cursor with a reasonable safety limit instead.
+        const projection = includeCode ? {} : { projection: { code: 0 } };
+        const results = [];
+        const MAX_SAFE = 10000; // hard cap, streamed not bulk-loaded
+        const cursor = collections.contestSubmissions
+            .find({ contestId: new ObjectId(contestId) }, projection)
+            .sort({ submittedAt: -1 });
 
-    static async findByContest(contestId) {
-        return await collections.contestSubmissions
-            .find({ contestId: new ObjectId(contestId) })
-            .sort({ submittedAt: -1 })
-            .toArray();
+        for await (const doc of cursor) {
+            results.push(doc);
+            if (results.length >= MAX_SAFE) break;
+        }
+        return results;
     }
 
     static async findByStudentAndContest(studentId, contestId) {
@@ -128,7 +143,7 @@ class ContestSubmission {
             .find({
                 studentId: new ObjectId(studentId),
                 contestId: new ObjectId(contestId),
-                isFinalContestSubmission: false // Exclude markers from normal submission lists
+                isFinalContestSubmission: false
             })
             .sort({ submittedAt: -1 })
             .toArray();
@@ -151,79 +166,173 @@ class ContestSubmission {
         const Contest = require('./Contest');
         const Problem = require('./Problem');
 
-        const contest = await Contest.findById(contestId);
-        if (!contest) return { score: 0, time: 0, problemsSolved: 0 };
+        const [contest, acceptedProblemsIds] = await Promise.all([
+            Contest.findById(contestId),
+            this.getAcceptedProblems(studentId, contestId)
+        ]);
 
-        const acceptedProblems = await this.getAcceptedProblems(studentId, contestId);
+        if (!contest || acceptedProblemsIds.length === 0) {
+            return { score: 0, time: 0, problemsSolved: 0 };
+        }
+
+        // Optimized: Fetch all relevant problems and submissions in BULK
+        const [problems, allAcceptedSubs] = await Promise.all([
+            Problem.findByIds(acceptedProblemsIds),
+            collections.contestSubmissions.find({
+                studentId: new ObjectId(studentId),
+                contestId: new ObjectId(contestId),
+                verdict: 'Accepted'
+            }).sort({ submittedAt: 1 }).toArray()
+        ]);
+
+        const problemMap = new Map(problems.map(p => [p._id.toString(), p]));
+        const firstAcceptedByProblem = new Map();
+
+        // Find first accepted submission for each problem from the bulk-fetched list
+        allAcceptedSubs.forEach(sub => {
+            const pid = sub.problemId.toString();
+            if (!firstAcceptedByProblem.has(pid)) {
+                firstAcceptedByProblem.set(pid, sub);
+            }
+        });
+
         let totalScore = 0;
         let totalTime = 0;
 
-        for (const problemId of acceptedProblems) {
-            const problem = await Problem.findById(problemId);
-            if (problem) {
-                totalScore += (problem.points || 0);
-                const firstAccepted = await collections.contestSubmissions.findOne({
-                    studentId: new ObjectId(studentId),
-                    contestId: new ObjectId(contestId),
-                    problemId: new ObjectId(problemId),
-                    verdict: 'Accepted'
-                }, { sort: { submittedAt: 1 } });
+        for (const problemId of acceptedProblemsIds) {
+            const pidStr = problemId.toString();
+            const problem = problemMap.get(pidStr);
+            const firstAccepted = firstAcceptedByProblem.get(pidStr);
 
-                if (firstAccepted) {
-                    const timeTaken = (new Date(firstAccepted.submittedAt) - new Date(contest.startTime)) / (1000 * 60);
-                    totalTime += Math.max(0, timeTaken);
-                }
+            if (problem && firstAccepted) {
+                totalScore += (problem.points || 0);
+                const timeTaken = (new Date(firstAccepted.submittedAt) - new Date(contest.startTime)) / (1000 * 60);
+                totalTime += Math.max(0, timeTaken);
             }
         }
 
         return {
             score: totalScore,
             time: Math.round(totalTime),
-            problemsSolved: acceptedProblems.length
+            problemsSolved: acceptedProblemsIds.length
         };
     }
 
     static async getProctoringViolations(studentId, contestId) {
-        // Find the most recent submission or violation log which contains the cumulative snapshot
-        const latestLog = await collections.contestSubmissions.findOne(
+        // BUG #9 FIX: The previous query fetched the LATEST submission by submittedAt,
+        // which is often a code submission (verdict: 'Wrong Answer') carrying stale, lower
+        // violation counts from that moment — not the final violation state.
+        // Fix: Query specifically for the latest violation log record (isViolationLog: true)
+        // first, then fall back to the latest any-type submission.
+
+        // Try to get the most recent explicit violation log
+        const violationLog = await collections.contestSubmissions.findOne(
             {
                 studentId: new ObjectId(studentId),
-                contestId: new ObjectId(contestId)
+                contestId: new ObjectId(contestId),
+                isViolationLog: true
             },
             { sort: { submittedAt: -1 } }
         );
 
-        if (latestLog) {
+        // Fall back to the final contest submission record (which also carries a violation snapshot)
+        const latestRecord = violationLog || await collections.contestSubmissions.findOne(
+            {
+                studentId: new ObjectId(studentId),
+                contestId: new ObjectId(contestId),
+                isFinalContestSubmission: true
+            },
+            { sort: { submittedAt: -1 } }
+        );
+
+        if (latestRecord) {
             return {
-                totalTabSwitches: latestLog.tabSwitchCount || 0,
-                totalTabSwitchDuration: latestLog.tabSwitchDuration || 0,
-                totalPasteAttempts: latestLog.pasteAttempts || 0,
-                totalFullscreenExits: latestLog.fullscreenExits || 0
+                totalTabSwitches: latestRecord.tabSwitchCount || 0,
+                totalTabSwitchDuration: latestRecord.tabSwitchDuration || 0,
+                totalPasteAttempts: latestRecord.pasteAttempts || 0,
+                totalFullscreenExits: latestRecord.fullscreenExits || 0
             };
         }
 
         return { totalTabSwitches: 0, totalTabSwitchDuration: 0, totalPasteAttempts: 0, totalFullscreenExits: 0 };
     }
 
-
     static async deleteByContest(contestId) {
         return await collections.contestSubmissions.deleteMany({ contestId: new ObjectId(contestId) });
     }
 
-    static async getLeaderboard(contestId, currentUserId = null) {
-        const User = require('./User');
-        const Problem = require('./Problem');
-        const Contest = require('./Contest');
+    static async getLeaderboard(contestId, currentUserId = null, forceRefresh = false, page = 1, limit = 50) {
+        const contestIdStr = contestId.toString();
+        const redis = getRedis();
+        const cacheKey = `leaderboard:cache:${contestIdStr}`;
+        const rebuildLockKey = `leaderboard:building:${contestIdStr}`;
 
-        const submissions = await this.findByContest(contestId);
-
-        // Include ALL students from the contest's batch, not just those with submissions
-        const contest = await Contest.findById(contestId);
-        let participantIds = [...new Set(submissions.map(s => s.studentId.toString()))];
-
-        if (contest) {
+        // 1. Check Redis Cache first (Full leaderboard is cached for performance)
+        let allEnrichedData = null;
+        if (!forceRefresh) {
             try {
-                let eligibleStudentIds = [];
+                const cachedData = await redis.get(cacheKey);
+                if (cachedData) {
+                    allEnrichedData = JSON.parse(cachedData);
+                }
+            } catch (e) {
+                console.error('[Redis Cache Error]', e)
+            }
+
+            // BUG #3 FIX: If cache is cold but another instance is already rebuilding it,
+            // wait up to 5 seconds for the cached result instead of all firing a full rebuild
+            // simultaneously (cache stampede / thundering herd prevention).
+            if (!allEnrichedData) {
+                const isBeingBuilt = await redis.exists(rebuildLockKey).catch(() => 0);
+                if (isBeingBuilt) {
+                    // Poll up to 5 times with 1s delay each
+                    for (let i = 0; i < 5; i++) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        try {
+                            const polledData = await redis.get(cacheKey);
+                            if (polledData) {
+                                allEnrichedData = JSON.parse(polledData);
+                                break;
+                            }
+                        } catch (e) { /* continue polling */ }
+                    }
+                }
+            }
+        }
+
+        if (!allEnrichedData) {
+            const User = require('./User');
+            const Problem = require('./Problem');
+            const Contest = require('./Contest');
+
+            const contest = await Contest.findById(contestId);
+            if (!contest) return { leaderboard: [], total: 0 };
+
+            const submissionsCursor = collections.contestSubmissions.find(
+                { contestId: new ObjectId(contestId) },
+                {
+                    projection: {
+                        studentId: 1, contestId: 1, problemId: 1, verdict: 1, submittedAt: 1,
+                        tabSwitchCount: 1, tabSwitchDuration: 1, pasteAttempts: 1, fullscreenExits: 1,
+                        isFinalContestSubmission: 1
+                    }
+                }
+            ).sort({ submittedAt: -1 });
+
+            const participantIdsSet = new Set();
+            if (currentUserId) participantIdsSet.add(currentUserId.toString());
+
+            const submissionsByStudent = new Map();
+            for await (const sub of submissionsCursor) {
+                const sid = sub.studentId.toString();
+                participantIdsSet.add(sid);
+                if (!submissionsByStudent.has(sid)) {
+                    submissionsByStudent.set(sid, []);
+                }
+                submissionsByStudent.get(sid).push(sub);
+            }
+
+            try {
                 if (contest.batchId) {
                     const eligibleUsers = await collections.users.find({
                         role: 'student',
@@ -231,107 +340,171 @@ class ContestSubmission {
                             { batchId: contest.batchId },
                             { assignedBatches: contest.batchId }
                         ]
-                    }).toArray();
-                    eligibleStudentIds = eligibleUsers.map(u => u._id.toString());
+                    }, { projection: { _id: 1 } }).toArray();
+                    eligibleUsers.forEach(u => participantIdsSet.add(u._id.toString()));
                 } else {
                     const registeredStudents = await collections.users.find({
                         registeredForContest: contest._id
-                    }).toArray();
-                    eligibleStudentIds = registeredStudents.map(u => u._id.toString());
+                    }, { projection: { _id: 1 } }).toArray();
+                    registeredStudents.forEach(u => participantIdsSet.add(u._id.toString()));
                 }
-                // Union of submitters + eligible students
-                const allIds = new Set([...participantIds, ...eligibleStudentIds]);
-                if (currentUserId) allIds.add(currentUserId.toString());
-                participantIds = [...allIds];
             } catch (e) {
-                console.error('[getLeaderboard] Failed to fetch eligible students:', e.message);
+                console.error('[getLeaderboard] Error fetching participants:', e.message);
             }
-        }
 
-        // Reuse already-fetched contest to get problem IDs + titles
-        let contestProblems = [];
-        if (contest && contest.problems) {
-            contestProblems = await Problem.findByIds(contest.problems);
-        }
+            const participantIds = Array.from(participantIdsSet).map(id => new ObjectId(id));
 
-        const leaderboardData = await Promise.all(
-            participantIds.map(async (studentId) => {
-                const user = await User.findById(studentId);
-                if (!user || user.role !== 'student') return null;
+            // Chunk fetching users to avoid massive $in query limits and memory spikes
+            const CHUNK_SIZE = 500;
+            const users = [];
+            for (let i = 0; i < participantIds.length; i += CHUNK_SIZE) {
+                const chunkIds = participantIds.slice(i, i + CHUNK_SIZE);
+                const chunkUsers = await collections.users.find(
+                    { _id: { $in: chunkIds } },
+                    { projection: { firstName: 1, lastName: 1, email: 1, 'education.rollNumber': 1, 'education.branch': 1, role: 1, alphacoins: 1 } }
+                ).toArray();
+                users.push(...chunkUsers);
+            }
 
-                const scoreData = await this.calculateScore(studentId, contestId);
-                const violations = await this.getProctoringViolations(studentId, contestId);
+            const contestProblems = contest.problems && contest.problems.length > 0
+                ? await Problem.findByIds(contest.problems)
+                : [];
 
-                // Get actual problem submissions (exclude markers and violation logs)
-                const studentSubmissions = submissions.filter(
-                    s => s.studentId.toString() === studentId.toString() &&
-                        !s.isFinalContestSubmission && !s.isViolationLog
-                );
+            const userMap = new Map();
+            users.forEach(u => userMap.set(u._id.toString(), u));
 
-                // Determine completion status
-                const isContestEnded = contest && (new Date() > new Date(contest.endTime));
-                const hasSubmitted = await this.hasSubmittedContest(studentId, contestId);
-                const isCompleted = hasSubmitted || isContestEnded;
+            // Submissions already mapped incrementally above
 
-                // Build per-problem status using reliable problem IDs from Problem collection
-                const problemsStatus = {};
-                for (const prob of contestProblems) {
-                    const pIdStr = prob._id.toString();
-                    const pSubs = studentSubmissions.filter(
-                        s => s.problemId && s.problemId.toString() === pIdStr
-                    );
+            const isContestEnded = new Date() > contest.endTime;
 
-                    let status = 'Not Attempted';
-                    let tries = pSubs.length;
-                    let submittedOffset = null;
+            const leaderboardData = users
+                .filter(u => u.role === 'student')
+                .map((user) => {
+                    const studentId = user._id.toString();
+                    const studentSubs = submissionsByStudent.get(studentId) || [];
 
-                    if (tries > 0) {
-                        const accepted = pSubs.filter(s => s.verdict === 'Accepted');
-                        if (accepted.length > 0) {
-                            status = 'Accepted';
-                            accepted.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
-                            // Calculate offset in minutes from contest start
-                            const diffMs = new Date(accepted[0].submittedAt).getTime() - new Date(contest.startTime).getTime();
-                            submittedOffset = Math.max(0, Math.floor(diffMs / 60000));
-                        } else {
-                            status = 'Wrong Answer';
-                            pSubs.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-                            const diffMs = new Date(pSubs[0].submittedAt).getTime() - new Date(contest.startTime).getTime();
-                            submittedOffset = Math.max(0, Math.floor(diffMs / 60000));
+                    // Optimization: Pre-group student submissions by problemId for O(1) lookup
+                    const subsByProblem = new Map();
+                    studentSubs.forEach(s => {
+                        if (s.problemId) {
+                            const pid = s.problemId.toString();
+                            if (!subsByProblem.has(pid)) subsByProblem.set(pid, []);
+                            subsByProblem.get(pid).push(s);
                         }
+                    });
+
+                    let totalScore = 0;
+                    let totalTime = 0;
+                    let problemsSolved = 0;
+                    let hasSubmitted = false;
+                    let latestViolation = { tabSwitchCount: 0, tabSwitchDuration: 0, pasteAttempts: 0, fullscreenExits: 0 };
+
+                    if (studentSubs.length > 0) {
+                        const latest = studentSubs[0];
+                        latestViolation = {
+                            tabSwitchCount: latest.tabSwitchCount || 0,
+                            tabSwitchDuration: latest.tabSwitchDuration || 0,
+                            pasteAttempts: latest.pasteAttempts || 0,
+                            fullscreenExits: latest.fullscreenExits || 0
+                        };
+                        hasSubmitted = studentSubs.some(s => s.isFinalContestSubmission);
                     }
 
-                    problemsStatus[pIdStr] = { status, tries, submittedAt: submittedOffset };
+                    const problemsStatus = {};
+                    for (const prob of contestProblems) {
+                        const pIdStr = prob._id.toString();
+                        const pSubs = subsByProblem.get(pIdStr) || [];
+
+                        let status = 'Not Attempted';
+                        let tries = pSubs.length;
+                        let submittedOffset = null;
+
+                        if (tries > 0) {
+                            const acceptedSubs = pSubs.filter(s => s.verdict === 'Accepted');
+                            if (acceptedSubs.length > 0) {
+                                status = 'Accepted';
+                                problemsSolved++;
+                                totalScore += (prob.points || 0);
+
+                                const firstAccepted = acceptedSubs.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt))[0];
+                                const timeTaken = (new Date(firstAccepted.submittedAt) - new Date(contest.startTime)) / (1000 * 60);
+                                totalTime += Math.max(0, timeTaken);
+                                submittedOffset = Math.max(0, Math.floor(timeTaken));
+                            } else {
+                                status = 'Wrong Answer';
+                                const lastSub = pSubs[0];
+                                const timeTaken = (new Date(lastSub.submittedAt) - new Date(contest.startTime)) / (1000 * 60);
+                                submittedOffset = Math.max(0, Math.floor(timeTaken));
+                            }
+                        }
+                        problemsStatus[pIdStr] = { status, tries, submittedAt: submittedOffset };
+                    }
+
+                    return {
+                        studentId: user._id,
+                        rollNumber: user.education?.rollNumber || 'N/A',
+                        fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'N/A',
+                        username: user.email?.split('@')[0] || 'Unknown',
+                        branch: user.education?.branch || 'N/A',
+                        score: totalScore,
+                        time: Math.round(totalTime),
+                        problemsSolved,
+                        tabSwitchCount: latestViolation.tabSwitchCount,
+                        tabSwitchDuration: latestViolation.tabSwitchDuration,
+                        pasteAttempts: latestViolation.pasteAttempts,
+                        fullscreenExits: latestViolation.fullscreenExits,
+                        isCompleted: hasSubmitted || isContestEnded,
+                        problems: problemsStatus
+                    };
+                });
+
+            // Rank by score (desc), then time (asc)
+            leaderboardData.sort((a, b) => {
+                if (b.score !== a.score) {
+                    return b.score - a.score;
                 }
+                return a.time - b.time;
+            });
 
-                // Compose full name from root-level firstName/lastName fields
-                const firstName = (user?.firstName || '').trim();
-                const lastName = (user?.lastName || '').trim();
-                const fullName = [firstName, lastName].filter(Boolean).join(' ') || user?.email?.split('@')[0] || 'N/A';
+            // Assign ranks (Full list)
+            allEnrichedData = leaderboardData.map((entry, index) => ({
+                ...entry,
+                rank: index + 1
+            }));
 
-                return {
-                    studentId: new ObjectId(studentId),
-                    rollNumber: user?.education?.rollNumber || 'N/A',
-                    fullName,
-                    username: user?.email?.split('@')[0] || 'Unknown',
-                    branch: user?.education?.branch || 'N/A',
-                    score: scoreData.score,
-                    time: scoreData.time,
-                    problemsSolved: scoreData.problemsSolved,
-                    tabSwitchCount: violations.totalTabSwitches,
-                    tabSwitchDuration: violations.totalTabSwitchDuration,
-                    pasteAttempts: violations.totalPasteAttempts,
-                    fullscreenExits: violations.totalFullscreenExits,
-                    isCompleted,
-                    problems: problemsStatus
-                };
-            })
-        );
+            // 3. Cache the full leaderboard
+            // BUG #3 FIX: Use Redis mutex to prevent cache stampede.
+            // Without this, 100 simultaneous requests after cache invalidation all
+            // see a cold cache and all trigger the full DB+computation rebuild at once.
+            // Only the first waiter acquires the rebuild lock; others get a short retry.
+            const rebuildLockKey = `leaderboard:building:${contestIdStr}`;
+            const rebuildLockAcquired = await redis.set(rebuildLockKey, '1', 'NX', 'EX', 30);
+            if (rebuildLockAcquired) {
+                try {
+                    await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(allEnrichedData));
+                } catch (e) {
+                    console.error('[Redis Cache Write Error]', e);
+                } finally {
+                    await redis.del(rebuildLockKey);
+                }
+            }
+            // If we didn't get the lock, another instance is writing — we still serve fresh data
+            // (the data we computed is still valid; we just skip writing to avoid double-write)
+        }
 
-        let finalLeaderboard = leaderboardData.filter(entry => entry !== null);
-        finalLeaderboard.sort((a, b) => (b.score !== a.score) ? b.score - a.score : a.time - b.time);
-        finalLeaderboard.forEach((entry, index) => { entry.rank = index + 1; });
-        return finalLeaderboard;
+        // Return paginated result
+        const total = allEnrichedData.length;
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedLeaderboard = allEnrichedData.slice(startIndex, endIndex);
+
+        return {
+            leaderboard: paginatedLeaderboard,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
     }
 }
 

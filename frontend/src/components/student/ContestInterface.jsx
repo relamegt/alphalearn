@@ -189,6 +189,8 @@ const ContestInterface = ({ isPractice = false }) => {
     const [activeInputCase, setActiveInputCase] = useState(0);
     // Custom input removed for contest mode
     const [showLeaderboard, setShowLeaderboard] = useState(false);
+    const showLeaderboardRef = useRef(showLeaderboard);
+    useEffect(() => { showLeaderboardRef.current = showLeaderboard; }, [showLeaderboard]);
     const [contestPast, setContestPast] = useState(false); // true when contest has ended and user visits URL
     const [leaderboardData, setLeaderboardData] = useState([]);
     const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
@@ -318,12 +320,22 @@ const ContestInterface = ({ isPractice = false }) => {
     const handleWebSocketMessage = useCallback((data) => {
         switch (data.type) {
             case 'leaderboardUpdate': setLeaderboardData(data.leaderboard || []); break;
+            case 'leaderboardRefetch':
+                if (showLeaderboardRef.current && contestId) {
+                    contestService.getContestLeaderboard(contestId)
+                        .then(d => {
+                            setLeaderboardData(d.leaderboard || []);
+                            if (d.totalParticipants) setTotalParticipants(d.totalParticipants);
+                        })
+                        .catch(console.error);
+                }
+                break;
             case 'participantCount': setLiveParticipants(data.count); break;
             case 'newSubmission': break; // Optional: toast notification
             case 'violation': toast.error(`Violation detected: ${data.violation?.type}`); break;
             case 'contestEnded': handleContestEnd(); break;
         }
-    }, [handleContestEnd]);
+    }, [handleContestEnd, contestId]);
 
     useEffect(() => {
         if (isPractice || !contestActive || !contest || contestSubmitted) return;
@@ -493,31 +505,38 @@ const ContestInterface = ({ isPractice = false }) => {
                 // Guard: skip if already finishing or submitted
                 if (finishingRef.current || autoSubmitTriggered.current) return;
 
-                autoSubmitTriggered.current = true;
-                setFinishing(true);
-                finishingRef.current = true;
+                // Add random jitter (1-5 seconds) to prevent thundering herd on backend
+                const jitter = Math.floor(Math.random() * 4000) + 1000;
+                toast(`⏱ Time up! Submitting in ${Math.round(jitter / 1000)}s...`);
 
-                toast('⏱ Time up! Submitting the contest...');
+                setTimeout(async () => {
+                    // Re-check guard inside timeout
+                    if (finishingRef.current || autoSubmitTriggered.current) return;
 
-                try {
-                    const result = await contestService.finishContest(timeUpContestId.current, violationsRef.current);
-                    toast.success(`Contest submitted! Final Score: ${result.finalScore}`);
-                    setContestSubmitted(true);
-                    setContestActive(false);
-                    localStorage.removeItem(`contest_${timeUpContestId.current}_codeMap`);
-                    setFinishing(false);
-                    finishingRef.current = false;
-                    // Navigate — read fresh user/navigate from refs, never stale
-                    setTimeout(() => {
-                        navigateRef.current(`/contests/${contest?.slug || timeUpContestId.current}/leaderboard`, { replace: true });
-                    }, 2000);
-                } catch (error) {
-                    toast.error(error.message || 'Time-up submission failed. Please use Finish button.');
-                    setFinishing(false);
-                    finishingRef.current = false;
-                    autoSubmitTriggered.current = false;
-                    timeUpFiredRef.current = false; // allow retry via button
-                }
+                    autoSubmitTriggered.current = true;
+                    setFinishing(true);
+                    finishingRef.current = true;
+
+                    try {
+                        const result = await contestService.finishContest(timeUpContestId.current, violationsRef.current);
+                        toast.success(`Contest submitted! Final Score: ${result.finalScore}`);
+                        setContestSubmitted(true);
+                        setContestActive(false);
+                        localStorage.removeItem(`contest_${timeUpContestId.current}_codeMap`);
+                        setFinishing(false);
+                        finishingRef.current = false;
+                        // Navigate — read fresh user/navigate from refs, never stale
+                        setTimeout(() => {
+                            navigateRef.current(`/contests/${contest?.slug || timeUpContestId.current}/leaderboard`, { replace: true });
+                        }, 2000);
+                    } catch (error) {
+                        toast.error(error.message || 'Time-up submission failed. Please use Finish button.');
+                        setFinishing(false);
+                        finishingRef.current = false;
+                        autoSubmitTriggered.current = false;
+                        timeUpFiredRef.current = false; // allow retry via button
+                    }
+                }, jitter);
             }
         }, 1000);
         return () => clearInterval(interval);
@@ -1095,6 +1114,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 )}
 
                 <div className="flex items-center gap-4">
+                    {/* Live participant count removed — distributed count not reliable across instances
                     {!isPractice && (
                         <div className="flex items-center gap-3 text-xs text-gray-500 border-r border-gray-200 pr-4 mr-1">
                             <span className="flex items-center gap-1.5">
@@ -1119,6 +1139,21 @@ const ContestInterface = ({ isPractice = false }) => {
                                     {violationSummary.totalViolations}/{contest?.maxViolations || 5}
                                 </span>
                             )}
+                        </div>
+                    )}
+                    */}
+                    {/* Violations counter (kept) */}
+                    {!isPractice && contest?.proctoringEnabled && (
+                        <div className="flex items-center gap-3 text-xs text-gray-500 border-r border-gray-200 pr-4 mr-1">
+                            <span className={`flex items-center gap-1 font-bold text-xs px-2 py-0.5 rounded-full border ${violationSummary.totalViolations === 0
+                                    ? 'text-green-600 bg-green-50 border-green-100'
+                                    : violationSummary.isNearLimit
+                                        ? 'text-red-600 bg-red-50 border-red-200 animate-pulse'
+                                        : 'text-amber-600 bg-amber-50 border-amber-200'
+                                }`}>
+                                <AlertTriangle size={10} />
+                                {violationSummary.totalViolations}/{contest?.maxViolations || 5}
+                            </span>
                         </div>
                     )}
 
@@ -1756,12 +1791,14 @@ const ContestInterface = ({ isPractice = false }) => {
                                         {sortedLeaderboardData.length} participant{sortedLeaderboardData.length !== 1 ? 's' : ''}
                                         {totalParticipants > sortedLeaderboardData.length && ` · ${totalParticipants} enrolled`}
                                     </p>
+                                    {/* Live online count removed — not reliable across multi-instance deployments
                                     {!isPractice && liveParticipants > 0 && (
                                         <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                             {liveParticipants} online now
                                         </span>
                                     )}
+                                    */}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">

@@ -65,7 +65,7 @@ const initializeCollections = async () => {
                 collections[name] = db.collection(name);
 
                 // Test if collection exists by attempting to count documents
-                await collections[name].countDocuments({}, { limit: 1 });
+                await collections[name].countDocuments({}, { upperBound: 1 });
 
                 console.log(`   ✓ Collection '${name}' connected`);
             } catch (error) {

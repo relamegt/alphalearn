@@ -18,6 +18,14 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+const { RedisStore } = require('rate-limit-redis');
+const { getRedis } = require('./config/redis');
+
+// Enable Gzip compression
+app.use(compression());
+
 // Create HTTP server
 const server = http.createServer(app);
 
@@ -26,6 +34,49 @@ app.use(helmet({
     contentSecurityPolicy: false, // Allow WebSocket connections
     crossOriginEmbedderPolicy: false
 }));
+
+// Rate limiting — backed by Redis so limits hold across multiple server instances.
+// Each limiter gets its own unique prefix to prevent key collisions in Redis.
+// ERR_ERL_DOUBLE_COUNT: routes like /api/auth match BOTH /api and /api/auth limiters.
+// Using unique prefixes means they write to separate Redis keys and don't conflict.
+const buildRateLimitStore = (prefix) => {
+    try {
+        const redis = getRedis();
+        return new RedisStore({
+            sendCommand: (...args) => redis.call(...args),
+            prefix  // unique prefix per limiter prevents key collision
+        });
+    } catch (e) {
+        console.warn('[RateLimit] Redis store init failed, using in-memory store:', e.message);
+        return undefined; // express-rate-limit defaults to MemoryStore
+    }
+};
+
+// General API limiter — skips /api/auth/* so only the stricter authLimiter applies there.
+// This avoids ERR_ERL_DOUBLE_COUNT from express-rate-limit v7's double-count detection.
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 500,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: buildRateLimitStore('rl:api:'),
+    skip: (req) => req.path.startsWith('/auth'), // skip when mounted under /api — path is relative
+    message: { success: false, message: 'Too many requests, please try again later.' }
+});
+
+// Auth-specific limiter — stricter limits for login/register/forgot-password
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 50,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: buildRateLimitStore('rl:auth:'),
+    message: { success: false, message: 'Too many login attempts, please try again in 15 minutes.' }
+});
+
+// Apply rate limiting
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter);
 
 // CORS configuration (whitelist frontend)
 const corsOptions = {
@@ -55,7 +106,8 @@ app.get('/health', (req, res) => {
         success: true,
         message: 'AlphaKnowledge API is running',
         timestamp: new Date().toISOString(),
-        websocket: 'enabled'
+        websocket: 'enabled',
+        compression: 'enabled'
     });
 });
 
@@ -80,10 +132,21 @@ app.use(errorHandler);
 // Server port
 const PORT = process.env.PORT || 5000;
 
+const { initRedis } = require('./config/redis');
+const { startScoreWorker } = require('./workers/scoreWorker');
+
 // Start server
 const startServer = async () => {
     try {
-        // Connect to database
+        // 0. Initialize Redis first (needed for Queues & Cache)
+        console.log('🔌 Connecting to Redis (Upstash)...');
+        initRedis();
+
+        // 1. Start Background Workers
+        console.log('👷 Starting background workers...');
+        startScoreWorker();
+
+        // 2. Connect to database
         console.log('🔌 Connecting to database...');
         await connectDB();
 

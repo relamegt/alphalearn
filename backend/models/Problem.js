@@ -197,8 +197,8 @@ class Problem {
 
         const sectionCounts = await Promise.all(
             sections.map(async (section) => {
-                const problems = await collections.problems.find({ section, isContestProblem: false }).toArray();
-                return { section, count: problems.length };
+                const count = await collections.problems.countDocuments({ section, isContestProblem: false }, { upperBound: 5000 });
+                return { section, count };
             })
         );
 
@@ -207,22 +207,19 @@ class Problem {
 
     // Get difficulty-wise problem count
     static async getDifficultyWiseCount() {
-        const easyProblems = await collections.problems.find({ difficulty: 'Easy', isContestProblem: false }).toArray();
-        const mediumProblems = await collections.problems.find({ difficulty: 'Medium', isContestProblem: false }).toArray();
-        const hardProblems = await collections.problems.find({ difficulty: 'Hard', isContestProblem: false }).toArray();
+        const [easy, medium, hard] = await Promise.all([
+            collections.problems.countDocuments({ difficulty: 'Easy', isContestProblem: false }, { upperBound: 5000 }),
+            collections.problems.countDocuments({ difficulty: 'Medium', isContestProblem: false }, { upperBound: 5000 }),
+            collections.problems.countDocuments({ difficulty: 'Hard', isContestProblem: false }, { upperBound: 5000 })
+        ]);
 
-        return {
-            easy: easyProblems.length,
-            medium: mediumProblems.length,
-            hard: hardProblems.length
-        };
+        return { easy, medium, hard };
     }
 
     /// Count total problems
     static async count() {
         try {
-            const problems = await collections.problems.find({}).toArray();
-            return problems.length;
+            return await collections.problems.countDocuments({}, { upperBound: 10000 });
         } catch (error) {
             console.error('Count problems error:', error);
             throw error;

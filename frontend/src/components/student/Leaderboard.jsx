@@ -146,6 +146,16 @@ const Leaderboard = ({ batchId, isBatchView }) => {
     const [internalContests, setInternalContests] = useState([]);
     const [selectedInternalContest, setSelectedInternalContest] = useState(contestId || null);
 
+    // Filter state
+    const [activeFilter, setActiveFilter] = useState(null); // 'branch' | 'section' | 'timeline'
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Sorting state
+    const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
+    const [internalSortConfig, setInternalSortConfig] = useState({ key: 'score', direction: 'desc' });
+    const [internalPageSize, setInternalPageSize] = useState(50);
+    const [internalPage, setInternalPage] = useState(1);
+
     // Reset loaded flags when batchId changes to force refetch
     useEffect(() => {
         setPracticeDataLoaded(false);
@@ -180,7 +190,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         if (selectedInternalContest) {
             fetchInternalContestLeaderboard();
         }
-    }, [selectedInternalContest]);
+    }, [selectedInternalContest, internalPage, internalPageSize]);
 
     // Auto-refresh internal leaderboard using WebSockets
     const wsRef = useRef(null);
@@ -207,6 +217,8 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                     const data = JSON.parse(event.data);
                     if (data.type === 'leaderboardUpdate') {
                         setRawInternalData(data.leaderboard);
+                    } else if (data.type === 'leaderboardRefetch') {
+                        fetchInternalContestLeaderboard(true); // true = run in background silently
                     } else if (data.type === 'participantCount') {
                         setLiveParticipants(data.count);
                     }
@@ -266,18 +278,25 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         }
     };
 
+    const [internalTotalPagesState, setInternalTotalPagesState] = useState(1);
+    const [internalTotalCount, setInternalTotalCount] = useState(0);
+
     const fetchInternalContestLeaderboard = async (isBackground = false) => {
         if (!isBackground) setInternalLoading(true);
         try {
             const data = await leaderboardService.getInternalContestLeaderboard(
-                selectedInternalContest
+                selectedInternalContest, internalPage, internalPageSize
             );
             setRawInternalData(data.leaderboard || []);
             setContestInfo(data.contest || null);
+            setInternalTotalPagesState(data.totalPages || 1);
+            setInternalTotalCount(data.total || 0);
         } catch (error) {
             if (!isBackground) {
                 toast.error('Failed to fetch internal contest leaderboard');
                 setRawInternalData([]);
+                setInternalTotalPagesState(1);
+                setInternalTotalCount(0);
             }
         } finally {
             if (!isBackground) {
@@ -306,19 +325,8 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         }
     };
 
-    // ========== CLIENT-SIDE FILTERING ==========
-
-    // Filter state
-    const [activeFilter, setActiveFilter] = useState(null); // 'branch' | 'section' | 'timeline'
-    const [searchQuery, setSearchQuery] = useState('');
-
-    // Sorting state
-    const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
-    const [internalSortConfig, setInternalSortConfig] = useState({ key: 'score', direction: 'desc' });
-    const [internalPageSize, setInternalPageSize] = useState(50);
-    const [internalPage, setInternalPage] = useState(1);
-
     const handleFilterClick = (filterName) => {
+
         setActiveFilter(activeFilter === filterName ? null : filterName);
     };
 
@@ -511,11 +519,11 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         return data;
     }, [rawInternalData, internalSortConfig]);
 
-    // Reset to page 1 when contest changes or data changes
-    useEffect(() => { setInternalPage(1); }, [selectedInternalContest, rawInternalData]);
+    // Reset to page 1 when contest changes
+    useEffect(() => { setInternalPage(1); }, [selectedInternalContest]);
 
-    const internalTotalPages = Math.max(1, Math.ceil(sortedInternalData.length / internalPageSize));
-    const paginatedInternalData = sortedInternalData.slice((internalPage - 1) * internalPageSize, internalPage * internalPageSize);
+    const internalTotalPages = Math.max(1, internalTotalPagesState);
+    const paginatedInternalData = sortedInternalData;
 
     const downloadInternalCSV = () => {
         if (!sortedInternalData.length) return;
@@ -1202,14 +1210,8 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                         <tbody className="bg-white divide-y divide-gray-200">
                                             {filteredPracticeLeaderboard.map((entry, index) => {
                                                 const actualUserId = user?._id || user?.id || tokenUserId || localUserData?._id || localUserData?.id;
-                                                const actualRoll = user?.education?.rollNumber || localUserData?.education?.rollNumber;
-                                                const actualUsername = user?.username || localUserData?.username;
 
-                                                const isCurrentUser = Boolean(
-                                                    (entry.studentId && actualUserId && String(entry.studentId) === String(actualUserId)) ||
-                                                    (actualRoll && entry.rollNumber && entry.rollNumber !== 'N/A' && String(entry.rollNumber).toLowerCase() === String(actualRoll).toLowerCase()) ||
-                                                    (actualUsername && entry.username && entry.username !== 'N/A' && String(entry.username).toLowerCase() === String(actualUsername).toLowerCase())
-                                                );
+                                                const isCurrentUser = Boolean(entry.studentId && actualUserId && String(entry.studentId) === String(actualUserId));
 
                                                 return (
                                                     <tr
@@ -1501,7 +1503,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                             <span className="font-medium">Proctoring:</span>{' '}
                                             {contestInfo.proctoringEnabled ? '🔒 Enabled' : 'Disabled'}
                                         </div>
-                                         <div>
+                                        <div>
                                             <span className="font-medium">Start:</span>{' '}
                                             {new Date(contestInfo.startTime).toLocaleString('en-US', {
                                                 month: 'short', day: 'numeric', year: 'numeric',
@@ -1534,11 +1536,13 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                             </button>
                                             {contestInfo && new Date() <= new Date(contestInfo.endTime) ? (
                                                 <div className="flex items-center gap-3">
+                                                    {/* Live participant count removed — not reliable across multi-instance deployments
                                                     <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-lg border border-green-100">
                                                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                                                         <span className="text-sm text-green-700 font-bold">{liveParticipants}</span>
                                                         <span className="text-xs text-green-600 font-medium">Live</span>
                                                     </div>
+                                                    */}
                                                 </div>
                                             ) : (
                                                 <span className="text-sm text-gray-400 font-medium">
@@ -1642,14 +1646,9 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                 <tbody className="bg-white divide-y divide-gray-200">
                                                     {paginatedInternalData.map((entry, index) => {
                                                         const actualUserId = user?._id || user?.id || tokenUserId || localUserData?._id || localUserData?.id;
-                                                        const actualRoll = user?.education?.rollNumber || localUserData?.education?.rollNumber;
-                                                        const actualUsername = user?.username || localUserData?.username;
 
-                                                        const isCurrentUser = Boolean(
-                                                            (entry.studentId && actualUserId && String(entry.studentId) === String(actualUserId)) ||
-                                                            (actualRoll && entry.rollNumber && entry.rollNumber !== 'N/A' && String(entry.rollNumber).toLowerCase() === String(actualRoll).toLowerCase()) ||
-                                                            (actualUsername && entry.username && entry.username !== 'N/A' && String(entry.username).toLowerCase() === String(actualUsername).toLowerCase())
-                                                        );
+                                                        const isCurrentUser = Boolean(entry.studentId && actualUserId && String(entry.studentId) === String(actualUserId));
+
                                                         return (
                                                             <tr
                                                                 key={`${entry.studentId || entry.rollNumber}-${index}`}

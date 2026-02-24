@@ -2,9 +2,11 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const crypto = require('crypto');
+const { getRedis } = require('../config/redis');
 
-// Store OTPs temporarily (in production, use Redis)
-const otpStore = new Map();
+// OTP helpers — stored in Redis for multi-instance safety (TTL: 10 minutes)
+const OTP_TTL_SECONDS = 10 * 60;
+const getOtpKey = (email) => `otp:reset:${email}`;
 
 // Generate device fingerprint
 const generateFingerprint = (req) => {
@@ -71,6 +73,9 @@ const login = async (req, res) => {
         // Invalidate all previous sessions by incrementing token version
         const updatedUser = await User.incrementTokenVersion(user._id);
         const tokenVersion = updatedUser.tokenVersion || 0;
+
+        // Bust Redis auth cache so old cached tokenVersion is not served
+        try { await getRedis().del(`user:auth:${user._id.toString()}`); } catch (e) { }
 
         // Generate tokens with version
         const accessToken = jwt.sign(
@@ -342,6 +347,9 @@ const logout = async (req, res) => {
         // Increment version to invalidate all tokens for this user
         await User.incrementTokenVersion(userId);
 
+        // Bust Redis auth cache so the next request doesn't get the old cached version
+        try { await getRedis().del(`user:auth:${userId}`); } catch (e) { }
+
         // Also clear legacy session fields if present (cleanup)
         await User.clearSession(userId);
 
@@ -357,6 +365,10 @@ const getCurrentUser = async (req, res) => {
     try {
         const userId = req.user.userId;
 
+        // BUG #12 FIX: verifyToken middleware already validated the token using Redis cache
+        // (no DB call for auth). This is the only DB call needed per /me request \u2014
+        // one full findById for profile data. cachedAuthUser is auth-only (isActive etc.),
+        // so we still fetch the full user document here for the profile response.
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({
@@ -462,22 +474,40 @@ const forgotPassword = async (req, res) => {
             });
         }
 
+        const redis = getRedis();
+
+        // BUG #15 FIX: Check if a valid OTP already exists before generating a new one.
+        // Previously, each call unconditionally overwrote the OTP in Redis, allowing rapid-fire
+        // requests to keep generating fresh OTPs and invalidating the previous one (denial-of-service
+        // against the reset flow). Also the IP-based rate limiter was in-memory (Bug #14), meaning
+        // it could be bypassed across server instances.
+        // Fix 1: If an OTP already exists and was issued within the last 60 seconds, reuse it
+        //         and don't send a new one (idempotent within the quiet period).
+        // Fix 2: Email-based Redis key as an additional distributed rate limiter.
+        const emailRateLimitKey = `ratelimit:otp:email:${email}`;
+        const recentRequest = await redis.get(emailRateLimitKey);
+        if (recentRequest) {
+            // An OTP was already requested for this email within the last 60 seconds.
+            // Return success without generating a new OTP (idempotent).
+            return res.json({
+                success: true,
+                message: 'If the email exists, an OTP has been sent'
+            });
+        }
+
+        // Mark this email as recently requested (60-second quiet period)
+        await redis.setex(emailRateLimitKey, 60, '1');
+
         // Generate 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // Store OTP with timestamp
-        otpStore.set(email, {
-            otp,
-            timestamp: Date.now()
-        });
+        // Store OTP in Redis with 10-minute TTL
+        await redis.setex(getOtpKey(email), OTP_TTL_SECONDS, otp);
 
         // Send OTP via email
         await sendOTP(email, otp);
 
-        // Auto-delete OTP after 10 minutes
-        setTimeout(() => {
-            otpStore.delete(email);
-        }, 10 * 60 * 1000);
+        // Auto-delete handled by Redis TTL (no setTimeout needed)
 
         res.json({
             success: true,
@@ -493,28 +523,23 @@ const forgotPassword = async (req, res) => {
     }
 };
 
+
 // Reset password with OTP
 const resetPassword = async (req, res) => {
     try {
         const { email, otp, newPassword } = req.body;
 
-        // Verify OTP
-        const storedOTP = otpStore.get(email);
-        if (!storedOTP || storedOTP.otp !== otp) {
+        // Verify OTP from Redis
+        const redis = getRedis();
+        const storedOtp = await redis.get(getOtpKey(email));
+        if (!storedOtp || storedOtp !== otp) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid or expired OTP'
             });
         }
 
-        // Check OTP expiry (10 minutes)
-        if (Date.now() - storedOTP.timestamp > 10 * 60 * 1000) {
-            otpStore.delete(email);
-            return res.status(400).json({
-                success: false,
-                message: 'OTP has expired'
-            });
-        }
+        // OTP is valid (Redis TTL already ensures 10-minute expiry — no extra timestamp check needed)
 
         // Find user
         const user = await User.findByEmail(email);
@@ -531,8 +556,8 @@ const resetPassword = async (req, res) => {
         // Update password
         await User.updatePassword(user._id.toString(), hashedPassword);
 
-        // Clear OTP
-        otpStore.delete(email);
+        // Clear OTP from Redis
+        await redis.del(getOtpKey(email));
 
         // Clear all sessions
         await User.clearSession(user._id.toString());
@@ -554,9 +579,10 @@ const resetPassword = async (req, res) => {
 // Verify session
 const verifySession = async (req, res) => {
     try {
-        const userId = req.user.userId;
-
-        const user = await User.findById(userId);
+        // BUG #17 FIX: verifyToken middleware already fetched the user (with Redis caching)
+        // and validated isActive + tokenVersion. We can use req.cachedAuthUser directly
+        // instead of making another DB call. Fall back to DB only if not cached.
+        const user = req.cachedAuthUser || await User.findById(req.user.userId);
         if (!user || !user.isActive) {
             return res.status(401).json({
                 success: false,
@@ -569,9 +595,9 @@ const verifySession = async (req, res) => {
             message: 'Session is valid',
             user: {
                 id: user._id,
-                email: user.email,
+                email: req.user.email, // from token (already validated)
                 username: user.username,
-                role: user.role
+                role: req.user.role   // from token (already validated)
             }
         });
     } catch (error) {

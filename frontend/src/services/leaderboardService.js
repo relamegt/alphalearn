@@ -153,9 +153,11 @@ const leaderboardService = {
     },
 
     // Get FULL Internal Contest Leaderboard (NO CACHE - real-time)
-    getInternalContestLeaderboard: async (contestId) => {
+    getInternalContestLeaderboard: async (contestId, page = 1, limit = 50) => {
         try {
-            const response = await apiClient.get(`/reports/leaderboard/contest/${contestId}`);
+            const response = await apiClient.get(`/reports/leaderboard/contest/${contestId}`, {
+                params: { page, limit }
+            });
             return response.data;
         } catch (error) {
             throw error.response?.data || { message: 'Failed to fetch contest leaderboard' };

@@ -114,8 +114,8 @@ const authService = {
                 }
             }
 
-            // Return ongoing promise to avoid duplicate concurrent calls
-            if (!forceRefresh && mePromise) {
+            // Return ongoing promise to avoid duplicate concurrent calls even if forced
+            if (mePromise) {
                 return await mePromise;
             }
 

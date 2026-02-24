@@ -322,77 +322,89 @@ const bulkAddUsersToBatch = async (req, res) => {
         }
 
         const emailIndex = headers.indexOf('email');
+        const emailsToCreate = [];
+        const rowsToProcess = [];
 
-        // Process each line
+        // 1. Collect all emails and validate basic format
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
-
             const values = line.split(',').map(v => v.trim());
-            const email = values[emailIndex];
+            const email = values[emailIndex]?.toLowerCase();
+            if (email) rowsToProcess.push({ email, row: i + 1 });
+        }
 
-            if (!email) continue;
+        // 2. Bulk check for existing users in chunks
+        const allEmails = rowsToProcess.map(r => r.email);
+        const CHUNK_SIZE = 100;
+        const existingUsers = [];
+        for (let i = 0; i < allEmails.length; i += CHUNK_SIZE) {
+            const emailChunk = allEmails.slice(i, i + CHUNK_SIZE);
+            const chunkUsers = await collections.users.find({ email: { $in: emailChunk } }).toArray();
+            existingUsers.push(...chunkUsers);
+        }
+        const existingEmailSet = new Set(existingUsers.map(u => u.email));
 
-            try {
-                // Check if user exists
-                const existingUser = await User.findByEmail(email);
-                if (existingUser) {
-                    errors.push({
-                        row: i + 1,
-                        email: email,
-                        error: 'User already exists'
-                    });
-                    continue;
-                }
-
-                // Generate temporary password
-                const tempPassword = email.split('@')[0];
-
-                // Create user
-                // For students, populate education from batch
-                let educationData = null;
-                if (role === 'student' && batch.education) {
-                    educationData = {
-                        institution: batch.education.institution,
-                        degree: batch.education.degree,
-                        branch: null, // Student will fill this during profile completion
-                        rollNumber: null,
-                        startYear: batch.education?.startYear || new Date(batch.startDate).getFullYear(),
-                        endYear: batch.education?.endYear || new Date(batch.endDate).getFullYear()
-                    };
-                }
-
-                const userData = {
-                    email,
-                    password: tempPassword,
-                    firstName: null,
-                    lastName: null,
-                    role,
-                    batchId,
-                    profile: {},
-                    education: educationData
-                };
-
-                const user = await User.create(userData);
-
-                // Update batch student count
-                if (role === 'student') {
-                    await Batch.incrementStudentCount(batchId);
-                }
-
-                createdUsers.push({
-                    email: user.email,
-                    role: user.role,
-                    tempPassword: tempPassword
-                });
-
-            } catch (error) {
-                errors.push({
-                    row: i + 1,
-                    email: email,
-                    error: error.message
-                });
+        const newUsersData = [];
+        for (const row of rowsToProcess) {
+            if (existingEmailSet.has(row.email)) {
+                errors.push({ row: row.row, email: row.email, error: 'User already exists' });
+                continue;
             }
+
+            const tempPassword = row.email.split('@')[0];
+
+            let educationData = null;
+            if (role === 'student' && batch.education) {
+                educationData = {
+                    institution: batch.education.institution,
+                    degree: batch.education.degree,
+                    branch: null,
+                    rollNumber: null,
+                    startYear: batch.education?.startYear || new Date(batch.startDate).getFullYear(),
+                    endYear: batch.education?.endYear || new Date(batch.endDate).getFullYear()
+                };
+            }
+
+            newUsersData.push({
+                email: row.email,
+                password: tempPassword,
+                _rawPassword: tempPassword, // Preserved before bulkCreate hashes it
+                role,
+                batchId,
+                education: educationData
+            });
+        }
+
+        // 3. Bulk create new users
+        if (newUsersData.length > 0) {
+            const result = await User.bulkCreate(newUsersData);
+
+            // Determine accurate insert count based on DB response or fallback
+            let numInserted = newUsersData.length;
+            if (result && result.insertedCount !== undefined) {
+                numInserted = result.insertedCount;
+            } else if (result && result.insertedIds) {
+                numInserted = Object.keys(result.insertedIds).length;
+            }
+
+            // Update batch student count with actual inserted count
+            if (role === 'student' && numInserted > 0) {
+                const Batch = require('../models/Batch');
+                await collections.batches.updateOne(
+                    { _id: new ObjectId(batchId) },
+                    { $inc: { studentCount: numInserted } }
+                );
+            }
+
+            // Fix #19: Use _rawPassword (saved before bulkCreate hashes it) for the admin response.
+            // bulkCreate runs bcrypt.hash internally and does NOT mutate the input objects,
+            // so u.password here is still the raw value. We use _rawPassword explicitly for clarity.
+            newUsersData.slice(0, numInserted).forEach(u => createdUsers.push({
+                email: u.email,
+                role: u.role,
+                tempPassword: u._rawPassword
+            }));
         }
 
         res.status(201).json({
@@ -419,7 +431,9 @@ const bulkAddUsersToBatch = async (req, res) => {
 const getBatchUsers = async (req, res) => {
     try {
         const { batchId } = req.params;
-        const { role } = req.query; // Optional filter by role
+        const { role, page: _page, limit: _limit } = req.query; // Optional filter by role
+        const page = parseInt(_page) || 1;
+        const limit = parseInt(_limit) || 50;
 
         const batch = await Batch.findById(batchId);
         if (!batch) {
@@ -429,14 +443,33 @@ const getBatchUsers = async (req, res) => {
             });
         }
 
-        let users;
-        if (role === 'student') {
-            users = await User.getStudentsByBatch(batchId);
-        } else if (role === 'instructor') {
-            users = await User.getInstructorsByBatch(batchId);
-        } else {
-            users = await User.getUsersByBatch(batchId);
+        const { collections } = require('../config/astra');
+        const { ObjectId } = require('bson');
+
+        const query = {};
+        if (role === 'student' || role === 'instructor') {
+            query.role = role;
         }
+
+        // Apply batch logic
+        const batchObjId = new ObjectId(batchId);
+        if (role === 'instructor') {
+            query.$or = [{ batchId: batchObjId }, { assignedBatches: batchObjId }];
+        } else {
+            query.batchId = batchObjId;
+        }
+
+        const startIndex = (page - 1) * limit;
+
+        const [users, total] = await Promise.all([
+            collections.users
+                .find(query)
+                .sort({ createdAt: -1 })
+                .skip(startIndex)
+                .limit(limit)
+                .toArray(),
+            collections.users.countDocuments(query, { upperBound: 100000 })
+        ]);
 
         res.json({
             success: true,
@@ -445,6 +478,10 @@ const getBatchUsers = async (req, res) => {
                 name: batch.name
             },
             count: users.length,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
             users: users.map(u => ({
                 id: u._id,
                 email: u.email,
@@ -527,20 +564,40 @@ const createAdminUser = async (req, res) => {
 // Get all users (with filters)
 const getAllUsers = async (req, res) => {
     try {
-        const { role, batchId } = req.query;
+        const { role, batchId, page: _page, limit: _limit } = req.query;
+        const page = parseInt(_page) || 1;
+        const limit = parseInt(_limit) || 50;
 
-        let users;
+        const { collections } = require('../config/astra');
+        const { ObjectId } = require('bson');
+
+        const query = {};
         if (role) {
-            users = await User.findByRole(role);
-        } else if (batchId) {
-            users = await User.getUsersByBatch(batchId);
-        } else {
-            users = await User.findAll();
+            query.role = role;
         }
+        if (batchId) {
+            query.batchId = new ObjectId(batchId);
+        }
+
+        const startIndex = (page - 1) * limit;
+
+        const [users, total] = await Promise.all([
+            collections.users
+                .find(query)
+                .sort({ createdAt: -1 })
+                .skip(startIndex)
+                .limit(limit)
+                .toArray(),
+            collections.users.countDocuments(query, { upperBound: 100000 })
+        ]);
 
         res.json({
             success: true,
             count: users.length,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
             users: users.map(u => ({
                 id: u._id,
                 email: u.email,
@@ -645,24 +702,30 @@ const deleteBatch = async (req, res) => {
 // Get system analytics (includes permanent user count)
 const getSystemAnalytics = async (req, res) => {
     try {
-        // Current active users
-        const allUsers = await require('../config/astra').collections.users.find({}).toArray();
-        const activeUsers = allUsers.length;
-        const totalStudents = allUsers.filter(u => u.role === 'student').length;
-        const totalInstructors = allUsers.filter(u => u.role === 'instructor').length;
-        const totalAdmins = allUsers.filter(u => u.role === 'admin').length;
+        const collections = require('../config/astra').collections;
 
-        const allBatches = await require('../config/astra').collections.batches.find({}).toArray();
-        const totalBatches = allBatches.length;
-        const activeBatches = allBatches.filter(b => b.status === 'active').length;
+        // Optimized counts using native countDocuments
+        const [
+            activeUsers,
+            totalStudents,
+            totalInstructors,
+            totalAdmins,
+            totalBatches,
+            activeBatches,
+            totalContests,
+            totalUsersEverCreated
+        ] = await Promise.all([
+            collections.users.countDocuments({}, { upperBound: 100000 }),
+            collections.users.countDocuments({ role: 'student' }, { upperBound: 100000 }),
+            collections.users.countDocuments({ role: 'instructor' }, { upperBound: 100000 }),
+            collections.users.countDocuments({ role: 'admin' }, { upperBound: 100000 }),
+            collections.batches.countDocuments({}, { upperBound: 1000 }),
+            collections.batches.countDocuments({ status: 'active' }, { upperBound: 1000 }),
+            collections.contests.countDocuments({}, { upperBound: 1000 }),
+            User.getTotalUsersCount()
+        ]);
 
         const totalProblems = await Problem.count();
-
-        const allContests = await require('../config/astra').collections.contests.find({}).toArray();
-        const totalContests = allContests.length;
-
-        // Get permanent total users count (for homepage popularity)
-        const totalUsersEverCreated = await User.getTotalUsersCount();
 
         res.json({
             success: true,

@@ -3,6 +3,8 @@ const Contest = require('../models/Contest');
 const ContestSubmission = require('../models/ContestSubmission');
 const Problem = require('../models/Problem');
 const { executeWithTestCases, validateCode } = require('../services/judge0Service');
+const { collections } = require('../config/astra');
+const { ObjectId } = require('bson');
 const { notifyLeaderboardUpdate, notifySubmission, notifyViolation } = require('../config/websocket');
 
 // Create contest (Admin/Instructor)
@@ -89,54 +91,72 @@ const createContest = async (req, res) => {
 const getContestsByBatch = async (req, res) => {
     try {
         const { batchId } = req.params;
-        const { status } = req.query;
-        const studentId = req.user.userId; // Get current user ID
+        const { status, page: _page, limit: _limit } = req.query;
+        const studentId = req.user.userId;
 
-        let contests;
+        const page = parseInt(_page) || 1;
+        const limit = parseInt(_limit) || 50;
+        const startIndex = (page - 1) * limit;
+
+        const { collections } = require('../config/astra');
+        const { ObjectId } = require('bson');
+
+        const query = {};
+        const now = new Date();
 
         // Handle 'all' batch request (Admin/Instructor only)
         if (batchId === 'all') {
             if (req.user.role === 'student') {
                 return res.status(403).json({ success: false, message: 'Access denied' });
             }
-            contests = await Contest.findAll();
-        } else if (status === 'active') {
-            contests = await Contest.findActiveContests(batchId);
-        } else if (status === 'upcoming') {
-            contests = await Contest.findUpcomingContests(batchId);
-        } else if (status === 'past') {
-            contests = await Contest.findPastContests(batchId);
         } else {
-            contests = await Contest.findByBatchId(batchId);
+            query.batchId = new ObjectId(batchId);
         }
+
+        if (status === 'active') {
+            query.startTime = { $lte: now };
+            query.endTime = { $gte: now };
+        } else if (status === 'upcoming') {
+            query.startTime = { $gt: now };
+        } else if (status === 'past') {
+            query.endTime = { $lt: now };
+        }
+
+        const [contests, total] = await Promise.all([
+            collections.contests
+                .find(query)
+                .sort({ startTime: -1 })
+                .skip(startIndex)
+                .limit(limit)
+                .toArray(),
+            collections.contests.countDocuments(query, { upperBound: 10000 })
+        ]);
 
         // For students, add isSubmitted flag for each contest
         if (req.user.role === 'student') {
-            const contestsWithSubmissionStatus = await Promise.all(
-                contests.map(async (contest) => {
-                    try {
-                        const isSubmitted = await ContestSubmission.hasSubmittedContest(
-                            studentId,
-                            contest._id
-                        );
+            const contestIds = contests.map(c => c._id);
+            // BUG #16 FIX: Only fetch contestId field — not full submission docs.
+            // Previously loaded full documents just to build a Set of IDs.
+            const submissions = await collections.contestSubmissions.find({
+                studentId: new ObjectId(studentId),
+                contestId: { $in: contestIds },
+                isFinalContestSubmission: true
+            }, { projection: { contestId: 1 } }).toArray();
 
-                        return {
-                            ...contest,
-                            isSubmitted
-                        };
-                    } catch (error) {
-                        console.error(`Error checking submission for contest ${contest._id}:`, error);
-                        return {
-                            ...contest,
-                            isSubmitted: false
-                        };
-                    }
-                })
-            );
+            const submittedContestIds = new Set(submissions.map(s => s.contestId.toString()));
+
+            const contestsWithSubmissionStatus = contests.map(contest => ({
+                ...contest,
+                isSubmitted: submittedContestIds.has(contest._id.toString())
+            }));
 
             return res.json({
                 success: true,
                 count: contestsWithSubmissionStatus.length,
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
                 contests: contestsWithSubmissionStatus
             });
         }
@@ -145,6 +165,10 @@ const getContestsByBatch = async (req, res) => {
         res.json({
             success: true,
             count: contests.length,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
             contests
         });
     } catch (error) {
@@ -162,6 +186,7 @@ const getContestById = async (req, res) => {
     try {
         const { contestId } = req.params;
         const studentId = req.user.userId;
+        const now = new Date();
 
         const contest = await Contest.findById(contestId);
         if (!contest) {
@@ -178,31 +203,36 @@ const getContestById = async (req, res) => {
         const solvedProblems = await ContestSubmission.getAcceptedProblems(studentId, contestId);
         const solvedProblemIds = solvedProblems.map(p => p.toString());
 
-        // Get contest problems
-        const problems = await Promise.all(
-            contest.problems.map(async (problemId) => {
-                const problem = await Problem.findById(problemId);
-                if (!problem) return null;
+        // Get contest problems in BULK
+        const contestProblems = await Problem.findByIds(contest.problems);
+        const problemMap = new Map();
+        contestProblems.forEach(p => problemMap.set(p._id.toString(), p));
 
-                const isProblemSolved = solvedProblemIds.includes(problemId.toString());
+        const problems = contest.problems.map((problemId) => {
+            const problem = problemMap.get(problemId.toString());
+            if (!problem) return null;
 
-                // Hide test cases and editorial during active contest
-                if (req.user.role === 'student' && await Contest.isActive(contestId)) {
+            const isProblemSolved = solvedProblemIds.includes(problemId.toString());
+
+            // Hide test cases and editorial during active contest
+            const isContestActive = now >= contest.startTime && now <= contest.endTime;
+            if (req.user.role === 'student' && isContestActive) {
+                if (problem.testCases) {
                     problem.testCases = problem.testCases.map(tc => ({
                         input: tc.isHidden ? 'Hidden' : tc.input,
                         output: tc.isHidden ? 'Hidden' : tc.output,
                         isHidden: tc.isHidden
                     }));
-                    problem.editorial = null;
                 }
+                problem.editorial = null;
+            }
 
-                return {
-                    ...problem,
-                    isLocked: isProblemSolved || hasSubmitted,
-                    isSolved: isProblemSolved
-                };
-            })
-        );
+            return {
+                ...problem,
+                isLocked: isProblemSolved || hasSubmitted,
+                isSolved: isProblemSolved
+            };
+        });
 
         const validProblems = problems.filter(p => p !== null);
 
@@ -274,33 +304,9 @@ const deleteContest = async (req, res) => {
         // Normal registered users who participated never get this tag, so they are NEVER touched.
         if (contest.batchId === null) {
             const User = require('../models/User');
-            const { collections } = require('../config/astra');
-            const { ObjectId } = require('bson');
-
-            // Find ONLY users tagged as registered for THIS specific contest.
-            // This field is exclusively set in registerSpotUser — normal users never have it.
-            const spotUsers = await collections.users.find({
-                registeredForContest: new ObjectId(contestId)
-            }).toArray();
-
-            for (const spotUser of spotUsers) {
-                // Double-safety check: only delete if the email pattern confirms it's a spot user.
-                // This prevents any edge-case where a normal user somehow has the tag.
-                if (
-                    spotUser.email &&
-                    spotUser.email.startsWith('spot_') &&
-                    spotUser.role === 'student'
-                ) {
-                    await User.delete(spotUser._id.toString());
-                } else {
-                    console.warn(
-                        `[deleteContest] Skipping user ${spotUser._id} — ` +
-                        `has registeredForContest tag but does not look like a spot user (email: ${spotUser.email})`
-                    );
-                }
-            }
-
-            console.log(`[deleteContest] Deleted ${spotUsers.length} spot user(s) for contest ${contestId}`);
+            // Use bulk deletion instead of looping through users (O(N) -> O(1) DB operations)
+            const result = await User.deleteByContest(contestId);
+            console.log(`[deleteContest] Bulk deleted ${result.deletedCount} spot user(s) for contest ${contestId}`);
         }
 
         // Delete all contest submissions (for all users, normal + spot)
@@ -327,12 +333,22 @@ const deleteContest = async (req, res) => {
 };
 
 
+// Submission locks using Redis to prevent race conditions in distributed environments
+const { getRedis } = require('../config/redis');
+const { addScoreJob } = require('../config/queue');
+
 // Submit code in contest with all features
 const submitContestCode = async (req, res) => {
+    const studentId = req.user.userId;
+    const { problemId } = req.body;
+    const redis = getRedis();
+    const lockKey = `lock:submission:${studentId}:${problemId}`;
+    let submissionLockAcquired = false; // Track if lock was actually acquired
+
     try {
         const { contestId } = req.params;
         const {
-            problemId, code, language,
+            code, language,
             tabSwitchCount = 0,
             tabSwitchDuration = 0,
             pasteAttempts = 0,
@@ -340,10 +356,22 @@ const submitContestCode = async (req, res) => {
             isAutoSubmit = false,
             isPractice = false
         } = req.body;
-        const studentId = req.user.userId;
+
         const isPracticeMode = isPractice === true || isPractice === 'true';
 
-        // 1. Basic Validation
+        // 1. Acquire Redis Lock (TTL: 30 seconds to prevent deadlocks)
+        if (!isPracticeMode) {
+            const acquired = await redis.set(lockKey, 'LOCKED', 'NX', 'EX', 30);
+            if (!acquired) {
+                return res.status(429).json({
+                    success: false,
+                    message: 'Your previous submission is still being processed. Please wait.'
+                });
+            }
+            submissionLockAcquired = true; // Mark lock as acquired
+        }
+
+        // 2. Basic Validation
         if (!code || !code.trim()) {
             return res.status(400).json({ success: false, message: 'Code cannot be empty' });
         }
@@ -397,7 +425,7 @@ const submitContestCode = async (req, res) => {
             });
         }
 
-        // 3b. Normal Contest Submission Flow
+        // 3. Normal Contest Submission Flow
         // Check if contest is submitted (completed)
         const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
         if (hasSubmitted) {
@@ -417,9 +445,18 @@ const submitContestCode = async (req, res) => {
         }
 
         const now = new Date();
-        const isActive = now >= contest.startTime && now <= contest.endTime;
+        const endTimeDate = new Date(contest.endTime);
+        const isActive = now >= new Date(contest.startTime) && now <= endTimeDate;
 
-        if (!isActive && !isAutoSubmit) {
+        let isGracePeriodActive = false;
+        if (isAutoSubmit && now > endTimeDate) {
+            const graceEndTime = new Date(endTimeDate.getTime() + 2 * 60000); // 2 mins grace period
+            if (now <= graceEndTime) {
+                isGracePeriodActive = true;
+            }
+        }
+
+        if (!isActive && !isGracePeriodActive) {
             return res.status(400).json({
                 success: false,
                 message: 'Contest is not active'
@@ -464,10 +501,11 @@ const submitContestCode = async (req, res) => {
             isAutoSubmit
         });
 
-        // Broadcast updates via WebSocket
+        // Broadcast updates via WebSocket (Throttled & Cached)
         try {
-            const leaderboard = await ContestSubmission.getLeaderboard(contestId);
-            notifyLeaderboardUpdate(contestId, leaderboard);
+            // Invalidate distributed cache so all server instances get fresh data
+            await ContestSubmission.invalidateCache(contestId);
+            notifyLeaderboardUpdate(contestId);
 
             notifySubmission(contestId, {
                 studentId,
@@ -513,6 +551,11 @@ const submitContestCode = async (req, res) => {
             message: 'Code submission failed',
             error: error.message
         });
+    } finally {
+        // ONLY release the lock if it was actually acquired (not in practice mode)
+        if (submissionLockAcquired) {
+            await redis.del(lockKey);
+        }
     }
 };
 
@@ -619,9 +662,19 @@ const runContestCode = async (req, res) => {
 
 // Manually finish/submit contest
 const finishContest = async (req, res) => {
+    let lockAcquired = false;
     try {
         const { contestId } = req.params;
         const studentId = req.user.userId;
+        const redis = getRedis();
+        const finishLockKey = `lock:finish:${studentId}:${contestId}`;
+
+        // Prevent concurrent finish triggers
+        lockAcquired = await redis.set(finishLockKey, 'LOCKED', 'NX', 'EX', 10);
+        if (!lockAcquired) {
+            return res.status(429).json({ success: false, message: 'Your contest submission is being finalized...' });
+        }
+
         // Frontend sends current tracked violation counts as the definitive snapshot
         const { finalViolations } = req.body || {};
 
@@ -637,40 +690,32 @@ const finishContest = async (req, res) => {
         // Calculate final score
         const scoreData = await ContestSubmission.calculateScore(studentId, contestId);
 
-        // Build violation snapshot — prefer frontend's live count; fall back to DB logs
-        let violationSnapshot = finalViolations || {};
-        if (!finalViolations) {
-            // No snapshot from frontend — aggregate from existing violation log records
-            const dbViolations = await ContestSubmission.getProctoringViolations(studentId, contestId);
-            violationSnapshot = {
-                tabSwitchCount: dbViolations.totalTabSwitches,
-                tabSwitchDuration: dbViolations.totalTabSwitchDuration,
-                fullscreenExits: dbViolations.totalFullscreenExits,
-                pasteAttempts: dbViolations.totalPasteAttempts
-            };
-        }
+        // Build violation snapshot — enforce maximum between frontend and backend
+        const dbViolations = await ContestSubmission.getProctoringViolations(studentId, contestId);
+
+        let violationSnapshot = {
+            tabSwitchCount: Math.max((finalViolations?.tabSwitchCount || 0), dbViolations.totalTabSwitches),
+            tabSwitchDuration: Math.max((finalViolations?.tabSwitchDuration || 0), dbViolations.totalTabSwitchDuration),
+            fullscreenExits: Math.max((finalViolations?.fullscreenExits || 0), dbViolations.totalFullscreenExits),
+            pasteAttempts: Math.max((finalViolations?.pasteAttempts || 0), dbViolations.totalPasteAttempts)
+        };
         const totalViolations = (violationSnapshot.tabSwitchCount || 0) + (violationSnapshot.fullscreenExits || 0);
 
         // Mark contest as completed — stores violation snapshot on the COMPLETED record
         await ContestSubmission.markContestCompleted(studentId, contestId, scoreData.score, violationSnapshot);
 
-        // Recalculate and sync global leaderboard scores for this student.
-        // This ensures the internal contest score gets added to their overallScore & alphacoins immediately
+        // OFFLOAD Score Recalculation to background worker queue
+        // This prevents the "thundering herd" effect when many users finish at once
         if (req.user.role === 'student') {
-            try {
-                const Leaderboard = require('../models/Leaderboard');
-                await Leaderboard.recalculateScores(studentId);
-            } catch (scoreErr) {
-                console.error('Failed to recalculate score after contest:', scoreErr);
-            }
+            await addScoreJob(studentId);
         }
 
-        // Update live leaderboard
+        // Update live leaderboard (Throttled)
         try {
-            const leaderboard = await ContestSubmission.getLeaderboard(contestId);
-            notifyLeaderboardUpdate(contestId, leaderboard);
+            await ContestSubmission.invalidateCache(contestId);
+            notifyLeaderboardUpdate(contestId);
         } catch (wsError) {
-            console.error('WebSocket notification error:', wsError);
+            console.error('WebSocket notification error in finishContest:', wsError);
         }
 
         res.json({
@@ -687,18 +732,30 @@ const finishContest = async (req, res) => {
             message: 'Failed to submit contest',
             error: error.message
         });
+    } finally {
+        // BUG #2 FIX: Only release the lock if WE acquired it.
+        // Previously this always deleted the key — including when lockAcquired was false
+        // (the 429 path), which would delete ANOTHER user's active lock and allow a
+        // third user to acquire it and cause a double-submission.
+        if (lockAcquired) {
+            await getRedis().del(`lock:finish:${req.user.userId}:${req.params.contestId}`);
+        }
     }
 };
-
 
 // Get contest leaderboard with real-time support
 const getContestLeaderboard = async (req, res) => {
     try {
         const { contestId } = req.params;
         const currentUserId = req.user?.userId || req.user?._id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
 
-        const leaderboard = await ContestSubmission.getLeaderboard(contestId, currentUserId);
-        const contest = await Contest.findById(contestId);
+        // Fix #17: Run leaderboard and contest fetches in parallel to halve DB wait time
+        const [{ leaderboard, total, totalPages }, contest] = await Promise.all([
+            ContestSubmission.getLeaderboard(contestId, currentUserId, false, page, limit),
+            Contest.findById(contestId)
+        ]);
 
         // Populate problem titles manually keeping original order
         if (contest && contest.problems) {
@@ -707,19 +764,22 @@ const getContestLeaderboard = async (req, res) => {
         }
 
         // Count total enrolled students for this contest's batch
-        let totalParticipants = leaderboard.length;
+        let totalEnrolled = total;
         if (contest?.batchId) {
             try {
                 const User = require('../models/User');
-                const batchStudents = await User.getStudentsByBatch(contest.batchId.toString());
-                totalParticipants = batchStudents.length;
+                totalEnrolled = await User.countStudentsInBatch(contest.batchId.toString());
             } catch (e) { /* silent fallback */ }
         }
 
         res.json({
             success: true,
             count: leaderboard.length,
-            totalParticipants,
+            total,
+            page,
+            limit,
+            totalPages,
+            totalEnrolled,
             leaderboard,
             contest,
             timestamp: new Date().toISOString()
@@ -822,14 +882,10 @@ const logViolation = async (req, res) => {
 
         await ContestSubmission.logViolation(studentId, contestId, violations);
 
-        // Broadcast leaderboard update so violations appear live during contest
-        try {
-            const { notifyLeaderboardUpdate } = require('../config/websocket');
-            const leaderboard = await ContestSubmission.getLeaderboard(contestId);
-            notifyLeaderboardUpdate(contestId, leaderboard);
-        } catch (wsError) {
-            console.error('WebSocket notification error in logViolation:', wsError);
-        }
+        // NOTE: Violations do NOT change scores, so we do NOT trigger a leaderboard
+        // broadcast here. The live violation data is visible to admins via the
+        // proctoring panel, not the leaderboard. Removing this prevents spurious
+        // 10-second throttle timers from firing on every tab-switch event.
 
         res.json({ success: true, message: 'Violation logged' });
     } catch (error) {
@@ -889,11 +945,59 @@ const registerSpotUser = async (req, res) => {
         const { ObjectId } = require('bson');
         const User = require('../models/User');
         const jwt = require('jsonwebtoken');
+        const { getRedis } = require('../config/redis');
+        const redis = getRedis();
 
         // Use the resolved real ObjectId string — NOT the raw slug from req.body
         const resolvedContestId = contest._id.toString();
 
-        // Check if they already exist (very rudimentary, they're temporary anyway)
+        // BUG #8 FIX: Race condition — two simultaneous requests (e.g., double-click) could
+        // both read null from redis.get(fpKey) and both proceed to create duplicate user accounts.
+        // Fix: Use SET NX as an atomic creation lock BEFORE any DB insert.
+        // The token cache key doubles as the creation lock: only the first caller proceeds.
+        const crypto = require('crypto');
+        const fpRaw = `spot:${resolvedContestId}:${(name || '').trim().toLowerCase()}:${(rollNumber || '').trim().toLowerCase()}`;
+        const fpKey = `spot:dedup:${crypto.createHash('sha256').update(fpRaw).digest('hex').substring(0, 16)}`;
+
+        // Atomic check-and-lock: SET NX returns null if key already exists.
+        // Use a 30-second placeholder so concurrent duplicate requests wait or return early.
+        const creationLockKey = `spot:creating:${fpKey}`;
+        const lockAcquiredForSpot = await redis.set(creationLockKey, '1', 'NX', 'EX', 30);
+
+        const existingToken = await redis.get(fpKey);
+        if (existingToken) {
+            // Release creation lock since we won't be creating a new user
+            try { await redis.del(creationLockKey); } catch (e) { /* non-fatal */ }
+            try {
+                const decoded = jwt.verify(existingToken, process.env.JWT_ACCESS_SECRET || 'fallback_secret');
+                return res.json({
+                    success: true,
+                    token: existingToken,
+                    user: {
+                        userId: decoded.userId,
+                        name,
+                        role: 'student',
+                        isSpotUser: true,
+                        registeredForContest: resolvedContestId,
+                        rollNumber: rollNumber || 'N/A',
+                        branch: branch || 'N/A'
+                    }
+                });
+            } catch (expiredErr) {
+                // Token expired — fall through to create a fresh user
+                await redis.del(fpKey);
+            }
+        }
+
+        // If another request is already creating this user (lock held), reject the duplicate
+        if (!lockAcquiredForSpot && !existingToken) {
+            return res.status(429).json({
+                success: false,
+                message: 'Registration in progress. Please wait a moment and try again.'
+            });
+        }
+
+        // Generate a unique spot email
         const spotEmail = `spot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@temporary.com`;
 
         // We DO create a temporary User in the database so that leaderboard resolves correctly.
@@ -939,6 +1043,12 @@ const registerSpotUser = async (req, res) => {
         user.activeSessionToken = token;
         await User.updateSession(user._id.toString(), token, 'spot-fingerprint');
 
+        // Cache the token for 5 minutes to deduplicate rapid re-registrations
+        try { await redis.setex(fpKey, 5 * 60, token); } catch (e) { /* non-fatal */ }
+        // BUG #8 FIX: Release the creation lock now that the token is cached.
+        // Subsequent duplicate requests will find the token in fpKey and return it.
+        try { await redis.del(creationLockKey); } catch (e) { /* non-fatal */ }
+
         res.json({
             success: true,
             token,
@@ -953,6 +1063,13 @@ const registerSpotUser = async (req, res) => {
             }
         });
     } catch (error) {
+        // BUG #8 FIX: Always release the creation lock on error path too
+        try {
+            if (typeof creationLockKey !== 'undefined' && creationLockKey) {
+                const redis = getRedis();
+                await redis.del(creationLockKey);
+            }
+        } catch (e) { /* non-fatal */ }
         console.error('Register spot user error:', error);
         res.status(500).json({ success: false, message: 'Failed to register. ' + error.message });
     }

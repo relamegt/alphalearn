@@ -199,10 +199,9 @@ class Contest {
     // Count contests by batch
     static async countByBatch(batchId) {
         try {
-            const contests = await collections.contests.find({
+            return await collections.contests.countDocuments({
                 batchId: new ObjectId(batchId)
-            }).toArray();
-            return contests.length;
+            }, { upperBound: 1000 });
         } catch (error) {
             console.error('Count contests error:', error);
             throw error;

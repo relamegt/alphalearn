@@ -6,119 +6,45 @@ const Submission = require('../models/Submission');
 const ExternalProfile = require('../models/ExternalProfile');
 const ContestSubmission = require('../models/ContestSubmission');
 const { calculatePlatformScore } = require('../utils/scoreCalculator');
+const { collections } = require('../config/astra'); // Fix #4: was missing, caused ReferenceError
 
-// Get comprehensive report data
+const { ObjectId } = require('bson');
+
+// Get comprehensive report data (MEMORY OPTIMIZED)
 const getReportData = async (batchId, filters = {}) => {
     try {
-        // 1. Fetch FULL batch leaderboard to calculate correct ranks
-        const leaderboard = await Leaderboard.getBatchLeaderboard(batchId, {});
-        const reportData = [];
+        // 1. Fetch the leaderboard cursor
+        // We still need the leaderboard records because they define the score sort order
+        const leaderboardCursor = collections.leaderboard.find({ batchId: new ObjectId(batchId) }, {
+            sort: { overallScore: -1 }
+        });
 
-        // 2. Fetch batch-specific contests for filtering
+        const reportData = [];
+        const CHUNK_SIZE = 50; // Process 50 students at a time to balance RAM vs DB calls
+        let currentChunk = [];
+
+        // Fetch batch contests for internal score tracking
         const Contest = require('../models/Contest');
         const batchContests = await Contest.findByBatchId(batchId);
-        const batchContestIds = new Set(batchContests.map(c => c._id.toString()));
+        const batchContestIds = Array.from(new Set(batchContests.map(c => new ObjectId(c._id))));
 
-        for (const entry of leaderboard) {
-            const user = await User.findById(entry.studentId);
-            if (!user) continue;
+        let index = 0;
+        for await (const entry of leaderboardCursor) {
+            currentChunk.push(entry);
 
-            // Fetch External Profiles for Detailed Stats
-            const externalProfiles = await ExternalProfile.findByStudent(entry.studentId);
-            const detailedStats = {};
-            const platforms = ['leetcode', 'codechef', 'codeforces', 'hackerrank', 'interviewbit'];
-
-            platforms.forEach(p => {
-                const profile = externalProfiles.find(ep => ep.platform === p);
-                if (profile && profile.stats) {
-                    detailedStats[p] = {
-                        problemsSolved: profile.stats.problemsSolved || 0,
-                        rating: profile.stats.rating || 0,
-                        totalContests: profile.stats.totalContests || 0,
-                        // Add potentially available specific stats blindly
-                        dsScore: profile.stats.dsScore || 0,
-                        algoScore: profile.stats.algoScore || 0
-                    };
-                } else {
-                    detailedStats[p] = { problemsSolved: 0, rating: 0, totalContests: 0, dsScore: 0, algoScore: 0 };
-                }
-            });
-
-            // Get AlphaKnowledge internal contest scores - ONLY for this batch
-            const contestSubmissions = await ContestSubmission.findByStudent(entry.studentId);
-
-            // Filter submissions to only include contests from this batch
-            const batchContestSubmissions = contestSubmissions.filter(cs =>
-                batchContestIds.has(cs.contestId.toString())
-            );
-
-            const uniqueContests = [...new Set(batchContestSubmissions.map(cs => cs.contestId.toString()))];
-
-            let alphaKnowledgePrimaryScore = 0;
-            const internalContestsData = {};
-
-            for (const contestId of uniqueContests) {
-                const submission = batchContestSubmissions
-                    .filter(cs => cs.contestId.toString() === contestId)
-                    .sort((a, b) => b.score - a.score)[0];
-
-                if (submission) {
-                    alphaKnowledgePrimaryScore += submission.score;
-                    internalContestsData[contestId] = submission.score;
-                }
+            if (currentChunk.length >= CHUNK_SIZE) {
+                await processChunk(currentChunk, reportData, batchContestIds, index);
+                index += currentChunk.length;
+                currentChunk = [];
             }
-
-            // Recalculate Overall Score dynamically (Basic + External + Internal)
-            const realOverallScore = entry.overallScore || 0;
-
-            reportData.push({
-                // Placeholder rank, will be updated after sort
-                rank: 0,
-                // Global rank from DB (based on stored overall score)
-                globalRank: entry.globalRank,
-                rollNumber: user.education?.rollNumber || 'N/A',
-                name: `${user.firstName} ${user.lastName}`,
-                branch: user.education?.branch || 'N/A',
-                section: user.profile?.section || 'N/A',
-                username: user.username || entry.username || user.email.split('@')[0],
-                alphaCoins: entry.alphaCoins || 0,
-                lastUpdated: entry.lastUpdated,
-
-                // Detailed Stats Flattened for CSV
-                // HackerRank
-                hr_ds: detailedStats.hackerrank.dsScore,
-                hr_algo: detailedStats.hackerrank.algoScore,
-                hr_total: entry.externalScores.hackerrank || 0,
-
-                // LeetCode
-                lc_problems: detailedStats.leetcode.problemsSolved,
-                lc_rating: detailedStats.leetcode.rating,
-                lc_contests: detailedStats.leetcode.totalContests,
-                lc_total: entry.externalScores.leetcode || 0,
-
-                // InterviewBit
-                ib_problems: detailedStats.interviewbit.problemsSolved,
-                ib_score: detailedStats.interviewbit.rating,
-                ib_total: entry.externalScores.interviewbit || 0,
-
-                // CodeChef
-                cc_problems: detailedStats.codechef.problemsSolved,
-                cc_rating: detailedStats.codechef.rating,
-                cc_contests: detailedStats.codechef.totalContests,
-                cc_total: entry.externalScores.codechef || 0,
-
-                // Codeforces
-                cf_problems: detailedStats.codeforces.problemsSolved,
-                cf_rating: detailedStats.codeforces.rating,
-                cf_contests: detailedStats.codeforces.totalContests,
-                cf_total: entry.externalScores.codeforces || 0,
-
-                overallScore: realOverallScore,
-                internalContests: internalContestsData
-            });
         }
 
-        // Apply Filters first
+        // Process final chunk
+        if (currentChunk.length > 0) {
+            await processChunk(currentChunk, reportData, batchContestIds, index);
+        }
+
+        // Apply Filters
         let filteredData = reportData;
         if (filters.branch) {
             filteredData = filteredData.filter(r => r.branch === filters.branch);
@@ -127,12 +53,9 @@ const getReportData = async (batchId, filters = {}) => {
             filteredData = filteredData.filter(r => r.section === filters.section);
         }
 
-        // Now Sort (Filtered Data) by Real Overall Score (descending)
-        filteredData.sort((a, b) => b.overallScore - a.overallScore);
-
-        // Now Assign Rank (1..N) to the filtered and sorted data
-        filteredData.forEach((entry, index) => {
-            entry.rank = index + 1;
+        // Re-assign rank in case filters changed the count
+        filteredData.forEach((entry, idx) => {
+            entry.rank = idx + 1;
         });
 
         return filteredData;
@@ -142,6 +65,104 @@ const getReportData = async (batchId, filters = {}) => {
         throw error;
     }
 };
+
+// Helper to process a chunk of students
+const processChunk = async (chunk, reportData, batchContestIds, startRank) => {
+    const studentIds = chunk.map(e => new ObjectId(e.studentId));
+
+    // Bulk fetch for THIS CHUNK ONLY
+    const [users, allExternalProfiles, allContestSubmissions] = await Promise.all([
+        collections.users.find({ _id: { $in: studentIds } }, { projection: { firstName: 1, lastName: 1, email: 1, 'education.rollNumber': 1, 'education.branch': 1, 'profile.section': 1, username: 1 } }).toArray(),
+        collections.externalProfiles.find({ studentId: { $in: studentIds } }).toArray(),
+        collections.contestSubmissions.find({
+            studentId: { $in: studentIds },
+            contestId: { $in: batchContestIds }
+        }, { projection: { code: 0 } }).toArray()
+    ]);
+
+    const userMap = new Map(users.map(u => [u._id.toString(), u]));
+    const profilesMap = new Map();
+    allExternalProfiles.forEach(p => {
+        const sid = p.studentId.toString();
+        if (!profilesMap.has(sid)) profilesMap.set(sid, []);
+        profilesMap.get(sid).push(p);
+    });
+    const submissionsMap = new Map();
+    allContestSubmissions.forEach(s => {
+        const sid = s.studentId.toString();
+        if (!submissionsMap.has(sid)) submissionsMap.set(sid, []);
+        submissionsMap.get(sid).push(s);
+    });
+
+    chunk.forEach((entry, idx) => {
+        const userIdStr = entry.studentId.toString();
+        const user = userMap.get(userIdStr);
+        if (!user) return;
+
+        const externalProfiles = profilesMap.get(userIdStr) || [];
+        const detailedStats = {};
+        const platforms = ['leetcode', 'codechef', 'codeforces', 'hackerrank', 'interviewbit'];
+
+        platforms.forEach(p => {
+            const profile = externalProfiles.find(ep => ep.platform === p);
+            if (profile && profile.stats) {
+                detailedStats[p] = {
+                    problemsSolved: profile.stats.problemsSolved || 0,
+                    rating: profile.stats.rating || 0,
+                    totalContests: profile.stats.totalContests || 0,
+                    dsScore: profile.stats.dsScore || 0,
+                    algoScore: profile.stats.algoScore || 0
+                };
+            } else {
+                detailedStats[p] = { problemsSolved: 0, rating: 0, totalContests: 0, dsScore: 0, algoScore: 0 };
+            }
+        });
+
+        const contestSubmissions = submissionsMap.get(userIdStr) || [];
+        const uniqueContests = [...new Set(contestSubmissions.map(cs => cs.contestId.toString()))];
+        const internalContestsData = {};
+
+        for (const contestId of uniqueContests) {
+            const submission = contestSubmissions
+                .filter(cs => cs.contestId.toString() === contestId)
+                .sort((a, b) => b.score - a.score)[0];
+            if (submission) internalContestsData[contestId] = submission.score || 0;
+        }
+
+        reportData.push({
+            rank: startRank + idx + 1,
+            globalRank: entry.globalRank,
+            rollNumber: user.education?.rollNumber || 'N/A',
+            name: `${user.firstName} ${user.lastName}`,
+            branch: user.education?.branch || 'N/A',
+            section: user.profile?.section || 'N/A',
+            username: user.username || entry.username || user.email.split('@')[0],
+            alphaCoins: entry.alphaCoins || 0,
+            lastUpdated: entry.lastUpdated,
+            hr_ds: detailedStats.hackerrank.dsScore,
+            hr_algo: detailedStats.hackerrank.algoScore,
+            hr_total: entry.externalScores.hackerrank || 0,
+            lc_problems: detailedStats.leetcode.problemsSolved,
+            lc_rating: detailedStats.leetcode.rating,
+            lc_contests: detailedStats.leetcode.totalContests,
+            lc_total: entry.externalScores.leetcode || 0,
+            ib_problems: detailedStats.interviewbit.problemsSolved,
+            ib_score: detailedStats.interviewbit.rating,
+            ib_total: entry.externalScores.interviewbit || 0,
+            cc_problems: detailedStats.codechef.problemsSolved,
+            cc_rating: detailedStats.codechef.rating,
+            cc_contests: detailedStats.codechef.totalContests,
+            cc_total: entry.externalScores.codechef || 0,
+            cf_problems: detailedStats.codeforces.problemsSolved,
+            cf_rating: detailedStats.codeforces.rating,
+            cf_contests: detailedStats.codeforces.totalContests,
+            cf_total: entry.externalScores.codeforces || 0,
+            overallScore: entry.overallScore || 0,
+            internalContests: internalContestsData
+        });
+    });
+};
+
 
 // Generate CSV report
 const generateCSVReport = async (batchId, filters = {}) => {
@@ -417,7 +438,9 @@ const generateContestReport = async (contestId) => {
             throw new Error('Contest not found');
         }
 
-        const leaderboard = await ContestSubmission.getLeaderboard(contestId);
+        // Fix #5: getLeaderboard now returns { leaderboard, total, page, limit, totalPages }
+        // We fetch all pages by using a large limit; previously called without destructuring.
+        const { leaderboard, total } = await ContestSubmission.getLeaderboard(contestId, null, false, 1, 10000);
 
         return {
             success: true,
@@ -425,7 +448,7 @@ const generateContestReport = async (contestId) => {
                 title: contest.title,
                 startTime: contest.startTime,
                 endTime: contest.endTime,
-                participants: leaderboard.length
+                participants: total
             },
             leaderboard
         };
@@ -447,11 +470,15 @@ const getStudentReport = async (studentId) => {
             throw new Error('Student not found');
         }
 
-        const submissions = await Submission.findByStudent(studentId);
+        // BUG #11 FIX: Previously loaded up to 500 full submission documents (inc. code strings)
+        // into memory per student. With 20 parallel admin report requests that's 10,000 docs.
+        // Now: exclude code field (largest payload), cap to 100 submissions per student.
+        const submissions = await Submission.findByStudent(studentId, 100);
         const progress = await require('../models/Progress').findByStudent(studentId);
         const externalProfiles = await ExternalProfile.findByStudent(studentId);
         const leaderboardEntry = await Leaderboard.findByStudent(studentId);
-        const contestSubmissions = await ContestSubmission.findByStudent(studentId);
+        // findByStudent with limit=100 no-code projection (already applied in Submission model)
+        const contestSubmissions = await ContestSubmission.findByStudent(studentId, 100);
 
         // Calculate statistics
         const solvedCounts = await Submission.getSolvedCountByDifficulty(studentId);

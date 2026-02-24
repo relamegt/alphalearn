@@ -207,14 +207,22 @@ const getBatchAnalytics = async (req, res) => {
         const students = await User.getStudentsByBatch(batchId);
         const totalProblems = await Problem.count();
         const contests = await Contest.findByBatchId(batchId);
+        const studentIds = students.map(s => s._id);
 
+        // Fix: Manual aggregation by iterating through chunks of students because DataStax API doesn't support aggregate
+        const CHUNK_SIZE = 500;
         let totalSubmissions = 0;
         let totalAccepted = 0;
 
-        for (const student of students) {
-            const studentSubmissions = await Submission.findByStudent(student._id);
-            totalSubmissions += studentSubmissions.length;
-            totalAccepted += studentSubmissions.filter(s => s.verdict === 'Accepted').length;
+        for (let i = 0; i < studentIds.length; i += CHUNK_SIZE) {
+            const chunkIds = studentIds.slice(i, i + CHUNK_SIZE);
+            const [chunkTotal, chunkAccepted] = await Promise.all([
+                collections.submissions.countDocuments({ studentId: { $in: chunkIds } }, { upperBound: 1000000 }),
+                collections.submissions.countDocuments({ studentId: { $in: chunkIds }, verdict: 'Accepted' }, { upperBound: 1000000 })
+            ]);
+
+            totalSubmissions += chunkTotal;
+            totalAccepted += chunkAccepted;
         }
 
         res.json({
