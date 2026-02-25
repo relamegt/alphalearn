@@ -217,9 +217,22 @@ const ContestInterface = ({ isPractice = false }) => {
     const userRef = useRef(user);
     const navigateRef = useRef(navigate);
     const basePathRef = useRef(basePath);
+    const contestRef = useRef(null);        // always holds the latest contest object
+    const lockedProblemsRef = useRef(new Set()); // always holds the latest solved problem IDs
     useEffect(() => { userRef.current = user; }, [user]);
     useEffect(() => { navigateRef.current = navigate; }, [navigate]);
     useEffect(() => { basePathRef.current = basePath; }, [basePath]);
+    useEffect(() => { contestRef.current = contest; }, [contest]);
+    useEffect(() => { lockedProblemsRef.current = lockedProblems; }, [lockedProblems]);
+
+    // Calculate score from client-side state — avoids depending on backend's
+    // fire-and-forget score (which always returns 0 in the immediate response).
+    const calcClientScore = (contestObj, solvedIds) => {
+        if (!contestObj?.problems) return 0;
+        return contestObj.problems
+            .filter(p => solvedIds.has(p._id?.toString() || p._id))
+            .reduce((sum, p) => sum + (p.points || 0), 0);
+    };
 
     // Proctoring Hook - Disable in Practice Mode
     const handleMaxViolations = useCallback(async () => {
@@ -229,7 +242,8 @@ const ContestInterface = ({ isPractice = false }) => {
         toast.error('⚠️ Maximum violations exceeded! Finishing contest...');
         try {
             const result = await contestService.finishContest(contestId, violationsRef.current);
-            toast.success(`Contest ended. Final Score: ${result.finalScore}`);
+            const clientScore = calcClientScore(contestRef.current, lockedProblemsRef.current);
+            toast.success(`Contest ended. Final Score: ${clientScore}`);
             setContestSubmitted(true);
             setContestActive(false);
             localStorage.removeItem(`contest_${contestId}_codeMap`);
@@ -287,7 +301,8 @@ const ContestInterface = ({ isPractice = false }) => {
                 pasteAttempts: violationsRef.current.pasteAttempts
             };
             const result = await contestService.finishContest(contestId, finalViolations);
-            toast.success(`Contest submitted! Final Score: ${result.finalScore}`);
+            const clientScore = calcClientScore(contestRef.current, lockedProblemsRef.current);
+            toast.success(`Contest submitted! Final Score: ${clientScore}`);
             setContestSubmitted(true);
             setContestActive(false);
             localStorage.removeItem(`contest_${contestId}_codeMap`);
@@ -520,7 +535,8 @@ const ContestInterface = ({ isPractice = false }) => {
 
                     try {
                         const result = await contestService.finishContest(timeUpContestId.current, violationsRef.current);
-                        toast.success(`Contest submitted! Final Score: ${result.finalScore}`);
+                        const clientScore = calcClientScore(contestRef.current, lockedProblemsRef.current);
+                        toast.success(`Contest submitted! Final Score: ${clientScore}`);
                         setContestSubmitted(true);
                         setContestActive(false);
                         localStorage.removeItem(`contest_${timeUpContestId.current}_codeMap`);
