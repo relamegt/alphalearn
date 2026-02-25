@@ -54,9 +54,12 @@ const buildRateLimitStore = (prefix) => {
 
 // General API limiter — skips /api/auth/* so only the stricter authLimiter applies there.
 // This avoids ERR_ERL_DOUBLE_COUNT from express-rate-limit v7's double-count detection.
+// MED-3 FIX: Raised from 500 to 2000 req/15min. During contests, students behind a shared
+// college NAT/proxy were hitting the old limit (all on the same IP). 10 students × 50 req/min
+// each = 500 total/IP/15min — dangerously close to the old cap with normal contest usage.
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 500,
+    max: 2000,
     standardHeaders: true,
     legacyHeaders: false,
     store: buildRateLimitStore('rl:api:'),

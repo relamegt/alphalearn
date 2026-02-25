@@ -1,11 +1,14 @@
 // backend/workers/scoreWorker.js
-// BUG #1 FIX (continued): Worker also gets its Redis connection lazily via getRedis()
-// which is safe here because startScoreWorker() is called AFTER initRedis() in server.js.
+// HIGH-6 FIX: BullMQ requires a dedicated Redis connection per Worker — it must NOT
+// share the app's singleton Redis client used for pub/sub and caching. Sharing caused
+// command interleaving errors and silently dropped jobs on Upstash (strict conn limits).
+// startScoreWorker() is called AFTER initRedis() in server.js so getNewRedisClient() is safe.
 const { Worker } = require('bullmq');
 const Leaderboard = require('../models/Leaderboard');
-const { getRedis } = require('../config/redis');
+const { getNewRedisClient } = require('../config/redis');
 
 const startScoreWorker = () => {
+    // Each BullMQ Worker needs its own dedicated connection — never share with pub/sub client.
     const worker = new Worker('score-recalculation', async (job) => {
         const { studentId } = job.data;
         console.log(`[Worker] Processing score recalculation for: ${studentId}`);
@@ -18,8 +21,8 @@ const startScoreWorker = () => {
             throw error; // Let BullMQ handle retry
         }
     }, {
-        connection: getRedis(),
-        concurrency: 5 // Increased to 5 for better throughput while monitoring Redis limits
+        connection: getNewRedisClient(), // dedicated connection per BullMQ requirement
+        concurrency: 5
     });
 
     worker.on('completed', (job) => {
@@ -27,7 +30,11 @@ const startScoreWorker = () => {
     });
 
     worker.on('failed', (job, err) => {
-        console.error(`[Worker] Job ${job.id} failed:`, err);
+        console.error(`[Worker] Job ${job?.id} failed:`, err.message);
+    });
+
+    worker.on('error', (err) => {
+        console.error('[Worker] Worker error:', err.message);
     });
 
     console.log('👷 Score Recalculation Worker started');

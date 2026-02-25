@@ -2,6 +2,9 @@ const User = require('../models/User');
 const Batch = require('../models/Batch');
 const Problem = require('../models/Problem');
 const bcrypt = require('bcryptjs');
+const { collections } = require('../config/astra');
+const { ObjectId } = require('bson');
+
 
 // ============================================
 // BATCH MANAGEMENT

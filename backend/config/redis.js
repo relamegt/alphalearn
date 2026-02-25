@@ -31,9 +31,21 @@ const getRedis = () => {
 };
 
 const getNewRedisClient = () => {
-    return new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-        maxRetriesPerRequest: null
-    });
+    // LOW-2 FIX: Previously this skipped the TLS/socket options that initRedis sets.
+    // For Upstash (and other Redis-over-TLS providers), omitting TLS causes silent
+    // connection failures on the subscriber (WebSocket pub/sub) and BullMQ clients.
+    // Fix: Build the options object the same way initRedis does.
+    const isUpstash = process.env.REDIS_URL && (
+        process.env.REDIS_URL.startsWith('rediss://') ||
+        process.env.REDIS_URL.includes('upstash')
+    );
+
+    const options = { maxRetriesPerRequest: null };
+    if (isUpstash) {
+        options.tls = { rejectUnauthorized: false };
+    }
+
+    return new Redis(process.env.REDIS_URL || 'redis://localhost:6379', options);
 };
 
 module.exports = {

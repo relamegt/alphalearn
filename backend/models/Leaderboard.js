@@ -84,30 +84,31 @@ class Leaderboard {
   static async _getGlobalRanksFromScores(leaderboardEntries) {
     if (!leaderboardEntries || leaderboardEntries.length === 0) return new Map();
     try {
-      const { countDocuments } = require('../utils/dbHelper');
-      const uniqueScores = [...new Set(leaderboardEntries.map(e => e.overallScore || 0))];
-      const scoreRanks = {};
+      const { getRedis } = require('../config/redis');
+      const redis = getRedis();
 
-      // BUG #5 FIX: Sequential for...of instead of Promise.all to prevent N parallel
-      // countDocuments calls from exhausting the Astra DB connection pool.
-      for (const score of uniqueScores) {
-        try {
-          const count = await countDocuments('leaderboard', { overallScore: { $gt: score } });
-          scoreRanks[score] = count + 1;
-        } catch (err) {
-          scoreRanks[score] = 0;
-        }
-      }
-
-      const rankMap = new Map();
+      const pipeline = redis.pipeline();
       leaderboardEntries.forEach(entry => {
         if (entry.studentId) {
-          rankMap.set(entry.studentId.toString(), scoreRanks[entry.overallScore || 0] || 0);
+          pipeline.zrevrank(GLOBAL_RANK_KEY, entry.studentId.toString());
         }
       });
+
+      const results = await pipeline.exec();
+      const rankMap = new Map();
+
+      let i = 0;
+      leaderboardEntries.forEach(entry => {
+        if (entry.studentId) {
+          const [err, rank] = results[i] || [null, null];
+          rankMap.set(entry.studentId.toString(), (!err && rank !== null) ? (rank + 1) : 0);
+          i++;
+        }
+      });
+
       return rankMap;
     } catch (err) {
-      console.error('[DB] Failed to get global ranks:', err.message);
+      console.error('[Redis] Failed to get global ranks from ZSET:', err.message);
       return new Map();
     }
   }
@@ -119,6 +120,7 @@ class Leaderboard {
     const leaderboard = await collections.leaderboard
       .find(query)
       .sort({ overallScore: -1 })
+      .limit(10000)
       .toArray();
 
     // Calculate ranks (in-memory for the batch)
@@ -368,20 +370,44 @@ class Leaderboard {
 
     const { countDocuments } = require('../utils/dbHelper');
 
-    // Fetch batch context without heavy DB queries
-    const batchRank = await countDocuments('leaderboard', {
-      batchId: entry.batchId,
-      overallScore: { $gt: entry.overallScore }
-    }) + 1;
+    // HIGH-4 FIX: Previously 3 sequential countDocuments calls (3 DB round trips).
+    // With 1000 users hitting this endpoint concurrently that tripled DB load unnecessarily.
+    // Fix: Run all 3 in parallel with Promise.all (1 concurrent round trip).
+    // Also use the Redis ZSET for global rank where possible (O(1)).
+    let batchRank, totalStudentsInBatch, globalRank;
 
-    const totalStudentsInBatch = await countDocuments('leaderboard', {
-      batchId: entry.batchId
-    });
-
-    // Global Rank calculated dynamically
-    const globalRank = await countDocuments('leaderboard', {
-      overallScore: { $gt: entry.overallScore }
-    }) + 1;
+    try {
+      const redis = require('../config/redis').getRedis();
+      const GLOBAL_RANK_KEY = 'leaderboard:global';
+      const [batchRankCount, batchTotal, redisGlobalRank] = await Promise.all([
+        countDocuments('leaderboard', {
+          batchId: entry.batchId,
+          overallScore: { $gt: entry.overallScore }
+        }),
+        countDocuments('leaderboard', { batchId: entry.batchId }),
+        redis.zrevrank(GLOBAL_RANK_KEY, studentId.toString())
+      ]);
+      batchRank = batchRankCount + 1;
+      totalStudentsInBatch = batchTotal;
+      // Use Redis ZSET rank if available (O(1)), otherwise fall back to DB count
+      if (redisGlobalRank !== null) {
+        globalRank = redisGlobalRank + 1;
+      } else {
+        globalRank = await countDocuments('leaderboard', {
+          overallScore: { $gt: entry.overallScore }
+        }) + 1;
+      }
+    } catch (e) {
+      // Full parallel fallback with all 3 DB calls
+      const [batchRankCount, batchTotal, globalCount] = await Promise.all([
+        countDocuments('leaderboard', { batchId: entry.batchId, overallScore: { $gt: entry.overallScore } }),
+        countDocuments('leaderboard', { batchId: entry.batchId }),
+        countDocuments('leaderboard', { overallScore: { $gt: entry.overallScore } })
+      ]);
+      batchRank = batchRankCount + 1;
+      totalStudentsInBatch = batchTotal;
+      globalRank = globalCount + 1;
+    }
 
     return {
       batchRank,

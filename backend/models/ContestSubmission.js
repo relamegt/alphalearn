@@ -146,19 +146,29 @@ class ContestSubmission {
                 isFinalContestSubmission: false
             })
             .sort({ submittedAt: -1 })
+            .limit(1000)
             .toArray();
     }
 
     static async getAcceptedProblems(studentId, contestId) {
+        // NOTE: Astra DB (DataStax) does not support .aggregate() pipelines.
+        // We fetch accepted submissions with a projection and deduplicate in JS.
+        // The limit(500) is safe since each student can solve at most N contest problems.
         const submissions = await collections.contestSubmissions
             .find({
                 studentId: new ObjectId(studentId),
                 contestId: new ObjectId(contestId),
-                verdict: 'Accepted'
-            })
+                verdict: 'Accepted',
+                problemId: { $exists: true }
+            }, { projection: { problemId: 1 } })
+            .limit(500)
             .toArray();
 
-        const uniqueProblemIds = [...new Set(submissions.map(s => s.problemId.toString()))];
+        const uniqueProblemIds = [...new Set(
+            submissions
+                .filter(s => s.problemId)
+                .map(s => s.problemId.toString())
+        )];
         return uniqueProblemIds.map(id => new ObjectId(id));
     }
 
@@ -182,7 +192,7 @@ class ContestSubmission {
                 studentId: new ObjectId(studentId),
                 contestId: new ObjectId(contestId),
                 verdict: 'Accepted'
-            }).sort({ submittedAt: 1 }).toArray()
+            }).sort({ submittedAt: 1 }).limit(1000).toArray()
         ]);
 
         const problemMap = new Map(problems.map(p => [p._id.toString(), p]));
@@ -279,23 +289,16 @@ class ContestSubmission {
                 console.error('[Redis Cache Error]', e)
             }
 
-            // BUG #3 FIX: If cache is cold but another instance is already rebuilding it,
-            // wait up to 5 seconds for the cached result instead of all firing a full rebuild
-            // simultaneously (cache stampede / thundering herd prevention).
+            // CRIT-4 FIX: The previous approach polled in a tight 5-second loop while holding
+            // an open HTTP connection, exhausting Express connection pools under load.
+            // Fix: If cache is cold but a rebuild is already in progress, respond immediately
+            // with a minimal valid payload (empty leaderboard + page meta). The client will
+            // naturally retry via the WebSocket leaderboardRefetch trigger once the cache warms.
             if (!allEnrichedData) {
                 const isBeingBuilt = await redis.exists(rebuildLockKey).catch(() => 0);
                 if (isBeingBuilt) {
-                    // Poll up to 5 times with 1s delay each
-                    for (let i = 0; i < 5; i++) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        try {
-                            const polledData = await redis.get(cacheKey);
-                            if (polledData) {
-                                allEnrichedData = JSON.parse(polledData);
-                                break;
-                            }
-                        } catch (e) { /* continue polling */ }
-                    }
+                    console.log(`[getLeaderboard] Cache cold but rebuild in progress — returning empty page for quick response`);
+                    return { leaderboard: [], total: 0, page, limit, totalPages: 0 };
                 }
             }
         }
@@ -308,29 +311,67 @@ class ContestSubmission {
             const contest = await Contest.findById(contestId);
             if (!contest) return { leaderboard: [], total: 0 };
 
-            const submissionsCursor = collections.contestSubmissions.find(
-                { contestId: new ObjectId(contestId) },
-                {
-                    projection: {
-                        studentId: 1, contestId: 1, problemId: 1, verdict: 1, submittedAt: 1,
-                        tabSwitchCount: 1, tabSwitchDuration: 1, pasteAttempts: 1, fullscreenExits: 1,
-                        isFinalContestSubmission: 1
+            // NOTE: Astra DB (DataStax) does NOT support .aggregate() pipelines.
+            // We fetch all submissions for this contest and group them in JS.
+            // We only fetch the fields we need to minimise memory usage.
+            const allSubmissions = await collections.contestSubmissions
+                .find(
+                    { contestId: new ObjectId(contestId) },
+                    {
+                        projection: {
+                            studentId: 1,
+                            problemId: 1,
+                            verdict: 1,
+                            submittedAt: 1,
+                            isFinalContestSubmission: 1,
+                            tabSwitchCount: 1,
+                            tabSwitchDuration: 1,
+                            pasteAttempts: 1,
+                            fullscreenExits: 1
+                        }
                     }
-                }
-            ).sort({ submittedAt: -1 });
+                )
+                .limit(50000) // reasonable upper bound for a single contest
+                .toArray();
 
             const participantIdsSet = new Set();
             if (currentUserId) participantIdsSet.add(currentUserId.toString());
 
             const submissionsByStudent = new Map();
-            for await (const sub of submissionsCursor) {
-                const sid = sub.studentId.toString();
+            const latestViolations = new Map();
+
+            // Group submissions by studentId (equivalent to the old $group pipeline)
+            for (const sub of allSubmissions) {
+                const sid = sub.studentId?.toString();
+                if (!sid) continue;
+
                 participantIdsSet.add(sid);
+
                 if (!submissionsByStudent.has(sid)) {
                     submissionsByStudent.set(sid, []);
                 }
-                submissionsByStudent.get(sid).push(sub);
+                submissionsByStudent.get(sid).push({
+                    problemId: sub.problemId,
+                    verdict: sub.verdict,
+                    submittedAt: sub.submittedAt,
+                    isFinalContestSubmission: sub.isFinalContestSubmission
+                });
+
+                // Track the latest (most recent) violation snapshot per student
+                const existing = latestViolations.get(sid);
+                const subTime = new Date(sub.submittedAt).getTime();
+                const existingTime = existing ? new Date(existing._time || 0).getTime() : -1;
+                if (!existing || subTime > existingTime) {
+                    latestViolations.set(sid, {
+                        tabSwitchCount: sub.tabSwitchCount || 0,
+                        tabSwitchDuration: sub.tabSwitchDuration || 0,
+                        pasteAttempts: sub.pasteAttempts || 0,
+                        fullscreenExits: sub.fullscreenExits || 0,
+                        _time: sub.submittedAt
+                    });
+                }
             }
+
 
             try {
                 if (contest.batchId) {
@@ -340,12 +381,12 @@ class ContestSubmission {
                             { batchId: contest.batchId },
                             { assignedBatches: contest.batchId }
                         ]
-                    }, { projection: { _id: 1 } }).toArray();
+                    }, { projection: { _id: 1 } }).limit(10000).toArray();
                     eligibleUsers.forEach(u => participantIdsSet.add(u._id.toString()));
                 } else {
                     const registeredStudents = await collections.users.find({
                         registeredForContest: contest._id
-                    }, { projection: { _id: 1 } }).toArray();
+                    }, { projection: { _id: 1 } }).limit(10000).toArray();
                     registeredStudents.forEach(u => participantIdsSet.add(u._id.toString()));
                 }
             } catch (e) {
@@ -361,7 +402,7 @@ class ContestSubmission {
                 const chunkIds = participantIds.slice(i, i + CHUNK_SIZE);
                 const chunkUsers = await collections.users.find(
                     { _id: { $in: chunkIds } },
-                    { projection: { firstName: 1, lastName: 1, email: 1, 'education.rollNumber': 1, 'education.branch': 1, role: 1, alphacoins: 1 } }
+                    { projection: { firstName: 1, lastName: 1, email: 1, 'education.rollNumber': 1, 'education.branch': 1, role: 1, alphacoins: 1, 'profile.section': 1 } }
                 ).toArray();
                 users.push(...chunkUsers);
             }
@@ -396,19 +437,10 @@ class ContestSubmission {
                     let totalScore = 0;
                     let totalTime = 0;
                     let problemsSolved = 0;
-                    let hasSubmitted = false;
-                    let latestViolation = { tabSwitchCount: 0, tabSwitchDuration: 0, pasteAttempts: 0, fullscreenExits: 0 };
+                    let hasSubmitted = studentSubs.some(s => s.isFinalContestSubmission);
 
-                    if (studentSubs.length > 0) {
-                        const latest = studentSubs[0];
-                        latestViolation = {
-                            tabSwitchCount: latest.tabSwitchCount || 0,
-                            tabSwitchDuration: latest.tabSwitchDuration || 0,
-                            pasteAttempts: latest.pasteAttempts || 0,
-                            fullscreenExits: latest.fullscreenExits || 0
-                        };
-                        hasSubmitted = studentSubs.some(s => s.isFinalContestSubmission);
-                    }
+                    const pViolation = latestViolations.get(studentId);
+                    let latestViolation = pViolation || { tabSwitchCount: 0, tabSwitchDuration: 0, pasteAttempts: 0, fullscreenExits: 0 };
 
                     const problemsStatus = {};
                     for (const prob of contestProblems) {
@@ -446,6 +478,7 @@ class ContestSubmission {
                         fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'N/A',
                         username: user.email?.split('@')[0] || 'Unknown',
                         branch: user.education?.branch || 'N/A',
+                        section: user.profile?.section || 'N/A', // HIGH-8 FIX: included from projection above
                         score: totalScore,
                         time: Math.round(totalTime),
                         problemsSolved,

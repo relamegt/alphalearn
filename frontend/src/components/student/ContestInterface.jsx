@@ -322,12 +322,15 @@ const ContestInterface = ({ isPractice = false }) => {
             case 'leaderboardUpdate': setLeaderboardData(data.leaderboard || []); break;
             case 'leaderboardRefetch':
                 if (showLeaderboardRef.current && contestId) {
-                    contestService.getContestLeaderboard(contestId)
-                        .then(d => {
-                            setLeaderboardData(d.leaderboard || []);
-                            if (d.totalParticipants) setTotalParticipants(d.totalParticipants);
-                        })
-                        .catch(console.error);
+                    const jitter = Math.floor(Math.random() * 5000);
+                    setTimeout(() => {
+                        contestService.getContestLeaderboard(contestId)
+                            .then(d => {
+                                setLeaderboardData(d.leaderboard || []);
+                                if (d.totalParticipants) setTotalParticipants(d.totalParticipants);
+                            })
+                            .catch(console.error);
+                    }, jitter);
                 }
                 break;
             case 'participantCount': setLiveParticipants(data.count); break;
@@ -1146,10 +1149,10 @@ const ContestInterface = ({ isPractice = false }) => {
                     {!isPractice && contest?.proctoringEnabled && (
                         <div className="flex items-center gap-3 text-xs text-gray-500 border-r border-gray-200 pr-4 mr-1">
                             <span className={`flex items-center gap-1 font-bold text-xs px-2 py-0.5 rounded-full border ${violationSummary.totalViolations === 0
-                                    ? 'text-green-600 bg-green-50 border-green-100'
-                                    : violationSummary.isNearLimit
-                                        ? 'text-red-600 bg-red-50 border-red-200 animate-pulse'
-                                        : 'text-amber-600 bg-amber-50 border-amber-200'
+                                ? 'text-green-600 bg-green-50 border-green-100'
+                                : violationSummary.isNearLimit
+                                    ? 'text-red-600 bg-red-50 border-red-200 animate-pulse'
+                                    : 'text-amber-600 bg-amber-50 border-amber-200'
                                 }`}>
                                 <AlertTriangle size={10} />
                                 {violationSummary.totalViolations}/{contest?.maxViolations || 5}

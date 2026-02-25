@@ -10,13 +10,17 @@ let subClient;
 const REDIS_WS_CHANNEL = 'ALPHALEARN_WS_EVENTS';
 const PARTICIPANT_KEY_PREFIX = 'contest:participants:';
 const SUBMISSION_THROTTLE_MS = 5000;
-// BUG #7 FIX: submissionQueues was a plain in-memory Map.
+// MED-1 FIX: Reduced leaderboard throttle from 10s to 3s.
+// 10s made the board visibly stale during fast-paced contests where students
+// submit every few minutes. 3s provides near-real-time updates while still
+// preventing broadcast storms from mass simultaneous submissions.
+const LEADERBOARD_THROTTLE_S = 3;
+
 // With Redis Pub/Sub for horizontal scaling, each server instance had its own
 // local Map, so throttle timers fired independently on every instance instead
 // of once globally — resulting in 3x broadcast volume with 3 server instances.
 // Fix: Use Redis keys to coordinate the throttle window across all instances.
-// The in-memory Map is kept ONLY to deduplicate within the same instance.
-const submissionQueues = new Map(); // contestId -> Array of submissions (local-only dedup)
+// We also use Redis lists to store the actual submissions, bypassing strictly local memory map.
 
 const initWebSocket = (server) => {
     wss = new WebSocket.Server({
@@ -86,11 +90,18 @@ const initWebSocket = (server) => {
         });
     });
 
+    // MED-2 FIX: Previously iterated ALL connected clients globally.
+    // With 2000+ clients across multiple contests, this did unnecessary work.
+    // Fix: Only ping clients who are in active contest rooms (the ones we actually manage).
     const interval = setInterval(() => {
-        wss.clients.forEach((ws) => {
+        const activeClients = new Set();
+        contestRooms.forEach((clients) => clients.forEach(ws => activeClients.add(ws)));
+
+        activeClients.forEach((ws) => {
             if (!ws.isAlive) {
                 console.log('💀 Terminating dead connection');
-                return ws.terminate();
+                ws.terminate();
+                return;
             }
             ws.isAlive = false;
             ws.ping();
@@ -123,6 +134,15 @@ const handleWebSocketMessage = async (ws, data) => {
 
                 ws.userId = decoded.userId;
                 ws.role = decoded.role;
+
+                // Extract user from old room if they send join again sequentially
+                if (ws.contestId && ws.contestId !== contestId) {
+                    if (contestRooms.has(ws.contestId)) {
+                        contestRooms.get(ws.contestId).delete(ws);
+                        console.log(`🔄️ Extracted user from previous contest room: ${ws.contestId}`);
+                    }
+                }
+
                 ws.contestId = contestId;
 
                 console.log(`✅ User ${decoded.userId} authenticated for contest ${contestId}`);
@@ -179,25 +199,36 @@ const broadcastToLocalContest = (contestId, data) => {
     if (!contestRooms.has(contestId)) return;
 
     const message = JSON.stringify(data);
-    const clients = contestRooms.get(contestId);
+    const clients = Array.from(contestRooms.get(contestId));
     let successCount = 0;
 
-    clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            // Target specific user if targetUserId is set (e.g. for violations)
-            if (data.targetUserId && client.userId !== data.targetUserId) {
-                return;
-            }
-            try {
-                client.send(message);
-                successCount++;
-            } catch (error) {
-                console.error('❌ Failed to send message to client:', error);
-            }
+    const broadcastChunk = (idx) => {
+        const chunk = clients.slice(idx, idx + 50);
+        if (!chunk.length) {
+            console.log(`📢 Local Broadcast to contest ${contestId}: ${data.type} (${successCount}/${clients.length} clients)`);
+            return;
         }
-    });
 
-    console.log(`📢 Local Broadcast to contest ${contestId}: ${data.type} (${successCount}/${clients.size} clients)`);
+        chunk.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                // Target specific user if targetUserId is set (e.g. for violations)
+                if (data.targetUserId && client.userId !== data.targetUserId) {
+                    return;
+                }
+                try {
+                    client.send(message);
+                    successCount++;
+                } catch (error) {
+                    console.error('❌ Failed to send message to client:', error);
+                }
+            }
+        });
+
+        // Yield to event loop to avoid blocking node thread
+        setTimeout(() => broadcastChunk(idx + 50), 0);
+    };
+
+    broadcastChunk(0);
 };
 
 // Throttling via Redis for distributed coordination across multiple server instances
@@ -206,9 +237,9 @@ const notifyLeaderboardUpdate = async (contestId) => {
     const throttleKey = `throttle:leaderboard:${contestId.toString()}`;
 
     try {
-        // Use Redis NX+EX as a distributed throttle lock (10 seconds)
-        // If another instance already set this key, we bail out immediately.
-        const acquired = await redis.set(throttleKey, '1', 'NX', 'EX', 10);
+        // MED-1 FIX: Reduced from 10s to 3s for a fresher leaderboard during contests.
+        // Use Redis NX+EX as a distributed throttle lock (3 seconds).
+        const acquired = await redis.set(throttleKey, '1', 'NX', 'EX', LEADERBOARD_THROTTLE_S);
         if (!acquired) {
             // Another instance already scheduled this broadcast within the throttle window
             return;
@@ -217,7 +248,7 @@ const notifyLeaderboardUpdate = async (contestId) => {
         console.error('[Redis] Throttle check failed, broadcasting anyway:', e.message);
     }
 
-    console.log(`⏱️ Throttling leaderboard update for contest ${contestId} (10s, distributed via Redis)`);
+    console.log(`⏱️ Throttling leaderboard update for contest ${contestId} (${LEADERBOARD_THROTTLE_S}s, distributed via Redis)`);
 
     setTimeout(async () => {
         try {
@@ -229,51 +260,78 @@ const notifyLeaderboardUpdate = async (contestId) => {
         } catch (error) {
             console.error('❌ Throttled leaderboard broadcast failed:', error);
         }
-    }, 10000);
+    }, LEADERBOARD_THROTTLE_S * 1000);
 };
 
 const notifySubmission = async (contestId, submission) => {
     const redis = getRedis();
     const contestIdStr = contestId.toString();
-    // BUG #7 FIX: Use Redis to coordinate submission throttle across instances.
-    // The Redis key acts as a distributed lock: only the first instance to set it
-    // within the SUBMISSION_THROTTLE_MS window will schedule the broadcast.
     const submissionThrottleKey = `throttle:submission:${contestIdStr}`;
+    const queueKey = `queue:submission:${contestIdStr}`;
 
-    // Queue submission locally for batching (within this instance)
-    if (!submissionQueues.has(contestIdStr)) {
-        submissionQueues.set(contestIdStr, []);
-    }
-    submissionQueues.get(contestIdStr).push(submission);
+    try {
+        // Always push to Redis queue (survives server restarts)
+        await redis.rpush(queueKey, JSON.stringify(submission));
+        await redis.expire(queueKey, 60); // 60s TTL to prevent memory leaks
 
-    // Try to acquire the distributed throttle lock
-    // NX = only set if not already exists; EX = TTL in seconds
-    const acquired = await redis.set(
-        submissionThrottleKey, '1', 'NX', 'EX', Math.ceil(SUBMISSION_THROTTLE_MS / 1000)
-    ).catch(() => null);
+        // HIGH-1 FIX: The previous implementation used setTimeout on the server that acquired
+        // the throttle lock. If that server crashed before 5s, the broadcast was permanently lost.
+        // Fix: On each call, try to acquire the throttle lock. The server that wins it fires the
+        // broadcast after a short delay. The key insight is: we also do a "catch-up" flush on
+        // servers that FAIL to acquire the lock — if the queue already has items accumulated
+        // (meaning the winning server may have crashed), we re-acquire and flush immediately.
+        const acquired = await redis.set(
+            submissionThrottleKey, '1', 'NX', 'EX', Math.ceil(SUBMISSION_THROTTLE_MS / 1000)
+        ).catch(() => null);
 
-    if (!acquired) {
-        // Another instance (or this one already) has scheduled the broadcast
-        return;
-    }
+        if (acquired) {
+            // This server won the throttle lock — schedule the flush
+            setTimeout(async () => {
+                try {
+                    const items = await redis.lrange(queueKey, 0, -1);
+                    await redis.del(queueKey);
 
-    // BUG #10 FIX: Schedule a single timeout per throttle window (not one per submission).
-    // Previously, notifyLeaderboardUpdate was called once per submission, creating
-    // dozens of pending setTimeout callbacks queued in the event loop simultaneously.
-    // Now: only the lock-acquiring instance schedules the broadcast timer.
-    setTimeout(async () => {
-        const queue = submissionQueues.get(contestIdStr) || [];
-        submissionQueues.delete(contestIdStr);
-
-        if (queue.length > 0) {
-            broadcastToContest(contestIdStr, {
-                type: 'batchSubmissions',
-                count: queue.length,
-                latestSubmission: queue[queue.length - 1],
-                timestamp: new Date().toISOString()
-            });
+                    if (items && items.length > 0) {
+                        const parsedItems = items.map(item => JSON.parse(item));
+                        broadcastToContest(contestIdStr, {
+                            type: 'batchSubmissions',
+                            count: parsedItems.length,
+                            latestSubmission: parsedItems[parsedItems.length - 1],
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                } catch (err) {
+                    console.error('❌ Failed to process Redis submission queue:', err);
+                }
+            }, SUBMISSION_THROTTLE_MS);
+        } else {
+            // HIGH-1 FIX: Another server won the lock. Check if the queue is large (> 20 items)
+            // which could mean the winning server crashed and the flush never fired.
+            // If so, force-acquire and flush immediately to prevent broadcast starvation.
+            try {
+                const queueLen = await redis.llen(queueKey);
+                if (queueLen > 20) {
+                    // Force re-acquire lock for immediate flush (override stale lock)
+                    await redis.set(submissionThrottleKey, '1', 'EX', Math.ceil(SUBMISSION_THROTTLE_MS / 1000));
+                    const items = await redis.lrange(queueKey, 0, -1);
+                    await redis.del(queueKey);
+                    if (items && items.length > 0) {
+                        const parsedItems = items.map(item => JSON.parse(item));
+                        broadcastToContest(contestIdStr, {
+                            type: 'batchSubmissions',
+                            count: parsedItems.length,
+                            latestSubmission: parsedItems[parsedItems.length - 1],
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                }
+            } catch (catchupErr) {
+                console.error('❌ Catch-up flush failed:', catchupErr);
+            }
         }
-    }, SUBMISSION_THROTTLE_MS);
+    } catch (err) {
+        console.error('❌ Redis queue push failed:', err);
+    }
 };
 
 const notifyViolation = (contestId, userId, violation) => {

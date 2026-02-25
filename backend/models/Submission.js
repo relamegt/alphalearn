@@ -60,6 +60,7 @@ class Submission {
                 problemId: safeProblemOid(problemId)
             })
             .sort({ submittedAt: -1 })
+            .limit(100)
             .toArray();
     }
 
@@ -133,6 +134,7 @@ class Submission {
                 studentId: new ObjectId(studentId),
                 submittedAt: { $gte: oneYearAgo }
             })
+            .limit(1000)
             .toArray();
 
         // Group by date
@@ -147,7 +149,7 @@ class Submission {
 
     // Get verdict breakdown (pie chart data)
     static async getVerdictData(studentId) {
-        const submissions = await collections.submissions.find({ studentId: new ObjectId(studentId) }).toArray();
+        const submissions = await collections.submissions.find({ studentId: new ObjectId(studentId) }).limit(1000).toArray();
 
         const verdictCounts = {
             'Accepted': 0,
@@ -175,6 +177,7 @@ class Submission {
                 studentId: new ObjectId(studentId),
                 verdict: 'Accepted'
             })
+            .limit(1000)
             .toArray();
 
         const languageCounts = {};
@@ -203,6 +206,7 @@ class Submission {
                 studentId: new ObjectId(studentId),
                 verdict: 'Accepted'
             })
+            .limit(1000)
             .toArray();
 
         // Get unique problem IDs
@@ -244,7 +248,7 @@ class Submission {
 
     // Get submission statistics
     static async getStatistics(studentId) {
-        const submissions = await collections.submissions.find({ studentId: new ObjectId(studentId) }).toArray();
+        const submissions = await collections.submissions.find({ studentId: new ObjectId(studentId) }).limit(1000).toArray();
 
         const stats = {
             totalSubmissions: submissions.length,

@@ -1,9 +1,19 @@
 // backend/services/judge0Service.js
 const axios = require('axios');
+const Bottleneck = require('bottleneck');
 
 // Environment Variable for Judge0 API URL
 // Example: http://YOUR_JUDGE0_HOST:2358
 const JUDGE0_API_URL = process.env.JUDGE0_API_URL || 'http://localhost:2358';
+
+// CRIT-1 FIX: Concurrency limiter for Judge0 requests.
+// With 1000 students submitting simultaneously, unlimited parallel requests would
+// flood the Judge0 server and cause 503 errors / mass false "Runtime Error" verdicts.
+// Bottleneck caps concurrent outbound calls to 15; extras wait in queue automatically.
+const judge0Limiter = new Bottleneck({
+    maxConcurrent: 15,   // Max 15 simultaneous Judge0 HTTP requests
+    minTime: 0           // No forced delay between requests (just caps concurrency)
+});
 
 // Language ID Mapping (Standard Judge0 IDs)
 const LANGUAGE_IDS = {
@@ -81,9 +91,14 @@ const executeCode = async (language, code, stdin = '', timeLimit = 3000) => {
             // cpu_time_limit: Math.min(timeLimit / 1000, 10) // Relaxed
         };
 
-        const response = await axios.post(
-            `${JUDGE0_API_URL}/submissions?base64_encoded=true&wait=true`,
-            payload
+        // MED-6 FIX: Added 30s timeout. Previously had no timeout — if Judge0 was overloaded
+        // this request would hang forever, blocking Node's event loop indefinitely.
+        const response = await judge0Limiter.schedule(() =>
+            axios.post(
+                `${JUDGE0_API_URL}/submissions?base64_encoded=true&wait=true`,
+                payload,
+                { timeout: 30000 }
+            )
         );
 
         return parseJudge0Response(response.data);
@@ -123,13 +138,17 @@ const executeWithTestCases = async (language, code, testCases, timeLimit = 3000)
         // Note: Even with wait=true, some servers return 201 + tokens immediately
         console.log(`   Sending request to: ${JUDGE0_API_URL}/submissions/batch`);
 
-        let response = await axios.post(
-            `${JUDGE0_API_URL}/submissions/batch?base64_encoded=true&wait=true`,
-            { submissions },
-            {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 30000
-            }
+        // CRIT-1 FIX: Wrap the batch POST in the Bottleneck limiter so at most 15
+        // students' submissions hit Judge0 simultaneously. Others wait in queue.
+        let response = await judge0Limiter.schedule(() =>
+            axios.post(
+                `${JUDGE0_API_URL}/submissions/batch?base64_encoded=true&wait=true`,
+                { submissions },
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 30000
+                }
+            )
         );
 
         console.log(`   [Judge0] Response Status: ${response.status}`);

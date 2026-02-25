@@ -8,7 +8,7 @@
 // to be initialized before the Queue is first used.
 
 const { Queue } = require('bullmq');
-const { getRedis } = require('./redis');
+const { getNewRedisClient } = require('./redis');
 
 let scoreQueue = null;
 
@@ -16,7 +16,9 @@ let scoreQueue = null;
 const getScoreQueue = () => {
     if (!scoreQueue) {
         scoreQueue = new Queue('score-recalculation', {
-            connection: getRedis()
+            // HIGH-6 FIX: dedicated connection — BullMQ Queue must not share the app's
+            // singleton Redis client (which is used for pub/sub, caching, locking).
+            connection: getNewRedisClient()
         });
     }
     return scoreQueue;

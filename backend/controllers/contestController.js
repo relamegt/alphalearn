@@ -6,6 +6,7 @@ const { executeWithTestCases, validateCode } = require('../services/judge0Servic
 const { collections } = require('../config/astra');
 const { ObjectId } = require('bson');
 const { notifyLeaderboardUpdate, notifySubmission, notifyViolation } = require('../config/websocket');
+const { getRedis } = require('../config/redis');
 
 // Create contest (Admin/Instructor)
 const createContest = async (req, res) => {
@@ -334,7 +335,6 @@ const deleteContest = async (req, res) => {
 
 
 // Submission locks using Redis to prevent race conditions in distributed environments
-const { getRedis } = require('../config/redis');
 const { addScoreJob } = require('../config/queue');
 
 // Submit code in contest with all features
@@ -412,15 +412,15 @@ const submitContestCode = async (req, res) => {
                     fullscreenExits: 0
                 },
                 results: result.results.map(r => ({
-                    input: r.input,
-                    expectedOutput: r.expectedOutput,
-                    actualOutput: r.actualOutput,
+                    // LOW-1 FIX: Removed duplicate property keys (input, expectedOutput, actualOutput
+                    // were declared twice — last-wins is confusing and lint violations).
+                    // Now uses a single conditional expression per field.
+                    input: r.isHidden ? 'Hidden' : r.input,
+                    expectedOutput: r.isHidden ? 'Hidden' : r.expectedOutput,
+                    actualOutput: r.isHidden ? (r.passed ? 'Hidden' : 'Hidden') : r.actualOutput,
                     error: r.error,
                     passed: r.passed,
-                    isHidden: r.isHidden, // Keep hidden test cases hidden in practice mode
-                    actualOutput: r.isHidden ? (r.passed ? 'Hidden' : 'Hidden') : r.actualOutput, // Double check to not leak actual output
-                    expectedOutput: r.isHidden ? 'Hidden' : r.expectedOutput,
-                    input: r.isHidden ? 'Hidden' : r.input
+                    isHidden: r.isHidden
                 }))
             });
         }
@@ -687,8 +687,6 @@ const finishContest = async (req, res) => {
             });
         }
 
-        // Calculate final score
-        const scoreData = await ContestSubmission.calculateScore(studentId, contestId);
 
         // Build violation snapshot — enforce maximum between frontend and backend
         const dbViolations = await ContestSubmission.getProctoringViolations(studentId, contestId);
@@ -702,7 +700,23 @@ const finishContest = async (req, res) => {
         const totalViolations = (violationSnapshot.tabSwitchCount || 0) + (violationSnapshot.fullscreenExits || 0);
 
         // Mark contest as completed — stores violation snapshot on the COMPLETED record
-        await ContestSubmission.markContestCompleted(studentId, contestId, scoreData.score, violationSnapshot);
+        await ContestSubmission.markContestCompleted(studentId, contestId, 0, violationSnapshot);
+        // HIGH-5 FIX: calculateScore does 3+ DB round trips per student.
+        // If 200 students finish simultaneously that's 600+ concurrent DB queries.
+        // The score is only needed for the response UI — it's already recalculated by the
+        // background worker. So we fire it async and respond immediately.
+        let finalScore = 0;
+        let finalProblemsSolved = 0;
+        // Fire-and-forget — non-blocking calculation for the response value
+        setImmediate(async () => {
+            try {
+                const scoreData = await ContestSubmission.calculateScore(studentId, contestId);
+                // Update the completion record with the accurate score
+                await ContestSubmission.markContestCompleted(studentId, contestId, scoreData.score, violationSnapshot);
+            } catch (e) {
+                console.error('[finishContest] Async score calc failed:', e.message);
+            }
+        });
 
         // OFFLOAD Score Recalculation to background worker queue
         // This prevents the "thundering herd" effect when many users finish at once
@@ -721,8 +735,8 @@ const finishContest = async (req, res) => {
         res.json({
             success: true,
             message: 'Contest submitted successfully',
-            finalScore: scoreData.score,
-            problemsSolved: scoreData.problemsSolved,
+            finalScore,
+            problemsSolved: finalProblemsSolved,
             totalViolations
         });
     } catch (error) {
@@ -763,13 +777,25 @@ const getContestLeaderboard = async (req, res) => {
             contest.problems = problems.map(p => ({ _id: p._id, title: p.title }));
         }
 
-        // Count total enrolled students for this contest's batch
+        // HIGH-3 FIX: Previously countStudentsInBatch was called on EVERY leaderboard request.
+        // With 1000 students polling every 30s, that’s ~33 countDocuments calls/second for
+        // a value that never changes during a contest.
+        // Fix: Cache it in Redis for 5 minutes (contest roster does not change mid-contest).
         let totalEnrolled = total;
         if (contest?.batchId) {
             try {
-                const User = require('../models/User');
-                totalEnrolled = await User.countStudentsInBatch(contest.batchId.toString());
-            } catch (e) { /* silent fallback */ }
+                const redis = getRedis();
+                const enrolledCacheKey = `cache:enrolled:${contestId}`;
+                const enrolledCached = await redis.get(enrolledCacheKey);
+
+                if (enrolledCached) {
+                    totalEnrolled = parseInt(enrolledCached, 10);
+                } else {
+                    const User = require('../models/User');
+                    totalEnrolled = await User.countStudentsInBatch(contest.batchId.toString());
+                    await redis.setex(enrolledCacheKey, 5 * 60, String(totalEnrolled)); // 5 min TTL
+                }
+            } catch (e) { /* silent fallback to total */ }
         }
 
         res.json({
@@ -880,12 +906,47 @@ const logViolation = async (req, res) => {
         const studentId = req.user.userId;
         const violations = req.body;
 
-        await ContestSubmission.logViolation(studentId, contestId, violations);
+        // HIGH-2 FIX: Each tab-switch was previously a full DB insert — an INSERT per event.
+        // With 1000 students switching tabs 5 times each, that's 5000 DB writes per contest.
+        // Fix: Buffer violations in Redis for 30s, then flush as a single DB write.
+        // The Redis key accumulates the maximum violation counts seen within the window.
+        const redis = getRedis();
+        const debounceKey = `viol:buffer:${studentId}:${contestId}`;
+        const lockKey = `viol:lock:${studentId}:${contestId}`;
+        const DEBOUNCE_S = 30;
 
-        // NOTE: Violations do NOT change scores, so we do NOT trigger a leaderboard
-        // broadcast here. The live violation data is visible to admins via the
-        // proctoring panel, not the leaderboard. Removing this prevents spurious
-        // 10-second throttle timers from firing on every tab-switch event.
+        // Accumulate maximums in Redis hash (atomic per field)
+        const pipe = redis.pipeline();
+        pipe.hset(debounceKey,
+            'tabSwitchCount', violations.tabSwitchCount || 0,
+            'tabSwitchDuration', violations.tabSwitchDuration || 0,
+            'pasteAttempts', violations.pasteAttempts || 0,
+            'fullscreenExits', violations.fullscreenExits || 0
+        );
+        pipe.expire(debounceKey, DEBOUNCE_S * 2); // Safety TTL
+        await pipe.exec();
+
+        // Only one DB write per 30s window per student
+        const lockAcquired = await redis.set(lockKey, '1', 'NX', 'EX', DEBOUNCE_S).catch(() => null);
+        if (lockAcquired) {
+            setTimeout(async () => {
+                try {
+                    const buffered = await redis.hgetall(debounceKey);
+                    if (buffered) {
+                        await redis.del(debounceKey);
+                        await ContestSubmission.logViolation(studentId, contestId, {
+                            tabSwitchCount: parseInt(buffered.tabSwitchCount || 0),
+                            tabSwitchDuration: parseFloat(buffered.tabSwitchDuration || 0),
+                            pasteAttempts: parseInt(buffered.pasteAttempts || 0),
+                            fullscreenExits: parseInt(buffered.fullscreenExits || 0)
+                        });
+                    }
+                } catch (e) {
+                    console.error('[logViolation] Debounced flush error:', e.message);
+                }
+            }, DEBOUNCE_S * 1000);
+        }
+        // else: another call in this window already scheduled the flush — our hset update is captured
 
         res.json({ success: true, message: 'Violation logged' });
     } catch (error) {

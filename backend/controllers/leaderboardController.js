@@ -7,11 +7,27 @@ const Batch = require('../models/Batch');
 const Problem = require('../models/Problem');
 const { collections } = require('../config/astra');
 const { ObjectId } = require('bson');
+const { getRedis } = require('../config/redis');
+
+const BATCH_LB_CACHE_TTL = 60; // 60s — fresh enough for a live session
+
 
 // Get FULL batch leaderboard (NO FILTERS)
 const getBatchLeaderboard = async (req, res) => {
     try {
         const { batchId } = req.params;
+        const redis = getRedis();
+        const cacheKey = `cache:batchlb:${batchId}`;
+
+        // CRIT-2 FIX: Cache the computed leaderboard in Redis (60s TTL).
+        // Building this from scratch for 1000 students is expensive; cache prevents
+        // every page-open from triggering a full recompute.
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                return res.json(JSON.parse(cached));
+            }
+        } catch (e) { /* proceed without cache on Redis error */ }
 
         // Get practice leaderboard entries (only students with practice submissions)
         const leaderboard = await Leaderboard.getBatchLeaderboard(batchId);
@@ -85,9 +101,17 @@ const getBatchLeaderboard = async (req, res) => {
             studentMap.set(cid, (studentMap.get(cid) || 0) + points);
         });
 
-        // Process every student in the batch
-        const enrichedLeaderboard = (await Promise.all(
-            allBatchStudents.map(async (batchUser) => {
+        // CRIT-2 FIX: Process students in chunks of 50 instead of Promise.all on all 1000 at once.
+        // Running 1000 concurrent async operations in Promise.all saturates Node.js's thread pool
+        // and blocks the event loop for seconds. Chunking keeps each burst small.
+        const scoreCalculator = require('../utils/scoreCalculator');
+        const CHUNK_SIZE = 50;
+        const enrichedLeaderboard = [];
+
+        for (let i = 0; i < allBatchStudents.length; i += CHUNK_SIZE) {
+            const chunk = allBatchStudents.slice(i, i + CHUNK_SIZE);
+
+            const chunkResults = chunk.map((batchUser) => {
                 const user = batchUser;
                 const studentId = batchUser._id.toString();
 
@@ -107,7 +131,6 @@ const getBatchLeaderboard = async (req, res) => {
 
                 // Compute externalTotal from profiles map (NO N+1)
                 const studentProfiles = externalProfilesMap.get(studentId) || [];
-                const scoreCalculator = require('../utils/scoreCalculator');
                 let externalTotal = 0;
                 studentProfiles.forEach(profile => {
                     externalTotal += scoreCalculator.calculatePlatformScore(profile.platform, profile.stats) || 0;
@@ -145,7 +168,6 @@ const getBatchLeaderboard = async (req, res) => {
                 }
 
                 // alphaCoins = practice-only coins from the user document (source of truth).
-                // Use != null so a genuine 0 value is preserved (not skipped by ||).
                 const alphaCoins = (user.alphacoins != null) ? user.alphacoins
                     : (entry.alphaCoins != null) ? entry.alphaCoins : 0;
 
@@ -167,56 +189,45 @@ const getBatchLeaderboard = async (req, res) => {
                     branch: user?.education?.branch || 'N/A',
                     lastUpdated: entry.lastUpdated
                 };
-            })
-        )).filter(item => item !== null);
+            });
 
+            enrichedLeaderboard.push(...chunkResults);
+        }
 
         // Sort by overall score descending
         enrichedLeaderboard.sort((a, b) => b.overallScore - a.overallScore);
 
         // === GLOBAL RANK CALCULATION ===
-        // Uses the EXACT same method as the Dashboard's global rank card:
-        //   countDocuments('leaderboard', { overallScore: { $gt: score } }) + 1
-        // This is proven to work in Astra DB. Keyed by overallScore.
-        // Results cached in Redis for 5 min — zero DB queries on warm cache.
-        const { countDocuments } = require('../utils/dbHelper');
-        const redis = require('../config/redis').getRedis();
-        const rankCacheKey = `global:ranks:${batchId}`;
-        let scoreRankMap = {};
-
-        try {
-            const cached = await redis.get(rankCacheKey);
-            if (cached) scoreRankMap = JSON.parse(cached);
-        } catch (_) { }
-
-        // Unique overallScore values in this batch (typically 10-30 for 100 students)
-        const uniqueScores = [...new Set(enrichedLeaderboard.map(e => e.overallScore))];
-        const missing = uniqueScores.filter(s => scoreRankMap[s] === undefined);
-
-        if (missing.length > 0) {
-            // BUG #5 FIX: Changed from Promise.all (N parallel DB queries) to sequential for...of.
-            // Previously, 100 unique scores would fire 100 simultaneous countDocuments calls,
-            // exhausting Astra DB's connection pool and causing cascading timeouts for all other
-            // in-flight requests. Sequential execution is slightly slower but safe under load.
-            for (const score of missing) {
-                try {
-                    const higherCount = await countDocuments('leaderboard', { overallScore: { $gt: score } });
-                    scoreRankMap[score] = higherCount + 1;
-                } catch (e) {
-                    console.error('[GlobalRank] countDocuments failed for score=' + score + ':', e.message);
-                    scoreRankMap[score] = null; // will be patched below
-                }
-            }
-            try { await redis.setex(rankCacheKey, 300, JSON.stringify(scoreRankMap)); } catch (_) { }
-        }
-
-        // Assign batch rank and global rank
+        // Assign batch rank first
         enrichedLeaderboard.forEach((item, index) => {
             item.rank = index + 1;
-            const gr = scoreRankMap[item.overallScore];
-            // gr null means countDocuments failed for this score — show batch rank as proxy
-            item.globalRank = (gr && gr > 0) ? gr : (index + 1);
         });
+
+        // Use Redis ZSET pipeline for O(1) multi-fetch of Global Ranks instead of O(N) sequential DB queries
+        try {
+            const redis = require('../config/redis').getRedis();
+            const GLOBAL_RANK_KEY = 'leaderboard:global';
+
+            const pipeline = redis.pipeline();
+            enrichedLeaderboard.forEach(item => {
+                pipeline.zrevrank(GLOBAL_RANK_KEY, item.studentId);
+            });
+            const results = await pipeline.exec();
+
+            enrichedLeaderboard.forEach((item, index) => {
+                const [err, rank] = results[index];
+                if (!err && rank !== null) {
+                    item.globalRank = rank + 1;
+                } else {
+                    item.globalRank = item.rank; // fallback to batch rank
+                }
+            });
+        } catch (e) {
+            console.error('[GlobalRank Calculation] Pipeline failed:', e.message);
+            enrichedLeaderboard.forEach((item) => {
+                if (!item.globalRank) item.globalRank = item.rank;
+            });
+        }
 
         // Calculate max score for each contest across all students
         const contestsWithMaxScore = allContests.map(c => {
@@ -242,13 +253,20 @@ const getBatchLeaderboard = async (req, res) => {
         // Fetch batch details
         const batch = await Batch.findById(batchId);
 
-        res.json({
+        const responsePayload = {
             success: true,
             count: enrichedLeaderboard.length,
             batchName: batch?.name || 'Batch Leaderboard',
             contests: contestsWithMaxScore,
             leaderboard: enrichedLeaderboard
-        });
+        };
+
+        // CRIT-2 FIX: Write result to Redis cache (60s) so subsequent requests skip recompute.
+        try {
+            await redis.setex(cacheKey, BATCH_LB_CACHE_TTL, JSON.stringify(responsePayload));
+        } catch (e) { /* non-fatal — serve fresh data */ }
+
+        res.json(responsePayload);
     } catch (error) {
         console.error('Get batch leaderboard error:', error);
         res.status(500).json({
@@ -259,6 +277,7 @@ const getBatchLeaderboard = async (req, res) => {
     }
 
 };
+
 
 // Get ALL EXTERNAL DATA (ALL PLATFORMS, ALL CONTESTS) - FETCH ONCE
 const getAllExternalData = async (req, res) => {
@@ -369,22 +388,11 @@ const getInternalContestLeaderboard = async (req, res) => {
             problems = await Problem.findByIds(contest.problems);
         }
 
-        // Fix #18: getLeaderboard already fetched and enriched user data.
-        // We only need section which isn't included in the base enrichment.
-        // Fetch it with a targeted projection to avoid a full user re-fetch.
-        const studentIds = leaderboard.map(e => e.studentId);
-        const sectionMap = new Map();
-        if (studentIds.length > 0) {
-            const sectionDocs = await collections.users.find(
-                { _id: { $in: studentIds } },
-                { projection: { 'profile.section': 1 } }
-            ).toArray();
-            sectionDocs.forEach(u => sectionMap.set(u._id.toString(), u.profile?.section || 'N/A'));
-        }
-
-        // Enrich with section data
+        // HIGH-8 FIX: getLeaderboard already fetched users. The section sub-query
+        // that did a second DB round-trip has been eliminated by adding 'profile.section'
+        // to the projection inside getLeaderboard's user chunk-fetch.
+        // We build the section map from the data already in the leaderboard entries.
         const enrichedLeaderboard = leaderboard.map((entry) => {
-            const section = sectionMap.get(entry.studentId.toString()) || 'N/A';
             return {
                 rank: entry.rank,
                 studentId: entry.studentId,
@@ -392,7 +400,7 @@ const getInternalContestLeaderboard = async (req, res) => {
                 fullName: entry.fullName,
                 username: entry.username,
                 branch: entry.branch || 'N/A',
-                section: section,
+                section: entry.section || 'N/A',
                 score: entry.score,
                 time: entry.time,
                 problemsSolved: entry.problemsSolved,
@@ -442,6 +450,7 @@ const getInternalContestLeaderboard = async (req, res) => {
         });
     }
 };
+
 
 // Get student rank
 const getStudentRank = async (req, res) => {

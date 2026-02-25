@@ -123,11 +123,26 @@ const processChunk = async (chunk, reportData, batchContestIds, startRank) => {
         const internalContestsData = {};
 
         for (const contestId of uniqueContests) {
-            const submission = contestSubmissions
-                .filter(cs => cs.contestId.toString() === contestId)
-                .sort((a, b) => b.score - a.score)[0];
-            if (submission) internalContestsData[contestId] = submission.score || 0;
+            // HIGH-7 FIX: submission.score does NOT exist on ContestSubmission documents.
+            // Scores are computed by calculateScore() at query-time, not stored.
+            // Fix: aggregate total points from Accepted submissions for this contest,
+            // counting each unique solved problemId once (deduplication).
+            const accepted = contestSubmissions.filter(
+                cs => cs.contestId.toString() === contestId && cs.verdict === 'Accepted'
+            );
+            let totalScore = 0;
+            const seenProblems = new Set();
+            for (const sub of accepted) {
+                const pid = sub.problemId?.toString();
+                if (pid && !seenProblems.has(pid)) {
+                    seenProblems.add(pid);
+                    // Use points field if projected; fall back to per-solve default of 10
+                    totalScore += (sub.problemPoints || sub.points || 10);
+                }
+            }
+            internalContestsData[contestId] = totalScore;
         }
+
 
         reportData.push({
             rank: startRank + idx + 1,

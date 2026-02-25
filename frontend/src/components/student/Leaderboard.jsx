@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 import leaderboardService from '../../services/leaderboardService';
 import contestService from '../../services/contestService';
 import toast from 'react-hot-toast';
@@ -19,6 +20,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
     const viewType = searchParams.get('type');
     const { user } = useAuth();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const targetBatchId = batchId || urlBatchId || user?.batchId;
 
     useEffect(() => {
@@ -174,10 +176,14 @@ const Leaderboard = ({ batchId, isBatchView }) => {
     }, [targetBatchId, practiceDataLoaded]);
 
     useEffect(() => {
-        if (targetBatchId) {
+        // Only fetch contests separately if the practice leaderboard didn't populate them
+        // (i.e. it failed, or the user navigated directly to the internal tab).
+        // In normal flow, fetchPracticeLeaderboard() already fills internalContests
+        // from data.contests, avoiding a redundant GET /api/contest/batch call.
+        if (targetBatchId && practiceDataLoaded && internalContests.length === 0) {
             fetchInternalContests();
         }
-    }, [targetBatchId]);
+    }, [targetBatchId, practiceDataLoaded, internalContests.length]);
 
     // Fetch external data when tab is opened
     useEffect(() => {
@@ -218,7 +224,15 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                     if (data.type === 'leaderboardUpdate') {
                         setRawInternalData(data.leaderboard);
                     } else if (data.type === 'leaderboardRefetch') {
-                        fetchInternalContestLeaderboard(true); // true = run in background silently
+                        // TanStack Query handles the jitter + background refetch.
+                        // invalidateContestLeaderboard marks the query stale so the
+                        // next useQuery subscriber refetches it automatically in the BG.
+                        const jitter = Math.floor(Math.random() * 3000);
+                        setTimeout(() => {
+                            leaderboardService.invalidateContestLeaderboard(selectedInternalContest);
+                            // Also trigger a direct fetch to update local rawInternalData state
+                            fetchInternalContestLeaderboard(true);
+                        }, jitter);
                     } else if (data.type === 'participantCount') {
                         setLiveParticipants(data.count);
                     }
@@ -242,7 +256,26 @@ const Leaderboard = ({ batchId, isBatchView }) => {
             const data = await leaderboardService.getBatchLeaderboard(targetBatchId, forceRefresh);
             setRawPracticeData(data.leaderboard || []);
             if (data.batchName) setBatchName(data.batchName);
-            setInternalContestsMeta(data.contests || []); // Capture contest metadata
+            const contestsMeta = data.contests || [];
+            setInternalContestsMeta(contestsMeta);
+
+            // Populate internalContests from the leaderboard response so we avoid
+            // a redundant GET /api/contest/batch/{batchId} call on every page load.
+            // The leaderboard response uses `id` (not `_id`), so normalise to `_id`
+            // so the dropdown at line 1507 (which uses contest._id) works correctly.
+            if (contestsMeta.length > 0) {
+                const normalised = contestsMeta.map(c => ({
+                    ...c,
+                    _id: c._id || c.id  // handle both shapes
+                }));
+                setInternalContests(normalised);
+                if (!contestId && !selectedInternalContest) {
+                    const firstId = normalised[0]._id?.toString();
+                    if (firstId) setSelectedInternalContest(firstId);
+                }
+            }
+
+
             setPracticeDataLoaded(true);
         } catch (error) {
             toast.error('Failed to fetch leaderboard');
@@ -310,10 +343,18 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         if (!targetBatchId) return;
         try {
             const data = await contestService.getContestsByBatch(targetBatchId);
-            setInternalContests(data.contests || []);
-            if (data.contests && data.contests.length > 0) {
-                if (!contestId) {
-                    setSelectedInternalContest(data.contests[0]._id);
+            const contests = data.contests || [];
+            setInternalContests(contests);
+            setInternalContestsMeta(contests.map(c => ({
+                id: c._id,
+                title: c.title,
+                startTime: c.startTime,
+                endTime: c.endTime,
+                maxScore: 0
+            })));
+            if (contests.length > 0) {
+                if (!contestId && !selectedInternalContest) {
+                    setSelectedInternalContest(contests[0]._id);
                 }
             } else if (!contestId) {
                 setSelectedInternalContest(null);
@@ -1778,7 +1819,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                     ) : (
                                                                         <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200 inline-block">
                                                                             In Progress
-                                                                        </span>
+                                                                            b                                                                        </span>
                                                                     )}
                                                                 </td>
                                                                 <td className="px-3 py-3 whitespace-nowrap text-center sticky right-0 bg-inherit z-10 border-l border-gray-100 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">

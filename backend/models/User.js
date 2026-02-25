@@ -106,12 +106,12 @@ class User {
 
     // Find users by batch ID
     static async findByBatchId(batchId) {
-        return await collections.users.find({ batchId: new ObjectId(batchId) }).toArray();
+        return await collections.users.find({ batchId: new ObjectId(batchId) }).limit(10000).toArray();
     }
 
     // Find all users by role
     static async findByRole(role) {
-        return await collections.users.find({ role }).toArray();
+        return await collections.users.find({ role }).limit(10000).toArray();
     }
 
     // Find all users (with pagination to prevent OOM)
@@ -302,7 +302,7 @@ class User {
         try {
             const users = await collections.users.find({
                 batchId: new ObjectId(batchId)
-            }).toArray();
+            }).limit(10000).toArray();
             return users;
         } catch (error) {
             console.error('Get users by batch error:', error);
@@ -320,7 +320,7 @@ class User {
                     { batchId: batchObjectId },
                     { assignedBatches: batchObjectId }
                 ]
-            }).toArray();
+            }).limit(10000).toArray();
             return instructors;
         } catch (error) {
             console.error('Get instructors by batch error:', error);
@@ -333,7 +333,7 @@ class User {
         return await collections.users.find({
             batchId: new ObjectId(batchId),
             role: 'student'
-        }).toArray();
+        }).limit(10000).toArray();
     }
 
     // Get all students in multiple batches
@@ -343,7 +343,7 @@ class User {
             return await collections.users.find({
                 batchId: { $in: objectIds },
                 role: 'student'
-            }).toArray();
+            }).limit(10000).toArray();
         } catch (error) {
             console.error('Get students by batches error:', error);
             throw error;
@@ -375,51 +375,61 @@ class User {
 
     // Bulk create users (CSV import with stats tracking)
     static async bulkCreate(usersData) {
-        const users = await Promise.all(
-            usersData.map(async (userData) => {
-                const hashedPassword = await bcrypt.hash(userData.password, 10);
-                return {
-                    _id: new ObjectId(),
-                    email: userData.email.toLowerCase(),
-                    password: hashedPassword,
-                    firstName: userData.firstName || null,
-                    lastName: userData.lastName || null,
-                    role: userData.role,
-                    batchId: userData.batchId ? new ObjectId(userData.batchId) : null,
-                    isActive: true,
-                    isFirstLogin: true,
-                    profileCompleted: false,
-                    isPublicProfile: true,
-                    activeSessionToken: null,
-                    deviceFingerprint: null,
-                    profile: {
-                        phone: userData.phone || null,
-                        whatsapp: userData.whatsapp || null,
-                        dob: null,
-                        gender: null,
-                        tshirtSize: null,
-                        aboutMe: null,
-                        address: { building: null, street: null, city: null, state: null, postalCode: null },
-                        socialLinks: { facebook: null, twitter: null, quora: null },
-                        professionalLinks: { website: null, linkedin: null }
-                    },
-                    education: userData.role === 'student' ? {
-                        institution: userData.institution || null,
-                        degree: userData.degree || null,
-                        branch: userData.branch || null,
-                        rollNumber: userData.rollNumber || null,
-                        startYear: userData.startYear || null,
-                        endYear: userData.endYear || null
-                    } : null,
-                    skills: [],
-                    createdAt: new Date(),
-                    lastLogin: null
-                };
-            })
-        );
+        // CRIT-3 FIX: Previously all N bcrypt.hash calls ran in parallel via Promise.all.
+        // bcrypt is CPU-bound; 1000 parallel hashes pegs the thread pool for ~30s and makes
+        // the server unresponsive to all other requests.
+        // Fix: Process in batches of 10 — small enough to stay responsive, fast enough to import.
+        const HASH_BATCH_SIZE = 10;
+        const users = [];
+
+        for (let i = 0; i < usersData.length; i += HASH_BATCH_SIZE) {
+            const batch = usersData.slice(i, i + HASH_BATCH_SIZE);
+            const hashedBatch = await Promise.all(
+                batch.map(async (userData) => {
+                    const hashedPassword = await bcrypt.hash(userData.password, 10);
+                    return {
+                        _id: new ObjectId(),
+                        email: userData.email.toLowerCase(),
+                        password: hashedPassword,
+                        firstName: userData.firstName || null,
+                        lastName: userData.lastName || null,
+                        role: userData.role,
+                        batchId: userData.batchId ? new ObjectId(userData.batchId) : null,
+                        isActive: true,
+                        isFirstLogin: true,
+                        profileCompleted: false,
+                        isPublicProfile: true,
+                        activeSessionToken: null,
+                        deviceFingerprint: null,
+                        profile: {
+                            phone: userData.phone || null,
+                            whatsapp: userData.whatsapp || null,
+                            dob: null,
+                            gender: null,
+                            tshirtSize: null,
+                            aboutMe: null,
+                            address: { building: null, street: null, city: null, state: null, postalCode: null },
+                            socialLinks: { facebook: null, twitter: null, quora: null },
+                            professionalLinks: { website: null, linkedin: null }
+                        },
+                        education: userData.role === 'student' ? {
+                            institution: userData.institution || null,
+                            degree: userData.degree || null,
+                            branch: userData.branch || null,
+                            rollNumber: userData.rollNumber || null,
+                            startYear: userData.startYear || null,
+                            endYear: userData.endYear || null
+                        } : null,
+                        skills: [],
+                        createdAt: new Date(),
+                        lastLogin: null
+                    };
+                })
+            );
+            users.push(...hashedBatch);
+        }
 
         const result = await collections.users.insertMany(users);
-
         return result;
     }
 
@@ -496,12 +506,17 @@ class User {
     static async deleteByBatchId(batchId) {
         const batchObjectId = new ObjectId(batchId);
 
-        // Get all users in batch
-        const usersInBatch = await collections.users.find({
-            batchId: batchObjectId
-        }).toArray();
-
-        const userIds = usersInBatch.map(u => u._id);
+        // CRIT-5 FIX: Previously loaded up to 10,000 FULL user documents into RAM just to
+        // extract _id fields. With 1000+ students this wastes significant memory.
+        // Fix: Use projection { _id: 1 } to only fetch the identifier field.
+        const userIds = [];
+        const usersCursor = collections.users.find(
+            { batchId: batchObjectId },
+            { projection: { _id: 1 } }
+        );
+        for await (const u of usersCursor) {
+            userIds.push(u._id);
+        }
 
         if (userIds.length === 0) {
             return { success: true, deletedCount: 0 };
@@ -596,13 +611,21 @@ class User {
     static async deleteByContest(contestId) {
         const contestObjectId = (typeof contestId === 'string') ? new ObjectId(contestId) : contestId;
 
-        // Find all users first so we can cascade delete their data
-        const users = await collections.users.find({
-            registeredForContest: contestObjectId
-        }, { projection: { _id: 1 } }).toArray();
+        // CRIT-6 FIX: The previous .limit(50000).toArray() silently truncated if there were
+        // more than 50k spot users, leaving orphaned DB records with no warning.
+        // Fix: Stream via cursor with no hard cap — all spot users get cleaned up regardless of count.
+        const userIds = [];
+        const cursor = collections.users.find(
+            { registeredForContest: contestObjectId },
+            { projection: { _id: 1 } }
+        );
+        for await (const u of cursor) {
+            userIds.push(u._id);
+        }
 
-        const userIds = users.map(u => u._id);
         if (userIds.length === 0) return { success: true, deletedCount: 0 };
+
+        console.log(`[deleteByContest] Cleaning up ${userIds.length} spot user(s) for contest ${contestId}`);
 
         // Bulk delete everything associated with these users in chunks
         const CHUNK_SIZE = 100;

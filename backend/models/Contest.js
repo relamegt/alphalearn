@@ -70,7 +70,7 @@ class Contest {
 
     // Find contests by batch
     static async findByBatchId(batchId) {
-        return await collections.contests.find({ batchId: new ObjectId(batchId) }).sort({ startTime: -1 }).toArray();
+        return await collections.contests.find({ batchId: new ObjectId(batchId) }).sort({ startTime: -1 }).limit(1000).toArray();
     }
 
     // Find active contests
@@ -80,7 +80,7 @@ class Contest {
             batchId: new ObjectId(batchId),
             startTime: { $lte: now },
             endTime: { $gte: now }
-        }).toArray();
+        }).limit(1000).toArray();
     }
 
     // Find upcoming contests
@@ -89,7 +89,7 @@ class Contest {
         return await collections.contests.find({
             batchId: new ObjectId(batchId),
             startTime: { $gt: now }
-        }).sort({ startTime: 1 }).toArray();
+        }).sort({ startTime: 1 }).limit(1000).toArray();
     }
 
     // Find past contests
@@ -98,12 +98,12 @@ class Contest {
         return await collections.contests.find({
             batchId: new ObjectId(batchId),
             endTime: { $lt: now }
-        }).sort({ startTime: -1 }).toArray();
+        }).sort({ startTime: -1 }).limit(1000).toArray();
     }
 
     // Find ALL contests globally (Admin/Instructor)
     static async findAll() {
-        return await collections.contests.find({}).sort({ startTime: -1 }).toArray();
+        return await collections.contests.find({}).sort({ startTime: -1 }).limit(1000).toArray();
     }
 
     // Find multiple contests with query

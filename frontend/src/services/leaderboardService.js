@@ -1,102 +1,70 @@
+/**
+ * leaderboardService.js
+ *
+ * MIGRATION NOTE:
+ * ───────────────────────────────────────────────────────────────
+ * The old localStorage cache (24h TTL) has been REPLACED by
+ * TanStack Query (see src/hooks/useLeaderboard.js).
+ *
+ * This file still exports the raw fetcher functions so:
+ *  1. Leaderboard.jsx can call them directly when not yet converted
+ *     to hooks (backward-compatible bridge).
+ *  2. The old in-memory deduplication is kept via PENDING_CALLS.
+ *
+ * The old saveToCache / isCacheValid / getFromCache are removed —
+ * TanStack Query manages staleness and persistence automatically.
+ * ───────────────────────────────────────────────────────────────
+ */
 import apiClient from './apiClient';
-
-// Cache keys
-const CACHE_KEYS = {
-    PRACTICE_LEADERBOARD: 'alphaknowledge_practice_leaderboard_v2_',
-    EXTERNAL_DATA: 'alphaknowledge_external_data_v2_',
-    CACHE_TIMESTAMP: 'alphaknowledge_cache_timestamp_v2_',
-};
-
-// Cache duration: 24 hours
-const CACHE_DURATION = 24 * 60 * 60 * 1000;
+import queryClient from './queryClient';
+import { queryKeys } from './queryKeys';
 
 const PENDING_CALLS = {};
 
 const leaderboardService = {
-    // Check if cache is valid
-    isCacheValid: (key) => {
-        try {
-            const timestamp = localStorage.getItem(`${CACHE_KEYS.CACHE_TIMESTAMP}${key}`);
-            if (!timestamp) return false;
 
-            const now = Date.now();
-            const cacheTime = parseInt(timestamp);
-            return (now - cacheTime) < CACHE_DURATION;
-        } catch (error) {
-            console.error('Cache validation error:', error);
-            return false;
-        }
-    },
-
-    // Get from cache
-    getFromCache: (key) => {
-        try {
-            const data = localStorage.getItem(key);
-            if (!data) return null;
-            return JSON.parse(data);
-        } catch (error) {
-            console.error('Cache retrieval error:', error);
-            return null;
-        }
-    },
-
-    // Save to cache
-    saveToCache: (key, data) => {
-        try {
-            localStorage.setItem(key, JSON.stringify(data));
-            localStorage.setItem(`${CACHE_KEYS.CACHE_TIMESTAMP}${key}`, Date.now().toString());
-        } catch (error) {
-            console.error('Cache save error:', error);
-        }
-    },
-
-    // Clear all leaderboard caches
-    clearAllCaches: () => {
-        try {
-            const keys = Object.keys(localStorage);
-            keys.forEach(key => {
-                if (key.startsWith('alphaknowledge_')) {
-                    localStorage.removeItem(key);
-                }
-            });
-        } catch (error) {
-            console.error('Cache clear error:', error);
-        }
-    },
-
-    // Get FULL Batch Leaderboard with caching
+    /**
+     * Get the batch practice leaderboard.
+     * Reads from TanStack Query cache first (stale for 60s).
+     * forceRefresh=true bypasses the cache and invalidates TQ cache too.
+     */
     getBatchLeaderboard: async (batchId, forceRefresh = false) => {
-        const cacheKey = `${CACHE_KEYS.PRACTICE_LEADERBOARD}${batchId}`;
+        const qKey = queryKeys.leaderboard.batch(batchId);
 
-        // Check cache first
-        if (!forceRefresh && leaderboardService.isCacheValid(cacheKey)) {
-            const cachedData = leaderboardService.getFromCache(cacheKey);
-            if (cachedData) {
-                console.log('📦 Practice leaderboard loaded from cache');
-                return cachedData;
+        if (!forceRefresh) {
+            // Try TanStack Query in-memory cache first
+            const cached = queryClient.getQueryData(qKey);
+            if (cached) {
+                const state = queryClient.getQueryState(qKey);
+                const age = Date.now() - (state?.dataUpdatedAt ?? 0);
+                // Return cached if fresher than 60s
+                if (age < 60_000) {
+                    console.log('📦 Leaderboard served from TanStack cache');
+                    return cached;
+                }
             }
+        } else {
+            // Force-invalidate so next useQuery refetches from network
+            queryClient.invalidateQueries({ queryKey: qKey });
         }
 
-        const pendingKey = `batch_${batchId}_${forceRefresh}`;
-        if (PENDING_CALLS[pendingKey]) {
-            return await PENDING_CALLS[pendingKey];
-        }
+        // Deduplicate simultaneous calls
+        const pendingKey = `batch_${batchId}`;
+        if (PENDING_CALLS[pendingKey]) return PENDING_CALLS[pendingKey];
 
         const promise = (async () => {
             try {
-                console.log('🌐 Fetching practice leaderboard from API...');
-                const response = await apiClient.get(`/reports/leaderboard/batch/${batchId}`);
-
-                // Save to cache
-                leaderboardService.saveToCache(cacheKey, response.data);
-
-                return response.data;
+                console.log('🌐 Fetching leaderboard from API...');
+                const { data } = await apiClient.get(`/reports/leaderboard/batch/${batchId}`);
+                // Seed TanStack Query cache with fresh data
+                queryClient.setQueryData(qKey, data);
+                return data;
             } catch (error) {
-                // If API fails, try to return cached data even if expired
-                const cachedData = leaderboardService.getFromCache(cacheKey);
-                if (cachedData) {
-                    console.warn('⚠️ API failed, using cached data');
-                    return cachedData;
+                // Fallback: return stale TQ cache if available
+                const stale = queryClient.getQueryData(qKey);
+                if (stale) {
+                    console.warn('⚠️ API failed, using stale cache');
+                    return stale;
                 }
                 throw error.response?.data || { message: 'Failed to fetch leaderboard' };
             } finally {
@@ -108,39 +76,41 @@ const leaderboardService = {
         return promise;
     },
 
-    // Get ALL External Data with caching
+    /**
+     * Get all external platform data.
+     * staleTime = 30min (third-party data is scraped daily).
+     */
     getAllExternalData: async (batchId, forceRefresh = false) => {
-        const cacheKey = `${CACHE_KEYS.EXTERNAL_DATA}${batchId}`;
+        const qKey = queryKeys.leaderboard.externalAll(batchId);
 
-        // Check cache first
-        if (!forceRefresh && leaderboardService.isCacheValid(cacheKey)) {
-            const cachedData = leaderboardService.getFromCache(cacheKey);
-            if (cachedData) {
-                console.log('📦 External data loaded from cache');
-                return cachedData;
+        if (!forceRefresh) {
+            const cached = queryClient.getQueryData(qKey);
+            if (cached) {
+                const state = queryClient.getQueryState(qKey);
+                const age = Date.now() - (state?.dataUpdatedAt ?? 0);
+                if (age < 30 * 60_000) {
+                    console.log('📦 External data served from TanStack cache');
+                    return cached;
+                }
             }
+        } else {
+            queryClient.invalidateQueries({ queryKey: qKey });
         }
 
-        const pendingKey = `ext_${batchId}_${forceRefresh}`;
-        if (PENDING_CALLS[pendingKey]) {
-            return await PENDING_CALLS[pendingKey];
-        }
+        const pendingKey = `ext_${batchId}`;
+        if (PENDING_CALLS[pendingKey]) return PENDING_CALLS[pendingKey];
 
         const promise = (async () => {
             try {
                 console.log('🌐 Fetching external data from API...');
-                const response = await apiClient.get(`/reports/leaderboard/batch/${batchId}/external-all`);
-
-                // Save to cache
-                leaderboardService.saveToCache(cacheKey, response.data);
-
-                return response.data;
+                const { data } = await apiClient.get(`/reports/leaderboard/batch/${batchId}/external-all`);
+                queryClient.setQueryData(qKey, data);
+                return data;
             } catch (error) {
-                // If API fails, try to return cached data even if expired
-                const cachedData = leaderboardService.getFromCache(cacheKey);
-                if (cachedData) {
-                    console.warn('⚠️ API failed, using cached data');
-                    return cachedData;
+                const stale = queryClient.getQueryData(qKey);
+                if (stale) {
+                    console.warn('⚠️ API failed, using stale external cache');
+                    return stale;
                 }
                 throw error.response?.data || { message: 'Failed to fetch external data' };
             } finally {
@@ -152,41 +122,65 @@ const leaderboardService = {
         return promise;
     },
 
-    // Get FULL Internal Contest Leaderboard (NO CACHE - real-time)
+    /**
+     * Get internal contest leaderboard (no aggressive caching — near-realtime).
+     * TanStack Query's staleTime=10s handles background refresh.
+     */
     getInternalContestLeaderboard: async (contestId, page = 1, limit = 50) => {
         try {
-            const response = await apiClient.get(`/reports/leaderboard/contest/${contestId}`, {
+            const { data } = await apiClient.get(`/reports/leaderboard/contest/${contestId}`, {
                 params: { page, limit }
             });
-            return response.data;
+            // Seed TQ cache so the useContestLeaderboard hook sees it immediately
+            queryClient.setQueryData(
+                queryKeys.leaderboard.contest(contestId, page, limit),
+                data
+            );
+            return data;
         } catch (error) {
             throw error.response?.data || { message: 'Failed to fetch contest leaderboard' };
         }
     },
 
-    // Get Student Rank
+    // Student rank — pass through, TQ hooks handle caching
     getStudentRank: async (studentId = null) => {
-        try {
-            const endpoint = studentId
-                ? `/reports/leaderboard/student/${studentId}/rank`
-                : '/reports/leaderboard/student/rank';
-            const response = await apiClient.get(endpoint);
-            return response.data;
-        } catch (error) {
-            throw error.response?.data || { message: 'Failed to fetch student rank' };
-        }
+        const endpoint = studentId
+            ? `/reports/leaderboard/student/${studentId}/rank`
+            : '/reports/leaderboard/student/rank';
+        const { data } = await apiClient.get(endpoint).catch(e => {
+            throw e.response?.data || { message: 'Failed to fetch student rank' };
+        });
+        return data;
     },
 
-    // Get Top Performers
+    // Top performers — pass through
     getTopPerformers: async (limit = 10) => {
-        try {
-            const response = await apiClient.get('/reports/leaderboard/top', {
-                params: { limit },
-            });
-            return response.data;
-        } catch (error) {
-            throw error.response?.data || { message: 'Failed to fetch top performers' };
-        }
+        const { data } = await apiClient.get('/reports/leaderboard/top', {
+            params: { limit },
+        }).catch(e => {
+            throw e.response?.data || { message: 'Failed to fetch top performers' };
+        });
+        return data;
+    },
+
+    // ── Cache management utilities (thin wrappers over TQ) ────────
+
+    /** Force-invalidate the batch leaderboard so it refetches on next access. */
+    invalidateBatchLeaderboard: (batchId) => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.leaderboard.batch(batchId) });
+    },
+
+    /** Force-invalidate the contest leaderboard (e.g. on WS event). */
+    invalidateContestLeaderboard: (contestId) => {
+        queryClient.invalidateQueries({
+            queryKey: queryKeys.leaderboard.contest(contestId),
+            exact: false,
+        });
+    },
+
+    /** Clear all leaderboard caches (e.g. on logout). */
+    clearAllCaches: () => {
+        queryClient.removeQueries({ queryKey: ['leaderboard'] });
     },
 };
 
