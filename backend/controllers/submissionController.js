@@ -52,25 +52,30 @@ const runCode = async (req, res) => {
             // Separate cases that have a known expectedOutput vs those that need solution
             const casesNeedingSolution = customInputs.filter(c => c.expectedOutput === undefined || c.expectedOutput === null);
 
-            // Run user code against all inputs in one batch
+            // Run user code against ALL inputs in one single Judge0 submission (1 credit)
             const userTestCases = customInputs.map(c => ({ input: c.input, output: c.expectedOutput ?? undefined, isHidden: false }));
-            const userResult = await executeWithTestCases(language, code, userTestCases, problem.timeLimit);
 
-            // For cases that need expected output, run solution code once
+            // Prepare solution run concurrently if needed (also 1 credit via harness)
+            const { solCode, solLang } = getSolutionCode();
+            const needsSolution = casesNeedingSolution.length > 0 && solCode && solLang;
+
+            // Fire user + solution in parallel to halve wall-clock time
+            const [userResult, solResult] = await Promise.all([
+                executeWithTestCases(language, code, userTestCases, problem.timeLimit),
+                needsSolution
+                    ? executeWithTestCases(solLang, solCode, casesNeedingSolution.map(c => ({ input: c.input, output: undefined, isHidden: false })), problem.timeLimit).catch(e => {
+                        console.warn('   ⚠️ Solution code execution failed:', e.message);
+                        return null;
+                    })
+                    : Promise.resolve(null)
+            ]);
+
+            // Build solution output map from parallel result
             let solOutputMap = {};
-            if (casesNeedingSolution.length > 0) {
-                const { solCode, solLang } = getSolutionCode();
-                if (solCode && solLang) {
-                    try {
-                        const solCases = casesNeedingSolution.map(c => ({ input: c.input, output: undefined, isHidden: false }));
-                        const solResult = await executeWithTestCases(solLang, solCode, solCases, problem.timeLimit);
-                        casesNeedingSolution.forEach((c, idx) => {
-                            solOutputMap[c.input] = solResult.results[idx]?.actualOutput ?? null;
-                        });
-                    } catch (solErr) {
-                        console.warn('   ⚠️ Solution code execution failed:', solErr.message);
-                    }
-                }
+            if (solResult) {
+                casesNeedingSolution.forEach((c, idx) => {
+                    solOutputMap[c.input] = solResult.results[idx]?.actualOutput ?? null;
+                });
             }
 
             // Build final results
@@ -107,29 +112,29 @@ const runCode = async (req, res) => {
 
         } else if (isCustom) {
             // ── Single custom input mode ──────────────────────────────────────────
-            // Run user code
             const userTestCase = [{ input: customInput, output: undefined, isHidden: false }];
-            const userResult = await executeWithTestCases(language, code, userTestCase, problem.timeLimit);
+            const { solCode, solLang } = getSolutionCode();
+
+            // Run user code + solution code in parallel (both use single-harness, 1 credit each)
+            const [userResult, solRunResult] = await Promise.all([
+                executeWithTestCases(language, code, userTestCase, problem.timeLimit),
+                solCode && solLang
+                    ? executeWithTestCases(solLang, solCode, [{ input: customInput, output: undefined, isHidden: false }], problem.timeLimit).catch(e => {
+                        console.warn('   ⚠️ Solution code execution failed:', e.message);
+                        return null;
+                    })
+                    : Promise.resolve(null)
+            ]);
+
             const userOutput = userResult.results[0]?.actualOutput ?? '';
             const userVerdict = userResult.results[0]?.verdict ?? userResult.verdict;
             const userError = userResult.results[0]?.error ?? userResult.error;
 
-            // Try to get expected output from solution code
+            // Use the already-computed parallel solution result
             let expectedOutput = null;
-            const { solCode, solLang } = getSolutionCode();
-
-            if (solCode && solLang) {
-                try {
-                    const solResult = await executeWithTestCases(
-                        solLang, solCode,
-                        [{ input: customInput, output: undefined, isHidden: false }],
-                        problem.timeLimit
-                    );
-                    expectedOutput = solResult.results[0]?.actualOutput ?? null;
-                    console.log(`   📋 Solution code ran for expected output`);
-                } catch (solErr) {
-                    console.warn('   ⚠️ Solution code execution failed:', solErr.message);
-                }
+            if (solRunResult) {
+                expectedOutput = solRunResult.results[0]?.actualOutput ?? null;
+                console.log(`   📋 Solution code ran in parallel for expected output`);
             }
 
             // Build result

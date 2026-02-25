@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, CheckCircle, Circle, ChevronDown, Search, X } from 'lucide-react';
 import { CiCircleList } from 'react-icons/ci';
@@ -26,6 +26,9 @@ const ProblemSidebar = () => {
     const [loading, setLoading] = useState(true);
     const [expandedSections, setExpandedSections] = useState({});
     const [expandedSubsections, setExpandedSubsections] = useState({});
+    // Tracks which section/subsection the user last clicked a problem from.
+    // This ensures auto-expand opens the correct section when a problem exists in multiple sections.
+    const clickedFromRef = useRef(null);
     const [difficulty, setDifficulty] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -46,11 +49,24 @@ const ProblemSidebar = () => {
 
     useEffect(() => {
         if (problems.length && sections.length && problemId) {
+            // Case 1: User clicked a problem row inside the sidebar.
+            // clickedFromRef tells us exactly which section/subsection they clicked from.
+            // This handles problems that appear in multiple sections correctly.
+            if (clickedFromRef.current) {
+                const { sectionId, subId } = clickedFromRef.current;
+                clickedFromRef.current = null; // consume the ref
+                setExpandedSections(prev => ({ ...prev, [sectionId]: true }));
+                setExpandedSubsections(prev => ({ ...prev, [subId]: true }));
+                return;
+            }
+
+            // Case 2: Direct URL navigation (page load / external link).
+            // Find the first section+subsection in data that contains this problem.
+            let found = false;
             for (const section of sections) {
+                if (found) break;
                 if (section.subsections) {
                     for (const sub of section.subsections) {
-                        // subsection.problemIds may be ObjectId strings; URL problemId is slug
-                        // Check if any problemId in the subsection resolves to the current URL problemId
                         const match = sub.problemIds?.some(pid => {
                             const pidStr = String(pid);
                             const resolvedSlug = problemIdAliasMap[pidStr];
@@ -59,7 +75,8 @@ const ProblemSidebar = () => {
                         if (match) {
                             setExpandedSections(prev => ({ ...prev, [section._id]: true }));
                             setExpandedSubsections(prev => ({ ...prev, [sub._id]: true }));
-                            return;
+                            found = true;
+                            break;
                         }
                     }
                 }
@@ -329,7 +346,12 @@ const ProblemSidebar = () => {
                                                         problem={problem}
                                                         active={isActive(problem.id)}
                                                         indent="pl-12"
-                                                        onClick={() => navigate(`/problems/${problem.id}`)}
+                                                        onClick={() => {
+                                                            // Record exactly which folder the user clicked from
+                                                            // so auto-expand opens this section, not a duplicate one
+                                                            clickedFromRef.current = { sectionId: section._id, subId: sub._id };
+                                                            navigate(`/problems/${problem.id}`);
+                                                        }}
                                                     />
                                                 ))}
                                             </div>

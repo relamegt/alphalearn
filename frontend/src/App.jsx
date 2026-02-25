@@ -119,12 +119,22 @@ const PublicRoute = ({ children }) => {
 
 const DynamicToaster = () => {
     const location = useLocation();
-    // Use top-center for coding interfaces to avoid overlaying run/submit buttons (usually on the right)
-    const isCodingInterface =
-        location.pathname.match(/^\/student\/problems\/.+/) ||
-        location.pathname.match(/^\/contests\/.+/);
+    const path = location.pathname;
 
-    return <Toaster position={isCodingInterface ? "top-center" : "top-right"} />;
+    // Show toasts at top-center for all coding interfaces so they don't
+    // overlap the Run / Submit buttons on the right side of the screen.
+    const isCodingInterface =
+        path === '/problems' ||
+        path.startsWith('/problems/') ||
+        path.startsWith('/student/problems/') ||
+        path.startsWith('/contests/');
+
+    return (
+        <Toaster
+            position={isCodingInterface ? 'top-center' : 'top-right'}
+            toastOptions={{ style: { maxWidth: 420 } }}
+        />
+    );
 };
 
 function App() {
