@@ -10,64 +10,69 @@ const isDevelopment = () => {
 export const disableRightClick = () => {
     if (isDevelopment()) {
         console.log('🔓 Right-click enabled (Development mode)');
-        return;
+        return () => { };
     }
 
-    document.addEventListener('contextmenu', (e) => {
+    const contextMenuHandler = (e) => {
         e.preventDefault();
         return false;
-    });
+    };
+    document.addEventListener('contextmenu', contextMenuHandler);
     console.log('🔒 Right-click disabled (Production mode)');
+    return () => document.removeEventListener('contextmenu', contextMenuHandler);
 };
 
 // Disable F12, Ctrl+Shift+I/C/J, Ctrl+U
 export const disableDevTools = () => {
     if (isDevelopment()) {
         console.log('🔓 DevTools shortcuts enabled (Development mode)');
-        return;
+        return () => { };
     }
 
-    document.addEventListener('keydown', (e) => {
+    const keydownHandler = (e) => {
         // F12
         if (e.key === 'F12') {
             e.preventDefault();
-            alert('🔒 Inspection tools are disabled for security reasons.');
+            alert('🔒 Inspection tools are disabled for security reasons. (Active only in workspace/contests)');
             return false;
         }
 
         // Ctrl+Shift+I (Inspect)
-        if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) {
             e.preventDefault();
-            alert('🔒 Inspection tools are disabled for security reasons.');
+            alert('🔒 Inspection tools are disabled for security reasons. (Active only in workspace/contests)');
             return false;
         }
 
         // Ctrl+Shift+C (Inspect element)
-        if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+        if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
             e.preventDefault();
             return false;
         }
 
         // Ctrl+Shift+J (Console)
-        if (e.ctrlKey && e.shiftKey && e.key === 'J') {
+        if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) {
             e.preventDefault();
             return false;
         }
 
         // Ctrl+U (View source)
-        if (e.ctrlKey && e.key === 'u') {
+        if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
             e.preventDefault();
             return false;
         }
-    });
+    };
+
+    document.addEventListener('keydown', keydownHandler);
     console.log('🔒 DevTools shortcuts disabled (Production mode)');
+    return () => document.removeEventListener('keydown', keydownHandler);
 };
 
 // Detect DevTools open (size-based detection)
 export const detectDevTools = (onDetect) => {
     if (isDevelopment()) {
         console.log('🔓 DevTools detection disabled (Development mode)');
-        return () => { }; // Return empty cleanup function
+        return () => { };
     }
 
     const threshold = 160;
@@ -99,11 +104,12 @@ export const detectDevTools = (onDetect) => {
 export const enableSecureMode = () => {
     if (isDevelopment()) {
         console.log('🔓 Secure mode disabled (Development mode)');
-        return;
+        return () => { };
     }
 
     document.body.classList.add('secure-mode');
     console.log('🔒 Secure mode enabled (Production mode)');
+    return () => document.body.classList.remove('secure-mode');
 };
 
 export const disableSecureMode = () => {
@@ -113,36 +119,25 @@ export const disableSecureMode = () => {
 // Initialize all security features
 export const initSecurityFeatures = (onDevToolsDetect = null) => {
     if (isDevelopment()) {
-        console.log('');
-        console.log('═══════════════════════════════════════════════════');
-        console.log('🔓 DEVELOPMENT MODE: All security features disabled');
-        console.log('   - Right-click: ENABLED');
-        console.log('   - DevTools shortcuts: ENABLED');
-        console.log('   - DevTools detection: DISABLED');
-        console.log('   - Secure mode: DISABLED');
-        console.log('═══════════════════════════════════════════════════');
-        console.log('');
-        return () => { }; // Return empty cleanup function
+        console.log('🔓 DEVELOPMENT MODE: Security features disabled');
+        return () => { };
     }
 
-    console.log('');
-    console.log('═══════════════════════════════════════════════════');
-    console.log('🔒 PRODUCTION MODE: All security features enabled');
-    console.log('   - Right-click: DISABLED');
-    console.log('   - DevTools shortcuts: DISABLED');
-    console.log('   - DevTools detection: ENABLED');
-    console.log('   - Secure mode: ENABLED');
-    console.log('═══════════════════════════════════════════════════');
-    console.log('');
+    console.log('🔒 PRODUCTION MODE: Target Security features enabled');
 
-    disableRightClick();
-    disableDevTools();
-    enableSecureMode();
+    const cleanupRightClick = disableRightClick();
+    const cleanupDevTools = disableDevTools();
+    const cleanupSecureMode = enableSecureMode();
 
+    let cleanupDetect = () => { };
     if (onDevToolsDetect) {
-        const cleanup = detectDevTools(onDevToolsDetect);
-        return cleanup;
+        cleanupDetect = detectDevTools(onDevToolsDetect);
     }
 
-    return () => { };
+    return () => {
+        cleanupRightClick();
+        cleanupDevTools();
+        cleanupSecureMode();
+        cleanupDetect();
+    };
 };

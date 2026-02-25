@@ -192,6 +192,10 @@ const getBatchLeaderboard = async (req, res) => {
             });
 
             enrichedLeaderboard.push(...chunkResults);
+
+            // Allow the event loop to breathe between chunks so we don't block
+            // incoming requests while computing leaderboards for 1000 users.
+            await new Promise(resolve => setImmediate(resolve));
         }
 
         // Sort by overall score descending

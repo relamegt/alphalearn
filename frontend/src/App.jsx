@@ -10,7 +10,6 @@ import CompleteProfile from './components/auth/CompleteProfile';
 // Shared Components
 import Navbar from './components/shared/Navbar';
 import SecurityWrapper from './components/shared/SecurityWrapper';
-import ExtensionCheck from './components/shared/ExtensionCheck';
 
 // Public Components
 import PublicProfile from './components/public/PublicProfile';
@@ -240,9 +239,7 @@ function App() {
                             path="/problems"
                             element={
                                 <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']}>
-                                    <ExtensionCheck>
-                                        <CodeEditor />
-                                    </ExtensionCheck>
+                                    <CodeEditor />
                                 </ProtectedRoute>
                             }
                         />
@@ -250,9 +247,7 @@ function App() {
                             path="/problems/:problemId"
                             element={
                                 <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']}>
-                                    <ExtensionCheck>
-                                        <CodeEditor />
-                                    </ExtensionCheck>
+                                    <CodeEditor />
                                 </ProtectedRoute>
                             }
                         />
@@ -311,9 +306,7 @@ function App() {
                             path="/contests/:contestId"
                             element={
                                 <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']} hideNavbar={true}>
-                                    <ExtensionCheck>
-                                        <ContestInterface />
-                                    </ExtensionCheck>
+                                    <ContestInterface />
                                 </ProtectedRoute>
                             }
                         />
@@ -321,9 +314,7 @@ function App() {
                             path="/contests/:contestId/practice"
                             element={
                                 <ProtectedRoute allowedRoles={['student', 'instructor', 'admin']} hideNavbar={true}>
-                                    <ExtensionCheck>
-                                        <ContestInterface isPractice={true} />
-                                    </ExtensionCheck>
+                                    <ContestInterface isPractice={true} />
                                 </ProtectedRoute>
                             }
                         />

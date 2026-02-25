@@ -33,8 +33,6 @@ import submissionService from '../../services/submissionService';
 import problemService from '../../services/problemService';
 import useCodeExecution from '../../hooks/useCodeExecution';
 import { useAuth } from '../../contexts/AuthContext';
-
-import { initSecurityFeatures } from '../../utils/disableInspect';
 import toast from 'react-hot-toast';
 import ProblemSidebar from './ProblemSidebar';
 import SubmissionsTab from './SubmissionsTab';
@@ -622,16 +620,6 @@ const CodeEditor = () => {
             setCode(tplCode);
         }
     };
-
-
-    // ───── security ───────────────────────────────────────────────────────────
-    useEffect(() => {
-        const cleanup = initSecurityFeatures(() =>
-            toast.error('⚠️ Developer tools are restricted here.', { duration: 5000 })
-        );
-        return cleanup;
-    }, []);
-
 
 
     // ───── auto-switch to results tab + trigger success pop ────────────────────

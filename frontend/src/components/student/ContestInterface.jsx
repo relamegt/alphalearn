@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import contestService from '../../services/contestService';
 import useProctoring from '../../hooks/useProctoring';
-import { initSecurityFeatures } from '../../utils/disableInspect';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import Cookies from 'js-cookie';
@@ -454,7 +453,6 @@ const ContestInterface = ({ isPractice = false }) => {
         const savedMap = localStorage.getItem(`contest_${contestId}_codeMap`);
         if (savedMap) setUserCodeMap(JSON.parse(savedMap));
         fetchContest();
-        initSecurityFeatures();
     }, [contestId]);
 
     // Leaderboard: fetch once when opened. Manual refresh available via the RotateCw button.

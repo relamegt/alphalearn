@@ -170,7 +170,7 @@ class ExternalProfile {
 
         const profiles = await collections.externalProfiles.find({
             studentId: { $in: studentIds }
-        }).toArray();
+        }).limit(15000).toArray();
 
         return profiles;
     }
