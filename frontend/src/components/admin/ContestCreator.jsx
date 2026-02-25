@@ -74,14 +74,35 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
         fetchProblems();
     }, []);
 
+    // Helper: convert a UTC date string/object to a "YYYY-MM-DDTHH:mm" string in LOCAL time
+    // so that <input type="datetime-local"> shows the right local time (not UTC).
+    const toLocalDatetimeString = (dateVal) => {
+        if (!dateVal) return '';
+        const d = new Date(dateVal);
+        if (isNaN(d.getTime())) return '';
+        // Offset the UTC time by the local timezone so the value appears in local time
+        const offsetMs = d.getTimezoneOffset() * 60 * 1000;
+        const localDate = new Date(d.getTime() - offsetMs);
+        return localDate.toISOString().slice(0, 16);
+    };
+
+    // Helper: convert a "YYYY-MM-DDTHH:mm" (datetime-local, no tz info) to a full ISO string
+    // with the local timezone offset, so the backend always gets an unambiguous timestamp.
+    const toISOWithLocalTZ = (localDatetimeStr) => {
+        if (!localDatetimeStr) return '';
+        // new Date("YYYY-MM-DDTHH:mm") is parsed as LOCAL time in browsers — this is correct.
+        // Explicitly construct it so we get a proper ISO string with offset.
+        return new Date(localDatetimeStr).toISOString();
+    };
+
     // Load initial data for editing
     useEffect(() => {
         if (initialData) {
             setFormData({
                 title: initialData.title || '',
                 description: initialData.description || '',
-                startTime: initialData.startTime ? new Date(initialData.startTime).toISOString().slice(0, 16) : '',
-                endTime: initialData.endTime ? new Date(initialData.endTime).toISOString().slice(0, 16) : '',
+                startTime: toLocalDatetimeString(initialData.startTime),
+                endTime: toLocalDatetimeString(initialData.endTime),
                 batchId: initialData.batchId || 'global',
                 existingProblemIds: (initialData.problems || []).map(p => {
                     // initialData.problems may be fully populated objects or plain ID strings
@@ -173,8 +194,13 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
 
         setLoading(true);
         try {
+            // Convert datetime-local strings to full ISO strings with the user's local timezone.
+            // Without this, the backend (running in UTC on Render) would interpret e.g.
+            // "2026-02-25T14:00" as 14:00 UTC instead of 14:00 IST (UTC+5:30).
             const payload = {
                 ...formData,
+                startTime: toISOWithLocalTZ(formData.startTime),
+                endTime: toISOWithLocalTZ(formData.endTime),
                 batchId: formData.batchId === 'global' ? null : formData.batchId,
                 problems: [...formData.existingProblemIds, ...newProblems]
             };
