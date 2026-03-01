@@ -397,7 +397,7 @@ const submitContestCode = async (req, res) => {
             await addExecutionJob({
                 type: 'submit',
                 studentId,
-                contestId,
+                contestId: contest._id.toString(),
                 problemId,
                 code,
                 language,
@@ -456,7 +456,7 @@ const submitContestCode = async (req, res) => {
         // Check if max violations exceeded (for manual submissions)
         const totalViolations = tabSwitchCount + fullscreenExits;
         if (contest.proctoringEnabled && !isAutoSubmit && totalViolations >= contest.maxViolations) {
-            notifyViolation(contestId, studentId, {
+            notifyViolation(contest._id.toString(), studentId, {
                 type: 'MAX_VIOLATIONS_REACHED',
                 message: 'Maximum violations exceeded. Your code will be auto-submitted.',
                 totalViolations
@@ -475,7 +475,7 @@ const submitContestCode = async (req, res) => {
         await addExecutionJob({
             type: 'submit',
             studentId,
-            contestId,
+            contestId: contest._id.toString(),
             problemId,
             code,
             language,
@@ -599,7 +599,7 @@ const runContestCode = async (req, res) => {
         await addExecutionJob({
             type: 'run',
             studentId,
-            contestId,
+            contestId: contest._id.toString(), // Always use the real _id so WS room key matches
             problemId,
             code,
             language,

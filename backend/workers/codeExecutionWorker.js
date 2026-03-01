@@ -7,7 +7,8 @@ const { executeWithTestCases } = require('../services/judge0Service'); // Note: 
 const { notifyLeaderboardUpdate, notifySubmission, notifyExecutionResult } = require('../config/websocket');
 
 const startCodeExecutionWorker = () => {
-    const worker = new Worker('code-execution', async (job) => {
+    const qName = process.env.NODE_ENV === 'production' ? 'code-execution' : 'code-execution-dev';
+    const worker = new Worker(qName, async (job) => {
         const data = job.data;
         console.log(`[Worker] Started ${data.type} execution for: ${data.studentId}, problem: ${data.problemId}`);
 

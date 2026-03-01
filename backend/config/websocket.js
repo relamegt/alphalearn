@@ -31,8 +31,13 @@ const initWebSocket = (server) => {
     });
 
     // Initialize Redis Pub/Sub for scaling across multiple server instances
-    pubClient = getRedis();
+    // IMPORTANT: pub and sub must be SEPARATE dedicated connections.
+    // A Redis client in subscriber mode cannot issue other commands.
+    pubClient = getNewRedisClient();
     subClient = getNewRedisClient();
+
+    pubClient.on('connect', () => console.log('📡 Redis pub client connected'));
+    pubClient.on('error', (err) => console.error('❌ Redis pub client error:', err.message));
 
     subClient.subscribe(REDIS_WS_CHANNEL, (err) => {
         if (err) console.error('❌ Failed to subscribe to Redis WS channel:', err);
@@ -43,12 +48,15 @@ const initWebSocket = (server) => {
         if (channel === REDIS_WS_CHANNEL) {
             try {
                 const { contestId, data } = JSON.parse(message);
+                console.log(`📩 [Redis→Local] type=${data.type} contest=${contestId} targetUserId=${data.targetUserId}`);
                 broadcastToLocalContest(contestId, data);
             } catch (err) {
                 console.error('❌ Error handling Redis WS message:', err);
             }
         }
     });
+
+    subClient.on('error', (err) => console.error('❌ Redis sub client error:', err.message));
 
     wss.on('connection', (ws, req) => {
         console.log('✅ New WebSocket connection established');
@@ -186,8 +194,11 @@ const handleWebSocketMessage = async (ws, data) => {
 
 // broadcastToContest now publishes to REDIS for horizontal scalability
 const broadcastToContest = (contestId, data) => {
-    if (!pubClient) return;
-
+    if (!pubClient) {
+        console.error('❌ broadcastToContest: pubClient is null!');
+        return;
+    }
+    console.log(`📤 [Publish] type=${data.type} contest=${contestId} targetUserId=${data.targetUserId}`);
     pubClient.publish(REDIS_WS_CHANNEL, JSON.stringify({
         contestId: contestId.toString(),
         data
@@ -205,17 +216,19 @@ const broadcastToLocalContest = (contestId, data) => {
     const broadcastChunk = (idx) => {
         const chunk = clients.slice(idx, idx + 50);
         if (!chunk.length) {
-            console.log(`📢 Local Broadcast to contest ${contestId}: ${data.type} (${successCount}/${clients.length} clients)`);
+            console.log(`📢 Local Broadcast to contest ${contestId}: ${data.type} (${successCount}/${clients.length} clients) targetUserId=${data.targetUserId}`);
             return;
         }
 
         chunk.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
                 // Target specific user if targetUserId is set (e.g. for violations)
-                if (data.targetUserId && client.userId !== data.targetUserId) {
+                if (data.targetUserId && String(client.userId) !== String(data.targetUserId)) {
+                    console.log(`❌ Skipped client mismatch: ${client.userId} !== ${data.targetUserId}`);
                     return;
                 }
                 try {
+                    console.log(`✅ Sending to client: ${client.userId}`);
                     client.send(message);
                     successCount++;
                 } catch (error) {

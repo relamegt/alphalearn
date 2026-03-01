@@ -44,7 +44,9 @@ const addScoreJob = async (studentId) => {
 
 const getExecutionQueue = () => {
     if (!executionQueue) {
-        executionQueue = new Queue('code-execution', {
+        // DEV FIX: Use a unique queue name so Render doesn't steal jobs from local dev
+        const qName = process.env.NODE_ENV === 'production' ? 'code-execution' : 'code-execution-dev';
+        executionQueue = new Queue(qName, {
             connection: getNewRedisClient()
         });
     }

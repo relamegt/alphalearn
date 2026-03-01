@@ -217,7 +217,7 @@ class ContestSubmission {
             if (problem && firstAccepted) {
                 totalScore += (problem.points || 0);
                 const timeTaken = (new Date(firstAccepted.submittedAt) - new Date(contest.startTime)) / (1000 * 60);
-                totalTime += Math.max(0, timeTaken);
+                totalTime = Math.max(totalTime, timeTaken);
             }
         }
 
@@ -455,7 +455,7 @@ class ContestSubmission {
 
                                     const firstAccepted = acceptedSubs.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt))[0];
                                     const timeTaken = (new Date(firstAccepted.submittedAt) - new Date(contest.startTime)) / (1000 * 60);
-                                    totalTime += Math.max(0, timeTaken);
+                                    totalTime = Math.max(totalTime, timeTaken);
                                     submittedOffset = Math.max(0, Math.floor(timeTaken));
                                 } else {
                                     status = 'Wrong Answer';

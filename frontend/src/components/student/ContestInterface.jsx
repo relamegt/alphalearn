@@ -355,6 +355,8 @@ const ContestInterface = ({ isPractice = false }) => {
         }
     }, [navigate, user, contestSubmitted, isPractice, basePath, handleFinishContest]);
 
+    const handleExecutionResultRef = useRef(null);
+
     const handleWebSocketMessage = useCallback((data) => {
         switch (data.type) {
             case 'leaderboardUpdate': setLeaderboardData(data.leaderboard || []); break;
@@ -376,36 +378,52 @@ const ContestInterface = ({ isPractice = false }) => {
             case 'violation': toast.error(`Violation detected: ${data.violation?.type}`); break;
             case 'contestEnded': handleContestEnd(); break;
             case 'executionResult':
-                if (data.targetUserId === user?._id || data.targetUserId === user?.userId) {
-                    handleExecutionResult(data);
+                console.log('[WS] Received executionResult:', data);
+                if (String(data.targetUserId) === String(user?._id || user?.userId || user?.id)) {
+                    if (handleExecutionResultRef.current) {
+                        handleExecutionResultRef.current(data);
+                    }
+                } else {
+                    console.log('[WS] targetUserId mismatch:', data.targetUserId, user?._id || user?.userId || user?.id);
                 }
                 break;
         }
     }, [handleContestEnd, contestId, user]);
 
+    // Keep a stable ref to handleWebSocketMessage so the WebSocket effect
+    // does NOT need it as a dependency (avoids needless reconnects).
+    const handleWebSocketMessageRef = useRef(handleWebSocketMessage);
+    useEffect(() => { handleWebSocketMessageRef.current = handleWebSocketMessage; }, [handleWebSocketMessage]);
+
     useEffect(() => {
         if (isPractice || !contestActive || !contest || contestSubmitted) return;
+        // CRITICAL: Use contest._id (the real MongoDB ObjectId) as the room key.
+        // The background worker always broadcasts using contest._id.
+        // If we join with the slug (URL param), the room key won't match and messages are lost.
+        const wsRoomId = contest._id || contestId;
         const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:5000'}/ws`;
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
-        // Read token inside onopen to avoid stale closure / timing issues
         ws.onopen = () => {
             let token = Cookies.get('accessToken') || localStorage.getItem('accessToken');
             if (!token) { console.warn('WS: no token, cannot join contest room'); return; }
             token = token.replace('Bearer ', '').trim();
-            ws.send(JSON.stringify({ type: 'join', contestId, token }));
+            console.log('[WS] Joining room with id:', wsRoomId);
+            ws.send(JSON.stringify({ type: 'join', contestId: wsRoomId, token }));
         };
+        // Use ref so onmessage always calls the latest handler without re-creating the WebSocket
         ws.onmessage = (event) => {
-            try { handleWebSocketMessage(JSON.parse(event.data)); } catch (e) { console.error(e); }
+            try { if (handleWebSocketMessageRef.current) handleWebSocketMessageRef.current(JSON.parse(event.data)); } catch (e) { console.error(e); }
         };
         ws.onerror = (e) => console.warn('WS error:', e);
         return () => {
             if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-                try { ws.send(JSON.stringify({ type: 'leave', contestId })); } catch (e) { }
+                try { ws.send(JSON.stringify({ type: 'leave', contestId: wsRoomId })); } catch (e) { }
                 ws.close();
             }
         };
-    }, [contestActive, contest, contestId, contestSubmitted, handleWebSocketMessage, isPractice]);
+        // NOTE: handleWebSocketMessage intentionally NOT in deps — we use a ref above.
+    }, [contestActive, contest, contestId, contestSubmitted, isPractice]);
 
     /* —"—"—" Data Fetching —"—"—" */
     const fetchContest = async () => {
@@ -738,6 +756,10 @@ const ContestInterface = ({ isPractice = false }) => {
                 .catch(() => { });
         }
     }, [contest, contestId, handleFinishContest, lockedProblems, selectedProblem]);
+
+    useEffect(() => {
+        handleExecutionResultRef.current = handleExecutionResult;
+    }, [handleExecutionResult]);
 
     const handleRun = async () => {
         if ((contestSubmitted || isProblemLocked) && !isPractice) return;
@@ -2026,7 +2048,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                             ))}
 
                                             <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('time')}>
-                                                Time {sortConfig.key === 'time' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                Time (hrs) {sortConfig.key === 'time' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
                                             <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('problemsSolved')}>
                                                 Solved {sortConfig.key === 'problemsSolved' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -2099,7 +2121,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                         </div>
                                                                         {pData?.submittedAt !== undefined && pData?.submittedAt !== null && (
                                                                             <span className="text-[10px] text-gray-500 font-mono tracking-tighter">
-                                                                                {pData.submittedAt}m
+                                                                                {(pData.submittedAt / 60).toFixed(2)} hrs
                                                                             </span>
                                                                         )}
                                                                     </div>
@@ -2107,7 +2129,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                             );
                                                         })}
 
-                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{entry.time}m</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{(entry.time / 60).toFixed(2)} hrs</td>
                                                         <td className="px-3 py-2 whitespace-nowrap text-center">
                                                             <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
                                                                 {entry.problemsSolved}/{contest?.problems?.length || 0}

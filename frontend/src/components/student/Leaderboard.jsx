@@ -581,10 +581,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
         // Format raw minutes into '4m' or '1:01h'
         const formatTime = (mins) => {
             if (mins === null || mins === undefined) return '';
-            if (mins < 60) return `${mins}m`;
-            const h = Math.floor(mins / 60);
-            const m = mins % 60;
-            return `${h}:${m.toString().padStart(2, '0')}h`;
+            return `${(mins / 60).toFixed(2)} hrs`;
         };
 
         // ONE column per problem –" header is "P1: Title"
@@ -1670,7 +1667,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         ))}
 
                                                         <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleInternalSort('time')}>
-                                                            Time (min) {internalSortConfig.key === 'time' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                            Time (hrs) {internalSortConfig.key === 'time' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
                                                         <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleInternalSort('problemsSolved')}>
                                                             Solved {internalSortConfig.key === 'problemsSolved' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -1735,16 +1732,9 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                     const pData = entry.problems?.[prob._id];
                                                                     const status = pData?.status || 'Not Attempted';
                                                                     const rawTime = pData?.submittedAt;
-                                                                    let formattedSubTime = null;
-                                                                    if (rawTime !== undefined && rawTime !== null) {
-                                                                        if (rawTime < 60) {
-                                                                            formattedSubTime = `${rawTime}m`;
-                                                                        } else {
-                                                                            const h = Math.floor(rawTime / 60);
-                                                                            const m = rawTime % 60;
-                                                                            formattedSubTime = `${h}:${m.toString().padStart(2, '0')}h`;
-                                                                        }
-                                                                    }
+                                                                    let formattedSubTime = (rawTime !== undefined && rawTime !== null)
+                                                                        ? `${(rawTime / 60).toFixed(2)} hrs`
+                                                                        : null;
 
                                                                     let bgClass = 'bg-gray-50 border-gray-200';
                                                                     let textClass = 'text-gray-400';
@@ -1781,7 +1771,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                 })}
 
                                                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">
-                                                                    {entry.time < 60 ? `${entry.time}m` : `${Math.floor(entry.time / 60)}:${(entry.time % 60).toString().padStart(2, '0')}h`}
+                                                                    {(entry.time / 60).toFixed(2)} hrs
                                                                 </td>
                                                                 <td className="px-3 py-2 whitespace-nowrap text-center">
                                                                     <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
