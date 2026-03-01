@@ -345,7 +345,7 @@ const validateCode = (code, language) => {
         cpp: [/system\s*\(/i, /exec\s*\(/i, /fork\s*\(/i],
         java: [/Runtime\.getRuntime\(\)/i, /ProcessBuilder/i],
         python: [/os\.system/i, /subprocess/i, /eval\s*\(/i, /exec\s*\(/i, /__import__/i],
-        javascript: [/require\s*\(/i, /eval\s*\(/i, /Function\s*\(/i, /child_process/i],
+        javascript: [/require\s*\(['"](child_process|os|vm)['"]\)/i, /eval\s*\(/i, /Function\s*\(/i, /child_process/i],
         csharp: [/System\.Diagnostics\.Process/i]
     };
 

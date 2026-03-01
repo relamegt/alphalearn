@@ -21,6 +21,7 @@ const ProfileManager = () => {
     const [loading, setLoading] = useState(false);
     const [externalProfiles, setExternalProfiles] = useState([]);
     const [showLinkModal, setShowLinkModal] = useState(false);
+    const [linkProfileData, setLinkProfileData] = useState({ platform: 'leetcode', username: '' });
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
@@ -77,6 +78,9 @@ const ProfileManager = () => {
         newPassword: '',
         confirmPassword: '',
     });
+
+    // Make handleDeleteProfile accessible to JSX if it was used before, or remove it.
+    // Wait, the eslint says it was NEVER USED. I will just comment it out.
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -276,17 +280,17 @@ const ProfileManager = () => {
             setLoading(false);
         }
     };
-    const handleDeleteProfile = async (profileId, platform) => {
-        if (!window.confirm(`Delete ${platform} profile link?`)) return;
-
-        try {
-            await profileService.deleteExternalProfile(profileId);
-            toast.success('Profile deleted successfully');
-            fetchExternalProfiles();
-        } catch (error) {
-            toast.error('Failed to delete profile');
-        }
-    };
+    // const handleDeleteProfile = async (profileId, platform) => {
+    //     if (!window.confirm(`Delete ${platform} profile link?`)) return;
+    //
+    //     try {
+    //         await profileService.deleteExternalProfile(profileId);
+    //         toast.success('Profile deleted successfully');
+    //         fetchExternalProfiles();
+    //     } catch (error) {
+    //         toast.error('Failed to delete profile');
+    //     }
+    // };
 
     const handleChangePassword = async (e) => {
         e.preventDefault();

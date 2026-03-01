@@ -117,13 +117,14 @@ const getProblemById = async (req, res) => {
             });
         }
 
-        // Hide hidden test cases for students
+        // Hide hidden test cases and reference solution for students
         if (req.user.role === 'student') {
             problem.testCases = problem.testCases.map(tc => ({
                 ...tc,
                 input: tc.isHidden ? 'Hidden' : tc.input,
                 output: tc.isHidden ? 'Hidden' : tc.output
             }));
+            delete problem.solutionCode;
         }
 
         res.json({
@@ -189,6 +190,31 @@ const deleteProblem = async (req, res) => {
     }
 };
 
+// Bulk delete problems
+const bulkDeleteProblems = async (req, res) => {
+    try {
+        const { problemIds } = req.body;
+
+        if (!problemIds || !Array.isArray(problemIds) || problemIds.length === 0) {
+            return res.status(400).json({ success: false, message: 'Array of problemIds is required' });
+        }
+
+        // Delete related submissions for all problems
+        for (const problemId of problemIds) {
+            await require('../models/Submission').deleteByProblem(problemId);
+            await Problem.delete(problemId);
+        }
+
+        res.json({
+            success: true,
+            message: `${problemIds.length} problems deleted successfully`
+        });
+    } catch (error) {
+        console.error('Bulk delete error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete problems', error: error.message });
+    }
+};
+
 // Get difficulty-wise problem count
 const getDifficultyWiseCount = async (req, res) => {
     try {
@@ -235,6 +261,24 @@ const setSolutionCode = async (req, res) => {
     }
 };
 
+// View editorial
+const viewEditorial = async (req, res) => {
+    try {
+        const { problemId } = req.params;
+        const studentId = req.user.userId;
+
+        await Progress.markEditorialViewed(studentId, problemId);
+
+        res.json({
+            success: true,
+            message: 'Editorial marked as viewed. Coins will not be awarded.'
+        });
+    } catch (error) {
+        console.error('View editorial error:', error);
+        res.status(500).json({ success: false, message: 'Failed to view editorial', error: error.message });
+    }
+};
+
 module.exports = {
     createProblem,
     bulkCreateProblems,
@@ -242,6 +286,8 @@ module.exports = {
     getProblemById,
     updateProblem,
     deleteProblem,
+    bulkDeleteProblems,
     getDifficultyWiseCount,
-    setSolutionCode
+    setSolutionCode,
+    viewEditorial
 };

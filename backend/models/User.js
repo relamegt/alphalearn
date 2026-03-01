@@ -256,24 +256,23 @@ class User {
         const userObjectId = new ObjectId(userId);
         const batchObjectId = new ObjectId(batchId);
 
-        // Remove from assignedBatches
-        await collections.users.updateOne(
-            { _id: userObjectId },
-            { $pull: { assignedBatches: batchObjectId } }
+        const user = await collections.users.findOne({ _id: userObjectId });
+        if (!user) return { success: false, message: 'User not found' };
+
+        const remainingBatches = (user.assignedBatches || []).filter(
+            id => id.toString() !== batchObjectId.toString()
         );
 
-        // Check if current batchId is the one being removed
-        // If so, update batchId to another assigned batch or null
-        const user = await collections.users.findOne({ _id: userObjectId });
-        if (user && user.batchId && user.batchId.toString() === batchObjectId.toString()) {
-            const remainingBatches = user.assignedBatches || [];
-            const newBatchId = remainingBatches.length > 0 ? remainingBatches[remainingBatches.length - 1] : null;
+        let updateData = { assignedBatches: remainingBatches };
 
-            await collections.users.updateOne(
-                { _id: userObjectId },
-                { $set: { batchId: newBatchId } }
-            );
+        if (user.batchId && user.batchId.toString() === batchObjectId.toString()) {
+            updateData.batchId = remainingBatches.length > 0 ? remainingBatches[remainingBatches.length - 1] : null;
         }
+
+        await collections.users.updateOne(
+            { _id: userObjectId },
+            { $set: updateData }
+        );
 
         return { success: true };
     }

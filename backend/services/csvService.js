@@ -147,6 +147,16 @@ const validateProblemData = (data) => {
 
         if (!row.testCases || !Array.isArray(row.testCases) || row.testCases.length === 0) {
             errors.push(`Row ${rowNum}: At least one test case is required`);
+        } else {
+            row.testCases.forEach((tc, tcIndex) => {
+                // Determine if it uses an auto-generator script instead of raw input
+                const hasInput = tc.input !== undefined && tc.input !== null && tc.input !== '';
+                const hasGenerator = !!(tc.generatorScript || tc.jsGeneratorScript || tc.jsOutputGenerator);
+
+                if (!hasInput && !hasGenerator) {
+                    errors.push(`Row ${rowNum}, TestCase ${tcIndex + 1}: Either 'input' or 'generatorScript'/'jsGeneratorScript' is required`);
+                }
+            });
         }
     });
 

@@ -25,7 +25,8 @@ export default {
             },
             fontFamily: {
                 sans: ['Inter', 'system-ui', 'sans-serif'],
-                mono: ['Fira Code', 'monospace'],
+                mono: ['Menlo', 'Monaco', 'Consolas', '"Courier New"', 'monospace'],
+                problem: ['"Open Sans"', '"Roboto"', 'sans-serif'],
             },
         },
     },

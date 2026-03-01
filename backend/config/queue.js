@@ -11,6 +11,7 @@ const { Queue } = require('bullmq');
 const { getNewRedisClient } = require('./redis');
 
 let scoreQueue = null;
+let executionQueue = null;
 
 // Lazily initialize the queue (only on first use, after Redis is ready)
 const getScoreQueue = () => {
@@ -41,7 +42,31 @@ const addScoreJob = async (studentId) => {
     }
 };
 
+const getExecutionQueue = () => {
+    if (!executionQueue) {
+        executionQueue = new Queue('code-execution', {
+            connection: getNewRedisClient()
+        });
+    }
+    return executionQueue;
+};
+
+const addExecutionJob = async (jobData) => {
+    try {
+        await getExecutionQueue().add('execute', jobData, {
+            attempts: 1, // Don't retry code executions automatically, let user retry
+            removeOnComplete: true,
+            removeOnFail: 100
+        });
+        console.log(`[Queue] Added execution job for user: ${jobData.studentId}, problem: ${jobData.problemId}`);
+    } catch (error) {
+        console.error('[Queue] Failed to add execution job:', error);
+    }
+};
+
 module.exports = {
     getScoreQueue,
-    addScoreJob
+    addScoreJob,
+    getExecutionQueue,
+    addExecutionJob
 };

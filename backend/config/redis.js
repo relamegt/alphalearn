@@ -6,21 +6,48 @@ dotenv.config();
 
 let redis = null;
 
+const getRedisOptions = () => {
+    const isTls = process.env.REDIS_URL && (
+        process.env.REDIS_URL.startsWith('rediss://') ||
+        process.env.REDIS_URL.includes('upstash')
+    );
+
+    const options = {
+        maxRetriesPerRequest: null, // Required for BullMQ
+        pingInterval: 10000, // Send application-level PING every 10s to prevent disconnects
+        keepAlive: 10000,   // TCP Keep-alive
+        // Reconnect silently if the connection drops
+        retryStrategy(times) {
+            const delay = Math.min(times * 100, 3000);
+            return delay;
+        }
+    };
+
+    if (isTls) {
+        options.tls = { rejectUnauthorized: false };
+    }
+
+    return options;
+};
+
 const initRedis = () => {
     if (!process.env.REDIS_URL) {
         console.warn('⚠️  REDIS_URL is not defined in environment variables. Falling back to local/dummy mode.');
-        // For development if Redis is not available, we could return a mock
-        // but for now, we'll try to connect to localhost or just let it fail
-        redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+        redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', getRedisOptions());
     } else {
-        // Upstash Redis URL usually looks like rediss://default:password@host:port
-        redis = new Redis(process.env.REDIS_URL, {
-            maxRetriesPerRequest: null // Required for BullMQ
-        });
+        redis = new Redis(process.env.REDIS_URL, getRedisOptions());
     }
 
+    // Attempt to silently reconnect on error if needed:
     redis.on('connect', () => console.log('✅ Redis Connected'));
-    redis.on('error', (err) => console.error('❌ Redis Connection Error:', err));
+    redis.on('error', (err) => {
+        // Prevent ECONNRESET spam from crashing or polluting the console terribly
+        if (err.code === 'ECONNRESET') {
+            console.warn('⚠️  Redis connection dropped (ECONNRESET). Auto-reconnecting...');
+        } else {
+            console.error('❌ Redis Connection Error:', err.message);
+        }
+    });
 
     return redis;
 };
@@ -35,17 +62,7 @@ const getNewRedisClient = () => {
     // For Upstash (and other Redis-over-TLS providers), omitting TLS causes silent
     // connection failures on the subscriber (WebSocket pub/sub) and BullMQ clients.
     // Fix: Build the options object the same way initRedis does.
-    const isUpstash = process.env.REDIS_URL && (
-        process.env.REDIS_URL.startsWith('rediss://') ||
-        process.env.REDIS_URL.includes('upstash')
-    );
-
-    const options = { maxRetriesPerRequest: null };
-    if (isUpstash) {
-        options.tls = { rejectUnauthorized: false };
-    }
-
-    return new Redis(process.env.REDIS_URL || 'redis://localhost:6379', options);
+    return new Redis(process.env.REDIS_URL || 'redis://localhost:6379', getRedisOptions());
 };
 
 module.exports = {

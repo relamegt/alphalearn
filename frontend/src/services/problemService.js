@@ -38,6 +38,16 @@ const problemService = {
         }
     },
 
+    // View Editorial → POST /api/problem/:problemId/view-editorial
+    viewEditorial: async (problemId) => {
+        try {
+            const response = await apiClient.post(`/problem/${problemId}/view-editorial`);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to mark editorial as viewed' };
+        }
+    },
+
     // ============================================
     // ADMIN-ONLY ROUTES
     // ============================================
@@ -86,6 +96,18 @@ const problemService = {
             return response.data;
         } catch (error) {
             throw error.response?.data || { message: 'Failed to delete problem' };
+        }
+    },
+
+    // Bulk Delete Problems → DELETE /api/problem/bulk
+    bulkDeleteProblems: async (problemIds) => {
+        try {
+            const response = await apiClient.delete('/problem/bulk', {
+                data: { problemIds }
+            });
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to delete problems' };
         }
     },
 

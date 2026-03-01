@@ -32,7 +32,35 @@ const ProblemSidebar = () => {
     const [difficulty, setDifficulty] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
 
-    useEffect(() => { fetchData(); }, []);
+    useEffect(() => {
+        fetchData();
+
+        const handleProblemSolved = (e) => {
+            const solvedId = e.detail?.problemId;
+            if (!solvedId) return;
+
+            setProblems(prev => {
+                let updated = false;
+                const next = prev.map(p => {
+                    const pidStr = p._id ? String(p._id) : null;
+                    const slug = p.id || pidStr;
+                    if (!p.isSolved && (solvedId === pidStr || solvedId === slug)) {
+                        updated = true;
+                        return { ...p, isSolved: true };
+                    }
+                    return p;
+                });
+
+                if (updated) {
+                    SIDEBAR_CACHE.problems = next;
+                }
+                return updated ? next : prev;
+            });
+        };
+
+        window.addEventListener('problemSolved', handleProblemSolved);
+        return () => window.removeEventListener('problemSolved', handleProblemSolved);
+    }, []);
 
     // Build a map of ObjectId → slug and slug → slug for reverse lookup
     // Since subsection.problemIds are ObjectIds but URL uses slug, we need to match both

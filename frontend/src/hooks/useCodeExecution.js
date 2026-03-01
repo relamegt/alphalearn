@@ -35,6 +35,7 @@ const useCodeExecution = () => {
 
             if (response.success) {
                 const normalizedRunResult = {
+                    problemId,
                     verdict: response.verdict,
                     testCasesPassed: response.testCasesPassed ?? 0,
                     totalTestCases: response.totalTestCases ?? 0,
@@ -69,6 +70,7 @@ const useCodeExecution = () => {
                 // Still set a run result so we can show the error in the results panel
                 if (response.verdict || response.results) {
                     setRunResult({
+                        problemId,
                         verdict: response.verdict || 'Error',
                         testCasesPassed: response.testCasesPassed ?? 0,
                         totalTestCases: response.totalTestCases ?? 0,
@@ -104,6 +106,7 @@ const useCodeExecution = () => {
 
             if (response.success) {
                 const normalized = {
+                    problemId,
                     verdict: response.verdict,
                     testCasesPassed: response.submission?.testCasesPassed ?? response.testCasesPassed ?? 0,
                     totalTestCases: response.submission?.totalTestCases ?? response.totalTestCases ?? 0,
@@ -136,6 +139,7 @@ const useCodeExecution = () => {
                 // Build partial result if possible so error is visible in results panel
                 if (response.verdict || response.results) {
                     setSubmitResult({
+                        problemId,
                         verdict: response.verdict || 'Error',
                         testCasesPassed: response.testCasesPassed ?? 0,
                         totalTestCases: response.totalTestCases ?? 0,

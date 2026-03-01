@@ -4,7 +4,7 @@ const multer = require('multer');
 const problemController = require('../controllers/problemController');
 const { verifyToken } = require('../middleware/auth');
 const { adminOnly } = require('../middleware/roleGuard');
-const { validateProblemCreation, validateObjectId, validateFileUpload } = require('../middleware/validation');
+const { validateProblemCreation, validateObjectId, validateProblemFileUpload } = require('../middleware/validation');
 const { fileUploadLimiter } = require('../middleware/rateLimiter');
 const Problem = require('../models/Problem');
 
@@ -28,7 +28,7 @@ router.param('problemId', resolveProblemSlug);
 
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 }
+    limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit for problem bulk uploads
 });
 
 router.use(verifyToken);
@@ -37,10 +37,12 @@ router.use(verifyToken);
 router.get('/', problemController.getAllProblems);
 router.get('/difficulty/count', problemController.getDifficultyWiseCount);
 router.get('/:problemId', validateObjectId('problemId'), problemController.getProblemById);
+router.post('/:problemId/view-editorial', validateObjectId('problemId'), problemController.viewEditorial);
 
 // Admin-only routes
 router.post('/', adminOnly, validateProblemCreation, problemController.createProblem);
-router.post('/bulk', adminOnly, upload.single('file'), fileUploadLimiter, validateFileUpload, problemController.bulkCreateProblems);
+router.post('/bulk', adminOnly, upload.single('file'), fileUploadLimiter, validateProblemFileUpload, problemController.bulkCreateProblems);
+router.delete('/bulk', adminOnly, problemController.bulkDeleteProblems);
 router.put('/:problemId', adminOnly, validateObjectId('problemId'), problemController.updateProblem);
 router.put('/:problemId/solution-code', adminOnly, validateObjectId('problemId'), problemController.setSolutionCode);
 router.delete('/:problemId', adminOnly, validateObjectId('problemId'), problemController.deleteProblem);

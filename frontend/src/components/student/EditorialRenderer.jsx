@@ -4,11 +4,13 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import {
     FaSpinner, FaCheck, FaCopy, FaChevronLeft, FaChevronRight,
     FaPause, FaPlay, FaYoutube
 } from 'react-icons/fa';
-import { ChevronDown, ChevronRight, Timer, Code2, Terminal, BookOpen, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, Timer, Code2, Terminal, BookOpen, ExternalLink, Lock } from 'lucide-react';
+import problemService from '../../services/problemService';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -181,7 +183,8 @@ const MarkdownComponents = {
     td: ({ children }) => <td className="px-3 py-2 border-r border-gray-100 last:border-r-0 align-top text-gray-700 text-[12px]">{children}</td>,
     code: ({ inline, className, children }) => {
         const content = String(children).replace(/\n$/, '');
-        if (inline || !content.includes('\n')) {
+        const match = /language-(\w+)/.exec(className || '');
+        if (inline || (!match && !content.includes('\n'))) {
             return <code className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[12px] font-mono border border-indigo-100 inline break-all">{children}</code>;
         }
         return (
@@ -346,12 +349,16 @@ const universalParse = (markdown) => {
 //   isAdmin        – if true, show edit buttons for editorial/video URL
 //   onUpdateLinks  – callback(editorialLink, videoUrl) when admin saves
 // ──────────────────────────────────────────────────────────────────────────────
-const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks }) => {
+//   hasViewedEditorial – true if student already unlocked
+//   onUnlockEditorial  – callback to trigger parent to update state
+// ──────────────────────────────────────────────────────────────────────────────
+const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedEditorial, onUnlockEditorial }) => {
     const [parsedContent, setParsedContent] = useState(null);
     const [fetchError, setFetchError] = useState(null);
     const [fetchLoading, setFetchLoading] = useState(false);
     const [codeTabStates, setCodeTabStates] = useState({});
     const [expandedSections, setExpandedSections] = useState({});
+    const [unlocking, setUnlocking] = useState(false);
 
     // Admin edit state
     const [editMode, setEditMode] = useState(false);
@@ -403,7 +410,7 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks }) => {
             case 'text':
                 return (
                     <div key={block.id} className="prose prose-gray max-w-none mb-4">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>{block.content}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>{block.content}</ReactMarkdown>
                     </div>
                 );
             case 'image':
@@ -478,6 +485,51 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks }) => {
                     <BookOpen size={40} className="opacity-20 mb-3" />
                     <p className="text-sm">Editorial not available yet.</p>
                     {isAdmin && <p className="text-xs mt-1 text-gray-300">Use the panel above to add a GitHub editorial link.</p>}
+                </div>
+            </div>
+        );
+    }
+
+    const handleUnlock = async () => {
+        setUnlocking(true);
+        try {
+            await problemService.viewEditorial(problem._id);
+            onUnlockEditorial?.();
+        } catch (error) {
+            console.error('Failed to unlock editorial:', error);
+        } finally {
+            setUnlocking(false);
+        }
+    };
+
+    // ── Lock Screen ───────────────────────────────────────────────────────────
+    if (!isAdmin && !hasViewedEditorial) {
+        return (
+            <div className="p-6 h-full flex flex-col items-center justify-center py-20 animate-fade-in relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/20 to-rose-50/20 pointer-events-none" />
+                <div className="relative z-10 flex flex-col items-center max-w-sm text-center">
+                    <div className="w-16 h-16 bg-white border border-gray-100 rounded-2xl shadow-xl flex items-center justify-center mb-5 text-indigo-500">
+                        <Lock size={28} />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">View Code Editorial</h2>
+                    <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+                        Are you sure you want to view the editorial? You <strong className="text-gray-800">will not earn any AlphaCoins</strong> for solving this problem after unlocking the explanation.
+                    </p>
+                    <button
+                        onClick={handleUnlock}
+                        disabled={unlocking}
+                        className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-[0.98] disabled:opacity-70"
+                    >
+                        {unlocking ? <FaSpinner className="animate-spin" /> : 'Yes, Reveal Editorial'}
+                    </button>
+                    <button
+                        onClick={() => {
+                            // If needed, we can trigger switching back to description tab, but doing nothing keeps them here
+                        }}
+                        className="mt-3 text-xs text-gray-400 hover:text-gray-600 font-semibold"
+                    >
+                        I want to keep trying
+                    </button>
                 </div>
             </div>
         );

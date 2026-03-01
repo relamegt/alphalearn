@@ -77,11 +77,20 @@ class Section {
 
     // Delete subsection
     static async deleteSubsection(sectionId, subsectionId) {
+        const section = await this.findById(sectionId);
+        if (!section) return null;
+
+        const updatedSubsections = (section.subsections || []).filter(
+            sub => sub._id.toString() !== subsectionId.toString()
+        );
+
         return await collections.sections.updateOne(
             { _id: new ObjectId(sectionId) },
             {
-                $pull: { subsections: { _id: new ObjectId(subsectionId) } },
-                $set: { updatedAt: new Date() }
+                $set: {
+                    subsections: updatedSubsections,
+                    updatedAt: new Date()
+                }
             }
         );
     }
@@ -109,17 +118,22 @@ class Section {
         // Convert back to ObjectIds
         subsection.problemIds = Array.from(newIds).map(id => new ObjectId(id));
 
-        // Update the specific subsection in the array (or the whole array if needed capabilities are limited)
-        // Here we can just update the specific index using $set if we know the index, but typically safer to just fetch-update-save in this pattern 
-        // OR construct the $set query with the index we just found: "subsections.N.problemIds"
-
-        const updateQuery = {};
-        updateQuery[`subsections.${subsectionIndex}.problemIds`] = subsection.problemIds;
-        updateQuery['updatedAt'] = new Date();
+        // Mutate the entire subsections array for Data API
+        const updatedSubsections = section.subsections.map((sub, index) => {
+            if (index === subsectionIndex) {
+                return subsection;
+            }
+            return sub;
+        });
 
         return await collections.sections.updateOne(
             { _id: new ObjectId(sectionId) },
-            { $set: updateQuery }
+            {
+                $set: {
+                    subsections: updatedSubsections,
+                    updatedAt: new Date()
+                }
+            }
         );
     }
 
@@ -147,13 +161,22 @@ class Section {
             return { matchedCount: 1, modifiedCount: 0 };
         }
 
-        const updateQuery = {};
-        updateQuery[`subsections.${subsectionIndex}.problemIds`] = subsection.problemIds;
-        updateQuery['updatedAt'] = new Date();
+        // Mutate the entire subsections array for Data API Compatibility
+        const updatedSubsections = section.subsections.map((sub, index) => {
+            if (index === subsectionIndex) {
+                return subsection;
+            }
+            return sub;
+        });
 
         return await collections.sections.updateOne(
             { _id: new ObjectId(sectionId) },
-            { $set: updateQuery }
+            {
+                $set: {
+                    subsections: updatedSubsections,
+                    updatedAt: new Date()
+                }
+            }
         );
     }
 }

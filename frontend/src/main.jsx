@@ -9,6 +9,12 @@ import './index.css';
 // Note: Monaco workers are managed internally by @monaco-editor/react.
 // No manual monaco-editor imports needed here.
 
+if (import.meta.env.PROD) {
+    console.log = () => { };
+    console.info = () => { };
+    console.debug = () => { };
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
     <QueryClientProvider client={queryClient}>
         <App />

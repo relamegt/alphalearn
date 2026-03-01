@@ -38,6 +38,30 @@ import {
 } from 'lucide-react';
 
 import CustomDropdown from '../shared/CustomDropdown';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+
+const MarkdownComponents = {
+    h1: ({ children }) => <h1 className="text-xl font-bold text-gray-900 mt-5 mb-3">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-lg font-bold text-gray-900 mt-5 mb-2">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-md font-semibold text-gray-800 mt-4 mb-1.5">{children}</h3>,
+    p: ({ children }) => <p className="text-gray-700 text-[14px] leading-6 mb-3 whitespace-pre-wrap break-words">{children}</p>,
+    ul: ({ children }) => <ul className="text-gray-700 text-[14px] list-disc list-outside ml-4 mb-3 space-y-1">{children}</ul>,
+    ol: ({ children }) => <ol className="text-gray-700 text-[14px] list-decimal list-outside ml-4 mb-3 space-y-1">{children}</ol>,
+    li: ({ children }) => <li className="pl-1 leading-6 break-words">{children}</li>,
+    blockquote: ({ children }) => <blockquote className="border-l-4 border-primary-400 pl-4 py-1 italic text-gray-500 my-3 bg-primary-50 rounded-r">{children}</blockquote>,
+    a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline break-all">{children}</a>,
+    img: ({ src, alt }) => <img src={src} alt={alt} className="max-w-full rounded-xl border border-gray-200 my-4 shadow-sm" />,
+    code: ({ inline, className, children }) => {
+        const content = String(children).replace(/\n$/, '');
+        const match = /language-(\w+)/.exec(className || '');
+        if (inline || (!match && !content.includes('\n'))) {
+            return <code className="bg-primary-50 text-primary-700 px-1 py-0.5 rounded text-sm font-mono break-all">{children}</code>;
+        }
+        return <pre className="my-3 p-3 overflow-x-auto text-sm font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded-lg">{children}</pre>;
+    }
+};
 
 /* —"—"—" Helpers —"—"—" */
 const DragHandleH = ({ onMouseDown }) => (
@@ -142,8 +166,8 @@ const DEFAULT_CODE = {
     c: '#include <stdio.h>\n\nint main() {\n    // your code\n    return 0;\n}',
     cpp: '#include <iostream>\nusing namespace std;\n\nint main() {\n    // your code\n    return 0;\n}',
     java: 'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        // your code\n    }\n}',
-    python: 'def main():\n    # your code\n    pass\n\nif __name__ == "__main__":\n    main()',
-    javascript: 'function main() {\n    // your code\n}\n\nmain();',
+    python: '# Write your Python code here\n',
+    javascript: '// Write your JavaScript code here\n',
     csharp: 'using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\nclass Program {\n    static void Main() {\n        // your code\n    }\n}',
 };
 
@@ -351,8 +375,13 @@ const ContestInterface = ({ isPractice = false }) => {
             case 'newSubmission': break; // Optional: toast notification
             case 'violation': toast.error(`Violation detected: ${data.violation?.type}`); break;
             case 'contestEnded': handleContestEnd(); break;
+            case 'executionResult':
+                if (data.targetUserId === user?._id || data.targetUserId === user?.userId) {
+                    handleExecutionResult(data);
+                }
+                break;
         }
-    }, [handleContestEnd, contestId]);
+    }, [handleContestEnd, contestId, user]);
 
     useEffect(() => {
         if (isPractice || !contestActive || !contest || contestSubmitted) return;
@@ -557,7 +586,7 @@ const ContestInterface = ({ isPractice = false }) => {
             }
         }, 1000);
         return () => clearInterval(interval);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, [contest, contestActive, contestSubmitted, isPractice]);
 
     /* —"—"—" Handlers —"—"—" */
@@ -605,6 +634,111 @@ const ContestInterface = ({ isPractice = false }) => {
         }
     };
 
+    const handleExecutionResult = useCallback((result) => {
+        if (result.isError) {
+            setRunning(false);
+            setSubmitting(false);
+            setConsoleOutput({ type: 'error', message: result.message || 'Execution failed' });
+            return;
+        }
+
+        if (result.isRun) {
+            setRunning(false);
+            const firstResult = result.results?.[0];
+            if (firstResult?.verdict === 'Compilation Error') {
+                const errMsg = firstResult.error || result.error || 'Compilation Error in your code';
+                setConsoleOutput({ type: 'error', message: errMsg });
+            } else {
+                setConsoleOutput({ type: 'run', data: result.results });
+            }
+            return;
+        }
+
+        // Must be a submit
+        setSubmitting(false);
+
+        const verdict = result.submission?.verdict;
+        if (verdict === 'Compilation Error') {
+            const errMsg = result.results?.find(r => r.verdict === 'Compilation Error')?.error
+                || result.results?.[0]?.error
+                || result.error
+                || 'Compilation Error in your code';
+            setConsoleOutput({ type: 'error', message: errMsg });
+            toast.error('Compilation Error');
+            return;
+        }
+
+        if (result.isPractice) {
+            const practiceFirstResult = result.results?.[0];
+            if (practiceFirstResult?.verdict === 'Compilation Error') {
+                setConsoleOutput({ type: 'error', message: practiceFirstResult.error || 'Compilation Error' });
+                toast.error('Compilation Error');
+                return;
+            }
+            setConsoleOutput({ type: 'run', data: result.results });
+            if (verdict === 'Accepted' || result.submission?.verdict === 'Accepted') {
+                toast.success('Practice: All Test Cases Passed!', { duration: 3000 });
+            } else {
+                toast.error(`Practice: ${verdict || result.submission?.verdict}`, { duration: 3000 });
+            }
+        } else {
+            setConsoleOutput({ type: 'submit', submission: result.submission, data: result.results });
+        }
+
+        if (result.submission?.verdict === 'Accepted' || verdict === 'Accepted') {
+            if (!result.isPractice) {
+                toast.success('🎉 Problem Solved!');
+                const newLocked = new Set([...lockedProblems, selectedProblem._id]);
+                setLockedProblems(newLocked);
+                setUserSubmissions(prev => ({ ...prev, [selectedProblem._id]: 'Accepted' }));
+
+                const savedMap = JSON.parse(localStorage.getItem(`contest_${contestId}_codeMap`) || '{}');
+                delete savedMap[selectedProblem._id];
+                localStorage.setItem(`contest_${contestId}_codeMap`, JSON.stringify(savedMap));
+
+                const allSolved = newLocked.size >= contest?.problems?.length;
+                if (allSolved) {
+                    setTimeout(() => {
+                        toast.success('🏆 All problems completed! Finishing contest...', { duration: 4000 });
+                        handleFinishContest(true);
+                    }, 2500);
+                } else {
+                    const currentIndex = contest.problems.findIndex(p => p._id === selectedProblem._id);
+                    let nextProblem = null;
+                    for (let i = currentIndex + 1; i < contest.problems.length; i++) {
+                        if (!newLocked.has(contest.problems[i]._id)) {
+                            nextProblem = contest.problems[i];
+                            break;
+                        }
+                    }
+                    if (!nextProblem) {
+                        nextProblem = contest.problems.find(p => !newLocked.has(p._id));
+                    }
+                    if (nextProblem) {
+                        setTimeout(() => {
+                            toast(
+                                <span className="flex items-center gap-1.5">Moving to next problem.. <MdOutlineArrowForward size={15} /></span>
+                            );
+                            handleProblemChange(nextProblem);
+                        }, 2500);
+                    }
+                }
+            } else {
+                const savedMap = JSON.parse(localStorage.getItem(`contest_${contestId}_codeMap`) || '{}');
+                delete savedMap[selectedProblem._id];
+                localStorage.setItem(`contest_${contestId}_codeMap`, JSON.stringify(savedMap));
+            }
+        } else if (!result.isPractice) {
+            toast.error(result.submission?.verdict || 'Wrong Answer');
+        }
+
+        if (!result.isPractice) {
+            contestService.getContestLeaderboard(contestId)
+                .then(lb => setLeaderboardData(lb.leaderboard || []))
+                .catch(() => { });
+        }
+    }, [contest, contestId, handleFinishContest, lockedProblems, selectedProblem]);
+
     const handleRun = async () => {
         if ((contestSubmitted || isProblemLocked) && !isPractice) return;
         if (!currentCode.trim()) return toast.error('Code cannot be empty');
@@ -625,20 +759,13 @@ const ContestInterface = ({ isPractice = false }) => {
                 language: currentLang,
                 isPractice
             });
-            setRunning(false);
 
-            // —"—" Detect compilation error from results array (backend puts it there) —"—"
-            const firstResult = result.results?.[0];
-            if (firstResult?.verdict === 'Compilation Error') {
-                const errMsg = firstResult.error || result.error || 'Compilation Error in your code';
-                setConsoleOutput({ type: 'error', message: errMsg });
-            } else {
-                setConsoleOutput({ type: 'run', data: result.results });
-            }
+            if (result.isProcessing) return; // Wait for WS result
+            handleExecutionResult({ ...result, isRun: true });
         } catch (error) {
             setRunning(false);
             setConsoleOutput({ type: 'error', message: error.message || 'Execution failed' });
-        } finally { setRunning(false); }
+        }
     };
 
     const handleSubmit = async () => {
@@ -653,7 +780,6 @@ const ContestInterface = ({ isPractice = false }) => {
         setEditorTopH(40);
         setResultsAnimKey(k => k + 1);
         setActiveResultCase(0);
-        // Clear previous output immediately so UI is fresh
         setConsoleOutput(null);
 
         try {
@@ -666,101 +792,8 @@ const ContestInterface = ({ isPractice = false }) => {
                 isPractice
             });
 
-            // —"—" Stop loading spinner IMMEDIATELY before any other logic —"—"
-            setSubmitting(false);
-
-            // —"—" Detect compilation error from the verdict (backend stores it in submission.verdict) —"—"
-            const verdict = result.submission?.verdict;
-            if (verdict === 'Compilation Error') {
-                // Find the error message: it lives in the first result's error field
-                const errMsg =
-                    result.results?.find(r => r.verdict === 'Compilation Error')?.error
-                    || result.results?.[0]?.error
-                    || result.error
-                    || 'Compilation Error in your code';
-                setConsoleOutput({ type: 'error', message: errMsg });
-                toast.error('Compilation Error');
-                return;
-            }
-
-            if (isPractice) {
-                // Practice: also detect compilation error in results array
-                const practiceFirstResult = result.results?.[0];
-                if (practiceFirstResult?.verdict === 'Compilation Error') {
-                    setConsoleOutput({ type: 'error', message: practiceFirstResult.error || 'Compilation Error' });
-                    toast.error('Compilation Error');
-                    return;
-                }
-                setConsoleOutput({ type: 'run', data: result.results });
-                if (verdict === 'Accepted') {
-                    toast.success('Practice: All Test Cases Passed!', { duration: 3000 });
-                } else {
-                    toast.error(`Practice: ${verdict}`, { duration: 3000 });
-                }
-            } else {
-                setConsoleOutput({ type: 'submit', submission: result.submission, data: result.results });
-            }
-
-            if (result.submission.verdict === 'Accepted') {
-                if (!isPractice) {
-                    toast.success('🎉 Problem Solved!');
-                    // Update locked problems eagerly
-                    const newLocked = new Set([...lockedProblems, selectedProblem._id]);
-                    setLockedProblems(newLocked);
-                    setUserSubmissions(prev => ({ ...prev, [selectedProblem._id]: 'Accepted' }));
-
-                    // Clear saved draft for this problem
-                    const savedMap = JSON.parse(localStorage.getItem(`contest_${contestId}_codeMap`) || '{}');
-                    delete savedMap[selectedProblem._id];
-                    localStorage.setItem(`contest_${contestId}_codeMap`, JSON.stringify(savedMap));
-
-                    // Check if all problems are now solved
-                    const allSolved = newLocked.size >= contest.problems.length;
-                    if (allSolved) {
-                        setTimeout(() => {
-                            toast.success('🏆 All problems completed! Finishing contest...', { duration: 4000 });
-                            handleFinishContest(true);
-                        }, 2500);
-                    } else {
-                        // Auto-advance to next unlocked
-                        const currentIndex = contest.problems.findIndex(p => p._id === selectedProblem._id);
-                        let nextProblem = null;
-                        // Look forward first
-                        for (let i = currentIndex + 1; i < contest.problems.length; i++) {
-                            if (!newLocked.has(contest.problems[i]._id)) {
-                                nextProblem = contest.problems[i];
-                                break;
-                            }
-                        }
-                        // Wrap around if needed
-                        if (!nextProblem) {
-                            nextProblem = contest.problems.find(p => !newLocked.has(p._id));
-                        }
-                        if (nextProblem) {
-                            setTimeout(() => {
-                                toast(
-                                    <span className="flex items-center gap-1.5">Moving to next problem.. <MdOutlineArrowForward size={15} /></span>
-                                );
-                                handleProblemChange(nextProblem);
-                            }, 2500);
-                        }
-                    }
-                } else {
-                    // Practice mode draft clear
-                    const savedMap = JSON.parse(localStorage.getItem(`contest_${contestId}_codeMap`) || '{}');
-                    delete savedMap[selectedProblem._id];
-                    localStorage.setItem(`contest_${contestId}_codeMap`, JSON.stringify(savedMap));
-                }
-            } else {
-                toast.error(result.submission.verdict || 'Wrong Answer');
-            }
-
-            // —"—" Refresh leaderboard in background (non-blocking) —"—"
-            if (!isPractice) {
-                contestService.getContestLeaderboard(contestId)
-                    .then(lb => setLeaderboardData(lb.leaderboard || []))
-                    .catch(() => { });
-            }
+            if (result.isProcessing) return; // Wait for WS result
+            handleExecutionResult(result);
         } catch (error) {
             setSubmitting(false);
             if (error.shouldAutoSubmit) handleMaxViolations();
@@ -768,7 +801,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 setConsoleOutput({ type: 'error', message: error.message || 'Submission failed' });
                 toast.error(error.message || 'Submission failed');
             }
-        } finally { setSubmitting(false); }
+        }
     };
 
 
@@ -1088,9 +1121,21 @@ const ContestInterface = ({ isPractice = false }) => {
     // Result Logic
     const isCompileErr = consoleOutput?.type === 'error';
     const displayResult = consoleOutput?.type === 'run'
-        ? { verdict: consoleOutput.data?.every(r => r.passed) ? 'Accepted' : 'Wrong Answer', results: consoleOutput.data, isRun: true }
+        ? {
+            verdict: consoleOutput.data?.every(r => r.passed) ? 'Accepted' : 'Wrong Answer', results: consoleOutput.data, isRun: true,
+            testCasesPassed: consoleOutput.data?.filter(r => r.passed).length ?? 0,
+            totalTestCases: consoleOutput.data?.length ?? 0
+        }
         : consoleOutput?.type === 'submit'
-            ? { verdict: consoleOutput.submission.verdict, results: consoleOutput.data, isSubmitMode: true }
+            ? {
+                verdict: consoleOutput.submission.verdict,
+                results: consoleOutput.data,
+                isRun: false,
+                isSubmitMode: true,
+                testCasesPassed: consoleOutput.submission?.testCasesPassed ?? consoleOutput.data?.filter(r => r.passed).length ?? 0,
+                totalTestCases: consoleOutput.submission?.totalTestCases ?? consoleOutput.data?.length ?? 0,
+                error: consoleOutput.submission?.error || null
+            }
             : null;
 
     const runAllPassed = displayResult?.isRun && displayResult?.results?.every(r => r.passed);
@@ -1357,8 +1402,8 @@ const ContestInterface = ({ isPractice = false }) => {
 
                         {selectedProblem ? (
                             showEditorial ? (
-                                <div className="prose prose-sm max-w-none">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-6">{selectedProblem.title} - Editorial</h2>
+                                <div className="prose prose-sm max-w-none font-problem">
+                                    <h2 className="text-xl font-bold text-gray-900 mb-6 font-sans">{selectedProblem.title} - Editorial</h2>
 
                                     {selectedProblem.editorial.approach && (
                                         <div className="mb-8">
@@ -1409,15 +1454,39 @@ const ContestInterface = ({ isPractice = false }) => {
                                     )}
                                 </div>
                             ) : (
-                                <div className="prose prose-sm max-w-none">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-4">{selectedProblem.title}</h2>
-                                    <div className="flex flex-wrap gap-2 mb-6">
+                                <div className="prose prose-sm max-w-none font-problem">
+                                    <h2 className="text-xl font-bold text-gray-900 mb-4 font-sans">{selectedProblem.title}</h2>
+                                    <div className="flex flex-wrap gap-2 mb-6 font-sans">
                                         <DiffBadge d={selectedProblem.difficulty} />
                                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold">
                                             <Coins size={10} /> {selectedProblem.points} pts
                                         </span>
                                     </div>
-                                    <div dangerouslySetInnerHTML={{ __html: selectedProblem.description }} />
+                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
+                                        {selectedProblem.description}
+                                    </ReactMarkdown>
+
+                                    {selectedProblem.inputFormat && (
+                                        <div className="mt-6">
+                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">Input Format</h3>
+                                            <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 text-sm text-gray-700">
+                                                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
+                                                    {selectedProblem.inputFormat}
+                                                </ReactMarkdown>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedProblem.outputFormat && (
+                                        <div className="mt-6">
+                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">Output Format</h3>
+                                            <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 text-sm text-gray-700">
+                                                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
+                                                    {selectedProblem.outputFormat}
+                                                </ReactMarkdown>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {selectedProblem.examples?.map((ex, i) => (
                                         <div key={i} className="mt-6">
@@ -1446,6 +1515,40 @@ const ContestInterface = ({ isPractice = false }) => {
                                                     </li>
                                                 ))}
                                             </ul>
+                                        </div>
+                                    )}
+
+                                    {selectedProblem.edgeCases?.length > 0 && (
+                                        <div className="mt-8">
+                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Edge Cases</h3>
+                                            <ul className="space-y-2">
+                                                {selectedProblem.edgeCases.map((c, i) => (
+                                                    <li key={i} className="text-xs font-mono text-gray-600 bg-gray-50 px-3 py-2 rounded border border-gray-100 flex items-start gap-2">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-1.5 shrink-0" />
+                                                        {c}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {(selectedProblem.timeComplexity || selectedProblem.spaceComplexity) && (
+                                        <div className="mt-8">
+                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Complexity</h3>
+                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+                                                {selectedProblem.timeComplexity && (
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-xs font-bold text-gray-500 uppercase w-12">Time:</span>
+                                                        <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-3 py-1 rounded shadow-sm">{selectedProblem.timeComplexity}</span>
+                                                    </div>
+                                                )}
+                                                {selectedProblem.spaceComplexity && (
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-xs font-bold text-gray-500 uppercase w-12">Space:</span>
+                                                        <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-3 py-1 rounded shadow-sm">{selectedProblem.spaceComplexity}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -1567,7 +1670,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                 <>
                                     {/* Test Cases Tab */}
                                     {bottomTab === 'testcases' && (
-                                        <div className="flex flex-col h-full">
+                                        <div className="flex flex-col h-full font-problem">
                                             {/* Tabs */}
                                             <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0">
                                                 {/* Standard Cases */}
@@ -1592,13 +1695,13 @@ const ContestInterface = ({ isPractice = false }) => {
                                                     <div className="space-y-4 max-w-2xl">
                                                         <div>
                                                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap select-text">
+                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 whitespace-pre-wrap select-text">
                                                                 {sampleTestCases[activeInputCase].input}
                                                             </div>
                                                         </div>
                                                         <div>
                                                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap opacity-80 select-text">
+                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-600 whitespace-pre-wrap opacity-80 select-text">
                                                                 {sampleTestCases[activeInputCase].output}
                                                             </div>
                                                         </div>
@@ -1632,30 +1735,31 @@ const ContestInterface = ({ isPractice = false }) => {
                                                 </div>
                                             )}
 
-                                            {/* —"—" Has results —"—" */}
+                                            {/* ── Has results ── */}
                                             {!running && !submitting && !isCompileErr && displayResult && (
-                                                <div className="flex flex-col h-full">
-                                                    {/* —"—" LeetCode-style Verdict Header —"—" */}
+                                                <div className="flex flex-col h-full font-problem">
+                                                    {/* ── Verdict Header ── */}
                                                     {(() => {
                                                         const vc = getVerdictColor(displayResult.verdict);
                                                         const isAccepted = displayResult.verdict === 'Accepted';
+                                                        const isTLE = displayResult.verdict === 'TLE';
+                                                        const isSubmit = !displayResult.isRun;
                                                         return (
                                                             <div className={`px-5 py-4 border-b shrink-0 ${vc.bg} ${vc.border}`}>
                                                                 <div className="flex items-start justify-between gap-3">
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                                            {isAccepted ? <CheckCircle size={20} /> : <XCircle size={20} />}
+                                                                        <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 text-green-600' : isTLE ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
+                                                                            {isAccepted ? <CheckCircle size={20} /> : isTLE ? <Clock size={20} /> : <XCircle size={20} />}
                                                                         </div>
                                                                         <div>
                                                                             <h2 className={`text-lg font-bold ${vc.text}`}>
                                                                                 {displayResult.verdict}
                                                                             </h2>
-                                                                            {/* X / Y testcases passed — always shown */}
                                                                             <div className="flex items-center gap-3 mt-1 flex-wrap">
                                                                                 <span className={`text-sm font-medium ${vc.text}`}>
                                                                                     {displayResult.testCasesPassed ?? (displayResult.results?.filter(r => r.passed).length || 0)} / {displayResult.totalTestCases ?? (displayResult.results?.length || 0)} testcases passed
                                                                                 </span>
-                                                                                {displayResult.isRun === false && (
+                                                                                {isSubmit && (
                                                                                     <span className="text-xs text-gray-500">All Test Cases</span>
                                                                                 )}
                                                                             </div>
@@ -1666,105 +1770,135 @@ const ContestInterface = ({ isPractice = false }) => {
                                                         );
                                                     })()}
 
-                                                    {/* —"—" Test Case Tabs (LeetCode style) —"—" */}
-                                                    {displayResult.results?.length > 0 && (
-                                                        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0 bg-white">
-                                                            {displayResult.results.map((r, i) => {
-                                                                const label = `Case ${i + 1}`;
-                                                                return (
+                                                    {/* ── SUBMIT MODE: Clean circular summary, no per-case tabs ── */}
+                                                    {!displayResult.isRun && (() => {
+                                                        const v = displayResult.verdict;
+                                                        const isAC = v === 'Accepted';
+                                                        const isTLE = v === 'TLE';
+                                                        const isWA = v === 'Wrong Answer';
+                                                        const isRE = v === 'Runtime Error';
+                                                        const passed = displayResult.testCasesPassed ?? 0;
+                                                        const total = displayResult.totalTestCases ?? 0;
+                                                        const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
+                                                        const circleColor = isAC ? '#22c55e' : isTLE ? '#eab308' : '#ef4444';
+                                                        const bgColor = isAC ? '#f0fdf4' : isTLE ? '#fefce8' : '#fef2f2';
+                                                        const radius = 52;
+                                                        const circ = 2 * Math.PI * radius;
+                                                        const dash = (pct / 100) * circ;
+                                                        return (
+                                                            <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 py-8">
+                                                                <div style={{ position: 'relative', width: 140, height: 140 }}>
+                                                                    <svg width="140" height="140" style={{ transform: 'rotate(-90deg)' }}>
+                                                                        <circle cx="70" cy="70" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="10" />
+                                                                        <circle
+                                                                            cx="70" cy="70" r={radius}
+                                                                            fill="none"
+                                                                            stroke={circleColor}
+                                                                            strokeWidth="10"
+                                                                            strokeDasharray={`${dash} ${circ - dash}`}
+                                                                            strokeLinecap="round"
+                                                                            style={{ transition: 'stroke-dasharray 0.6s ease' }}
+                                                                        />
+                                                                    </svg>
+                                                                    <div style={{
+                                                                        position: 'absolute', inset: 0,
+                                                                        display: 'flex', flexDirection: 'column',
+                                                                        alignItems: 'center', justifyContent: 'center'
+                                                                    }}>
+                                                                        <span style={{ fontSize: 22, fontWeight: 800, color: circleColor, lineHeight: 1 }}>{passed}</span>
+                                                                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>/ {total}</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex flex-col items-center gap-2">
+                                                                    <span style={{
+                                                                        background: bgColor, color: circleColor,
+                                                                        border: `1.5px solid ${circleColor}30`,
+                                                                        borderRadius: 99, padding: '4px 18px',
+                                                                        fontWeight: 700, fontSize: 13
+                                                                    }}>{v}</span>
+                                                                    <p className="text-xs text-gray-400 font-medium text-center">
+                                                                        {isAC && 'Great job! All test cases passed.'}
+                                                                        {isTLE && `${passed} cases passed before time limit was exceeded.`}
+                                                                        {isWA && `${passed} / ${total} cases correct.`}
+                                                                        {isRE && 'Your code crashed on a test case.'}
+                                                                        {v === 'Compilation Error' && 'Fix your compile errors and resubmit.'}
+                                                                    </p>
+                                                                </div>
+                                                                {displayResult.error && !isAC && (
+                                                                    <div className="w-full max-w-sm">
+                                                                        <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Error</p>
+                                                                        <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap">
+                                                                            {displayResult.error}
+                                                                        </pre>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
+
+                                                    {/* ── RUN MODE: Per-case tabs + details (unchanged) ── */}
+                                                    {displayResult.isRun && displayResult.results?.length > 0 && (
+                                                        <>
+                                                            <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0 bg-white">
+                                                                {displayResult.results.map((r, i) => (
                                                                     <button
                                                                         key={i}
                                                                         onClick={() => setActiveResultCase(i)}
                                                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
                                                                                     ${activeResultCase === i
-                                                                                ? `${r.passed
-                                                                                    ? 'bg-green-50 border-green-300 text-green-700'
-                                                                                    : 'bg-red-50 border-red-300 text-red-700'
-                                                                                } font-semibold`
+                                                                                ? `${r.passed ? 'bg-green-50 border-green-300 text-green-700' : 'bg-red-50 border-red-300 text-red-700'} font-semibold`
                                                                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                                                                             }`}
                                                                     >
                                                                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                                        {label}
+                                                                        Case {i + 1}
                                                                     </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-
-                                                    {/* —"—" Result Details —"—" */}
-                                                    <div className="flex-1 p-4 overflow-y-auto">
-                                                        {displayResult.results?.[activeResultCase] ? (
-                                                            <div className="space-y-4 max-w-3xl">
-                                                                {/* Hidden test case placeholder */}
-                                                                {displayResult.results[activeResultCase].isHidden ? (
-                                                                    <div className={`p-10 text-center border-2 border-dashed rounded-xl ${displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}`}>
-                                                                        <Lock size={24} className={`mx-auto mb-3 ${displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}`} />
-                                                                        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Hidden Test Case</p>
-                                                                        <p className={`text-sm font-semibold mt-2 ${displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}`}>
-                                                                            {displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}
-                                                                        </p>
-                                                                        <p className="text-[10px] text-gray-400 mt-1">Input and expected output are hidden</p>
-                                                                    </div>
-                                                                ) : (
-                                                                    <>
-                                                                        {/* Pass / Fail badge */}
-                                                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${displayResult.results[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}`}>
+                                                                ))}
+                                                            </div>
+                                                            <div className="flex-1 p-4 overflow-y-auto">
+                                                                {displayResult.results[activeResultCase] ? (
+                                                                    <div className="space-y-4 max-w-3xl">
+                                                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${displayResult.results[activeResultCase].passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                                                             {displayResult.results[activeResultCase].passed
                                                                                 ? <><CheckCircle size={12} /> Passed</>
                                                                                 : <><XCircle size={12} /> {displayResult.results[activeResultCase].verdict || 'Failed'}</>
                                                                             }
                                                                         </div>
-
-                                                                        {/* Input */}
                                                                         <div>
                                                                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
+                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
                                                                                 {displayResult.results[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
                                                                             </div>
                                                                         </div>
-
-                                                                        {/* Your Output + Expected Output side by side */}
                                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                            {/* Your Output */}
                                                                             <div>
                                                                                 <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Your Output</p>
-                                                                                <div className={`rounded-lg p-3 text-xs font-mono whitespace-pre-wrap border min-h-[48px]
-                                                                                        ${displayResult.results[activeResultCase].passed
-                                                                                        ? 'bg-green-50/40 border-green-200 text-gray-900'
-                                                                                        : 'bg-red-50/40 border-red-200 text-gray-900'
-                                                                                    }`}
-                                                                                >
+                                                                                <div className={`rounded-lg p-3 text-sm font-mono whitespace-pre-wrap border min-h-[48px] ${displayResult.results[activeResultCase].passed ? 'bg-green-50/40 border-green-200' : 'bg-red-50/40 border-red-200'} text-gray-900`}>
                                                                                     {displayResult.results[activeResultCase].actualOutput || <span className="text-gray-400 italic">No output</span>}
                                                                                 </div>
                                                                             </div>
-                                                                            {/* Expected Output */}
                                                                             <div>
                                                                                 <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
+                                                                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
                                                                                     {displayResult.results[activeResultCase].expectedOutput ?? <span className="text-gray-400 italic">N/A</span>}
                                                                                 </div>
                                                                             </div>
                                                                         </div>
-
-                                                                        {/* Runtime error / stderr */}
                                                                         {displayResult.results[activeResultCase].error && (
                                                                             <div>
                                                                                 <p className="text-[10px] font-bold text-red-500 uppercase mb-1.5">Error / Traceback</p>
-                                                                                <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap">
+                                                                                <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap">
                                                                                     {displayResult.results[activeResultCase].error}
                                                                                 </pre>
                                                                             </div>
                                                                         )}
-                                                                    </>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center justify-center h-full text-gray-400 text-xs">No result data for this case.</div>
                                                                 )}
                                                             </div>
-                                                        ) : (
-                                                            <div className="flex items-center justify-center h-full text-gray-400 text-xs">
-                                                                No result data for this case.
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             )}
 

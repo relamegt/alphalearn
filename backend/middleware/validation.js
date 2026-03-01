@@ -129,7 +129,7 @@ const validateFilterQuery = [
     handleValidationErrors
 ];
 
-// File upload validation
+// File upload validation (5MB max)
 const validateFileUpload = (req, res, next) => {
     if (!req.file) {
         return res.status(400).json({
@@ -151,6 +151,34 @@ const validateFileUpload = (req, res, next) => {
         return res.status(400).json({
             success: false,
             message: 'File size exceeds 5MB limit'
+        });
+    }
+
+    next();
+};
+
+// File upload validation for problems (20MB max)
+const validateProblemFileUpload = (req, res, next) => {
+    if (!req.file) {
+        return res.status(400).json({
+            success: false,
+            message: 'File is required'
+        });
+    }
+
+    const allowedTypes = ['text/csv', 'application/json'];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid file type. Only CSV and JSON files are allowed.'
+        });
+    }
+
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (req.file.size > maxSize) {
+        return res.status(400).json({
+            success: false,
+            message: 'File size exceeds 20MB limit'
         });
     }
 
@@ -186,5 +214,6 @@ module.exports = {
     validatePagination,
     validateFilterQuery,
     validateFileUpload,
+    validateProblemFileUpload,
     validateProfileCompletion
 };

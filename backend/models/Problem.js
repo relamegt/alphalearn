@@ -28,8 +28,13 @@ class Problem {
             points: problemData.difficulty === 'Easy' ? 20 : problemData.difficulty === 'Medium' ? 50 : 100,
             description: problemData.description,
             constraints: problemData.constraints || [],
+            inputFormat: problemData.inputFormat || '',
+            outputFormat: problemData.outputFormat || '',
+            edgeCases: problemData.edgeCases || [],
             examples: problemData.examples || [],
             testCases: problemData.testCases || [],
+            timeComplexity: problemData.timeComplexity || '',
+            spaceComplexity: problemData.spaceComplexity || '',
             timeLimit: problemData.timeLimit || 2000,
             editorial: problemData.editorial || {
                 approach: null,
@@ -96,7 +101,17 @@ class Problem {
 
     // Find all problems (practice problems only)
     static async findAll() {
-        return await collections.problems.find({ isContestProblem: false }).sort({ section: 1, difficulty: 1 }).toArray();
+        const problems = await collections.problems.find({ isContestProblem: false }).toArray();
+        // Sort in memory to avoid Astro DB omitting documents that lack the 'section' or 'difficulty' fields
+        return problems.sort((a, b) => {
+            const secA = a.section || '';
+            const secB = b.section || '';
+            if (secA < secB) return -1;
+            if (secA > secB) return 1;
+
+            const diffValues = { 'Easy': 1, 'Medium': 2, 'Hard': 3 };
+            return (diffValues[a.difficulty] || 0) - (diffValues[b.difficulty] || 0);
+        });
     }
 
     // Find problems by section
@@ -172,12 +187,18 @@ class Problem {
             points: p.difficulty === 'Easy' ? 20 : p.difficulty === 'Medium' ? 50 : 100,
             description: p.description,
             constraints: p.constraints || [],
+            inputFormat: p.inputFormat || '',
+            outputFormat: p.outputFormat || '',
+            edgeCases: p.edgeCases || [],
             examples: p.examples || [],
             testCases: p.testCases || [],
+            timeComplexity: p.timeComplexity || '',
+            spaceComplexity: p.spaceComplexity || '',
             timeLimit: p.timeLimit || 2000,
             editorial: p.editorial || { approach: null, solution: null, complexity: null },
             editorialLink: p.editorialLink || null,
             videoUrl: p.videoUrl || null,
+            solutionCode: p.solutionCode || {},
             isContestProblem: p.isContestProblem || false,
             contestId: p.contestId ? new ObjectId(p.contestId) : null,
             createdBy: new ObjectId(createdBy),

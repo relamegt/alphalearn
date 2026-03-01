@@ -37,6 +37,7 @@ const ProblemManager = () => {
     const [filteredProblems, setFilteredProblems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedProblems, setSelectedProblems] = useState([]);
 
     // Search & Filter
     const [searchQuery, setSearchQuery] = useState('');
@@ -61,13 +62,9 @@ const ProblemManager = () => {
         examples: [{ input: '', output: '', explanation: '' }],
         testCases: [{ input: '', output: '', isHidden: false }],
         timeLimit: 2000,
-        editorial: {
-            approach: '',
-            solution: '',
-            complexity: '',
-        },
         editorialLink: '',
         videoUrl: '',
+        solutionCode: {},
     });
 
     const [bulkFile, setBulkFile] = useState(null);
@@ -170,9 +167,41 @@ const ProblemManager = () => {
         try {
             await problemService.deleteProblem(problemId);
             toast.success('Problem deleted successfully');
+            setSelectedProblems(prev => prev.filter(id => id !== problemId));
             fetchProblems();
         } catch (error) {
             toast.error(error.message || 'Failed to delete problem');
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (!window.confirm(`Delete ${selectedProblems.length} selected problems? This will also delete all related submissions. This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            await problemService.bulkDeleteProblems(selectedProblems);
+            toast.success(`${selectedProblems.length} problems deleted successfully`);
+            setSelectedProblems([]);
+            fetchProblems();
+        } catch (error) {
+            toast.error(error.message || 'Failed to delete problems');
+        }
+    };
+
+    const toggleProblemSelection = (problemId) => {
+        setSelectedProblems(prev =>
+            prev.includes(problemId)
+                ? prev.filter(id => id !== problemId)
+                : [...prev, problemId]
+        );
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedProblems.length === filteredProblems.length) {
+            setSelectedProblems([]);
+        } else {
+            setSelectedProblems(filteredProblems.map(p => p._id));
         }
     };
 
@@ -185,7 +214,7 @@ const ProblemManager = () => {
             const data = await problemService.getProblemById(problem._id);
             const existing = data.problem?.solutionCode?.['cpp'] || '';
             setSolutionCodeVal(existing);
-        } catch { }
+        } catch (error) { console.error('Error fetching solution code', error); }
         setShowSolutionModal(true);
     };
 
@@ -222,9 +251,9 @@ const ProblemManager = () => {
                 examples: p.examples || [{ input: '', output: '', explanation: '' }],
                 testCases: p.testCases || [{ input: '', output: '', isHidden: false }],
                 timeLimit: p.timeLimit || 2000,
-                editorial: p.editorial || { approach: '', solution: '', complexity: '' },
                 editorialLink: p.editorialLink || '',
                 videoUrl: p.videoUrl || '',
+                solutionCode: p.solutionCode || {},
             });
             setShowEditModal(true);
         } catch (error) {
@@ -243,9 +272,9 @@ const ProblemManager = () => {
             examples: [{ input: '', output: '', explanation: '' }],
             testCases: [{ input: '', output: '', isHidden: false }],
             timeLimit: 2000,
-            editorial: { approach: '', solution: '', complexity: '' },
             editorialLink: '',
             videoUrl: '',
+            solutionCode: {},
         });
     };
 
@@ -289,30 +318,75 @@ const ProblemManager = () => {
     const downloadSampleJSON = () => {
         const sample = [
             {
-                title: 'Two Sum',
+                title: 'Right-Angle Triangle Pattern',
                 difficulty: 'Easy',
-                description: 'Given an array of integers...',
-                constraints: ['1 <= nums.length <= 10^4'],
+                description: 'Given an integer N, print a right-angled triangle pattern of stars (`*`) with N rows. Each row must be printed on a new line.\n\n```\n*\n**\n***\n```',
+                constraints: ['1 <= N <= 1000'],
                 examples: [
                     {
-                        input: '[2,7,11,15], 9',
-                        output: '[0,1]',
-                        explanation: 'nums[0] + nums[1] = 9',
+                        input: '3',
+                        output: '*\n**\n***',
+                        explanation: 'A right-angled triangle of height 3.',
                     },
                 ],
                 testCases: [
-                    { input: '[2,7,11,15]\n9', output: '[0,1]', isHidden: false },
-                    { input: '[3,2,4]\n6', output: '[1,2]', isHidden: true },
+                    { input: '3', output: '*\n**\n***', isHidden: false },
+                    { input: '5', output: '*\n**\n***\n****\n*****', isHidden: true },
                 ],
                 timeLimit: 2000,
-                editorial: {
-                    approach: 'Use hash map',
-                    solution: 'def twoSum(nums, target): ...',
-                    complexity: 'O(n)',
-                },
-                editorialLink: 'https://github.com/user/repo/blob/main/editorial.md',
-                videoUrl: 'https://www.youtube.com/watch?v=...',
+                editorialLink: 'https://github.com/your-username/your-repo/blob/main/solutions/stars.md',
+                videoUrl: '',
+                solutionCode: {
+                    "cpp": "#include <iostream>\nusing namespace std;\nint main() {\n  int n;\n  cin >> n;\n  for(int i=1; i<=n; i++) {\n    for(int j=1; j<=i; j++) cout << \"*\";\n    cout << endl;\n  }\n  return 0;\n}",
+                    "python": "n = int(input())\nfor i in range(1, n+1):\n    print('*' * i)"
+                }
             },
+            {
+                title: "Largest Element in Array",
+                difficulty: "Easy",
+                description: "Given an array of integers `arr` of size `N`, find and return the **largest element** in the array.\n\n**Input Format:**\n- First line: integer `N`.\n- Second line: `N` space-separated integers.\n\n**Output Format:**\n- Print a single integer — the largest element.\n\n**Example:**\n```\nInput:\n5\n3 1 4 1 5\n\nOutput:\n5\n```",
+                constraints: [
+                    "1 <= N <= 10^6",
+                    "-10^9 <= arr[i] <= 10^9"
+                ],
+                examples: [
+                    {
+                        input: "5\n3 1 4 1 5",
+                        output: "5",
+                        explanation: "Among [3,1,4,1,5], the largest element is 5."
+                    }
+                ],
+                testCases: [
+                    {
+                        input: "5\n3 1 4 1 5",
+                        output: "5",
+                        isHidden: false
+                    },
+                    {
+                        "_comment": "OPTION A (FASTEST ~1ms): Use jsGeneratorScript — runs natively in Node.js vm, zero subprocess",
+                        "jsGeneratorScript": "const N = 1000000;\nconsole.log(N);\nconst a = new Array(N);\nfor (let i = 0; i < N - 1; i++) a[i] = 1;\na[N - 1] = 1000000000;\nconsole.log(a.join(' '));",
+                        "jsOutputGenerator": "console.log(1000000000);",
+                        isHidden: true,
+                        note: "N=10^6, all 1s except last element is 10^9. Tests O(N) solution."
+                    },
+                    {
+                        "_comment": "OPTION B (SLOWER ~150ms first run, then cached): Use generatorScript (Python) — use if you prefer Python syntax",
+                        "generatorScript": "print(1000000)\nprint(' '.join(str(i) for i in range(1, 1000001)))",
+                        "tcOutputGenerator": "print(1000000)",
+                        isHidden: true,
+                        note: "N=10^6 sorted 1..10^6. Expected output generated dynamically too."
+                    }
+                ],
+                timeLimit: 2000,
+                memoryLimit: "256 MB",
+                expectedTimeComplexity: "O(N)",
+                expectedSpaceComplexity: "O(1)",
+                solutionCode: {
+                    "python": "n = int(input())\narr = list(map(int, input().split()))\nprint(max(arr))",
+                    "cpp": "#include <iostream>\n#include <vector>\n#include <algorithm>\nusing namespace std;\nint main() {\n    int n; cin >> n;\n    int mx = -2e9;\n    for(int i=0; i<n; i++) { int x; cin >> x; mx = max(mx, x); }\n    cout << mx << endl;\n    return 0;\n}"
+                }
+            }
+
         ];
 
         const blob = new Blob([JSON.stringify(sample, null, 2)], { type: 'application/json' });
@@ -370,8 +444,13 @@ const ProblemManager = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    {selectedProblems.length > 0 && (
+                        <button onClick={handleBulkDelete} className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center gap-2">
+                            <Trash2 size={18} /> Delete Selected ({selectedProblems.length})
+                        </button>
+                    )}
                     <button onClick={() => setShowCreateModal(true)} className="btn-primary flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold">
-                        <Plus size={18} /> Creates Problem
+                        <Plus size={18} /> Create Problem
                     </button>
                     <button onClick={() => setShowBulkModal(true)} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm flex items-center gap-2">
                         <Upload size={18} /> Bulk Upload
@@ -401,6 +480,14 @@ const ProblemManager = () => {
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-gray-50/50 text-xs uppercase text-gray-500 font-semibold tracking-wider">
                                 <tr>
+                                    <th className="px-6 py-4 w-10">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-4 h-4 cursor-pointer"
+                                            checked={selectedProblems.length === filteredProblems.length && filteredProblems.length > 0}
+                                            onChange={toggleSelectAll}
+                                        />
+                                    </th>
                                     <th className="px-6 py-4">Problem</th>
                                     <th className="px-6 py-4">Difficulty</th>
                                     <th className="px-6 py-4">Points</th>
@@ -411,6 +498,14 @@ const ProblemManager = () => {
                             <tbody className="divide-y divide-gray-50">
                                 {filteredProblems.map((problem) => (
                                     <tr key={problem.id || problem._id} className="hover:bg-gray-50/40 transition-colors group">
+                                        <td className="px-6 py-4 text-center">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-4 h-4 cursor-pointer"
+                                                checked={selectedProblems.includes(problem._id)}
+                                                onChange={() => toggleProblemSelection(problem._id)}
+                                            />
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="font-semibold text-gray-900">{problem.title}</div>
                                         </td>
@@ -635,6 +730,39 @@ const ProblemManager = () => {
                                     ))}
                                 </div>
 
+                                {/* Reference Solution */}
+                                <div className="space-y-3 pt-4 border-t border-gray-100">
+                                    <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                        <Code2 size={16} /> Reference Solution (Optional)
+                                    </label>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
+                                            C++ Solution Code (Used to generate expected outputs for custom test cases)
+                                        </label>
+                                        <div className="h-64 border border-gray-200 rounded-lg overflow-hidden">
+                                            <Editor
+                                                height="100%"
+                                                language="cpp"
+                                                theme="light"
+                                                value={formData.solutionCode?.cpp || ''}
+                                                onChange={(val) => setFormData({
+                                                    ...formData,
+                                                    solutionCode: {
+                                                        ...formData.solutionCode,
+                                                        cpp: val
+                                                    }
+                                                })}
+                                                options={{
+                                                    minimap: { enabled: false },
+                                                    fontSize: 13,
+                                                    scrollBeyondLastLine: false,
+                                                }}
+                                            />
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 mt-2">You can add reference solutions in other languages via the <Code2 size={10} className="inline mx-0.5" /> button in the problem list.</p>
+                                    </div>
+                                </div>
+
                                 {/* Editorial Links */}
                                 <div className="space-y-3 pt-4 border-t border-gray-100">
                                     <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
@@ -813,12 +941,12 @@ const ProblemManager = () => {
                         {/* ── Language tabs (IDE-style) ── */}
                         <div style={{ display: 'flex', alignItems: 'center', background: '#1e1e2e', padding: '0 16px', borderBottom: '1px solid #2d2d3f', gap: '2px', minHeight: '44px' }}>
                             {[
-                                { id: 'c', label: 'C', monacoLang: 'c' },
-                                { id: 'cpp', label: 'C++', monacoLang: 'cpp' },
-                                { id: 'java', label: 'Java', monacoLang: 'java' },
-                                { id: 'python', label: 'Python', monacoLang: 'python' },
-                                { id: 'javascript', label: 'JavaScript', monacoLang: 'javascript' },
-                            ].map(({ id, label, monacoLang }) => {
+                                { id: 'c', label: 'C' },
+                                { id: 'cpp', label: 'C++' },
+                                { id: 'java', label: 'Java' },
+                                { id: 'python', label: 'Python' },
+                                { id: 'javascript', label: 'JavaScript' },
+                            ].map(({ id, label }) => {
                                 const isActive = solutionLang === id;
                                 return (
                                     <button
@@ -828,7 +956,7 @@ const ProblemManager = () => {
                                             try {
                                                 const data = await problemService.getProblemById(solutionProblem.id || solutionProblem._id);
                                                 setSolutionCodeVal(data.problem?.solutionCode?.[id] || '');
-                                            } catch { }
+                                            } catch (error) { console.error('Failed fetching solution', error); }
                                         }}
                                         style={{
                                             background: isActive ? '#fff' : 'transparent',

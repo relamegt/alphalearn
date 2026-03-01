@@ -392,38 +392,28 @@ const submitContestCode = async (req, res) => {
         }
 
         if (isPracticeMode) {
-            // Practice Mode: Completely Ephemeral
-            const allTestCases = await Problem.getAllTestCases(problemId);
-            const result = await executeWithTestCases(language, code, allTestCases, problem.timeLimit);
+            // Practice Mode: Send to Queue
+            const { addExecutionJob } = require('../config/queue');
+            await addExecutionJob({
+                type: 'submit',
+                studentId,
+                contestId,
+                problemId,
+                code,
+                language,
+                isPractice: true,
+                timeLimit: problem.timeLimit
+            });
 
             return res.json({
                 success: true,
-                message: result.verdict === 'Accepted' ? 'Practice submission passed!' : 'Practice submission completed',
-                isPractice: true,
-                submission: {
-                    _id: 'temporary-practice-id', // Use _id for compatibility
-                    verdict: result.verdict,
-                    testCasesPassed: result.testCasesPassed,
-                    totalTestCases: result.totalTestCases,
-                    submittedAt: new Date(),
-                    tabSwitchCount: 0,
-                    tabSwitchDuration: 0,
-                    pasteAttempts: 0,
-                    fullscreenExits: 0
-                },
-                results: result.results.map(r => ({
-                    // LOW-1 FIX: Removed duplicate property keys (input, expectedOutput, actualOutput
-                    // were declared twice — last-wins is confusing and lint violations).
-                    // Now uses a single conditional expression per field.
-                    input: r.isHidden ? 'Hidden' : r.input,
-                    expectedOutput: r.isHidden ? 'Hidden' : r.expectedOutput,
-                    actualOutput: r.isHidden ? (r.passed ? 'Hidden' : 'Hidden') : r.actualOutput,
-                    error: r.error,
-                    passed: r.passed,
-                    isHidden: r.isHidden
-                }))
+                isProcessing: true,
+                message: 'Practice submission is being processed...',
+                isPractice: true
             });
         }
+
+
 
         // 3. Normal Contest Submission Flow
         // Check if contest is submitted (completed)
@@ -480,71 +470,37 @@ const submitContestCode = async (req, res) => {
             });
         }
 
-        // Execute code against all test cases
-        const allTestCases = await Problem.getAllTestCases(problemId);
-        const result = await executeWithTestCases(language, code, allTestCases, problem.timeLimit);
-
-        // Create contest submission
-        const submission = await ContestSubmission.create({
-            contestId,
+        // Execute code asynchronously via BullMQ
+        const { addExecutionJob } = require('../config/queue');
+        await addExecutionJob({
+            type: 'submit',
             studentId,
+            contestId,
             problemId,
             code,
             language,
-            verdict: result.verdict,
-            testCasesPassed: result.testCasesPassed,
-            totalTestCases: result.totalTestCases,
+            isPractice: false,
             tabSwitchCount,
             tabSwitchDuration,
             pasteAttempts,
             fullscreenExits,
-            isAutoSubmit
+            isAutoSubmit,
+            timeLimit: problem.timeLimit
         });
-
-        // Broadcast updates via WebSocket (Throttled & Cached)
-        try {
-            // Invalidate distributed cache so all server instances get fresh data
-            await ContestSubmission.invalidateCache(contestId);
-            notifyLeaderboardUpdate(contestId);
-
-            notifySubmission(contestId, {
-                studentId,
-                problemId,
-                verdict: result.verdict,
-                timestamp: submission.submittedAt,
-                isAutoSubmit
-            });
-        } catch (wsError) {
-            console.error('WebSocket notification error:', wsError);
-        }
 
         res.json({
             success: true,
+            isProcessing: true,
             message: isAutoSubmit
-                ? 'Code auto-submitted due to violations'
-                : result.verdict === 'Accepted'
-                    ? 'Problem solved! Submission locked.'
-                    : 'Code submitted successfully',
-            submission: {
-                id: submission._id,
-                verdict: submission.verdict,
-                testCasesPassed: submission.testCasesPassed,
-                totalTestCases: submission.totalTestCases,
-                submittedAt: submission.submittedAt,
-                isAutoSubmit,
-                problemLocked: result.verdict === 'Accepted'
-            },
-            results: result.results.map(r => ({
-                input: r.isHidden ? 'Hidden' : r.input,
-                expectedOutput: r.isHidden ? 'Hidden' : r.expectedOutput,
-                actualOutput: r.isHidden ? (r.passed ? 'Hidden' : 'Wrong Answer') : r.actualOutput,
-                passed: r.passed,
-                isHidden: r.isHidden,
-                verdict: r.verdict,
-                error: r.error
-            }))
+                ? 'Code auto-submitted. Finalizing...'
+                : 'Code submission is being processed...'
         });
     } catch (error) {
+        // If exception occurs, immediately lift lock to allow retries
+        if (submissionLockAcquired) {
+            await redis.del(lockKey).catch(e => console.error(e));
+        }
+
         console.error('Submit contest code error:', error);
         res.status(500).json({
             success: false,
@@ -552,9 +508,13 @@ const submitContestCode = async (req, res) => {
             error: error.message
         });
     } finally {
-        // ONLY release the lock if it was actually acquired (not in practice mode)
+        // DO NOT release lock here if successfully acquired!
+        // The worker will release it when processing finishes.
+        // We only forcefully release it if there's a synchronous error making it error out.
         if (submissionLockAcquired) {
-            await redis.del(lockKey);
+            // we let the worker release it
+            // if we threw an error we would delete it, but `finally` runs regardless
+            // so we handle the lock deletion exclusively in the catch block if needed.
         }
     }
 };
@@ -634,21 +594,23 @@ const runContestCode = async (req, res) => {
             });
         }
 
-        // Execute code
-        const result = await executeWithTestCases(language, code, testCases, problem.timeLimit);
+        // Execute code via BullMQ Background worker
+        const { addExecutionJob } = require('../config/queue');
+        await addExecutionJob({
+            type: 'run',
+            studentId,
+            contestId,
+            problemId,
+            code,
+            language,
+            isPractice: isPracticeMode,
+            timeLimit: problem.timeLimit
+        });
 
         res.json({
             success: true,
-            message: 'Code executed successfully',
-            results: result.results.map(r => ({
-                input: r.input,
-                expectedOutput: r.expectedOutput,
-                actualOutput: r.actualOutput,
-                passed: r.passed,
-                verdict: r.verdict,
-                error: r.error,
-                isHidden: r.isHidden
-            }))
+            isProcessing: true,
+            message: 'Code run queued...'
         });
     } catch (error) {
         console.error('Run contest code error:', error);
@@ -701,22 +663,9 @@ const finishContest = async (req, res) => {
 
         // Mark contest as completed — stores violation snapshot on the COMPLETED record
         await ContestSubmission.markContestCompleted(studentId, contestId, 0, violationSnapshot);
-        // HIGH-5 FIX: calculateScore does 3+ DB round trips per student.
-        // If 200 students finish simultaneously that's 600+ concurrent DB queries.
-        // The score is only needed for the response UI — it's already recalculated by the
-        // background worker. So we fire it async and respond immediately.
+
         let finalScore = 0;
         let finalProblemsSolved = 0;
-        // Fire-and-forget — non-blocking calculation for the response value
-        setImmediate(async () => {
-            try {
-                const scoreData = await ContestSubmission.calculateScore(studentId, contestId);
-                // Update the completion record with the accurate score
-                await ContestSubmission.markContestCompleted(studentId, contestId, scoreData.score, violationSnapshot);
-            } catch (e) {
-                console.error('[finishContest] Async score calc failed:', e.message);
-            }
-        });
 
         // OFFLOAD Score Recalculation to background worker queue
         // This prevents the "thundering herd" effect when many users finish at once

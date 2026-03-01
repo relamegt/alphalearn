@@ -15,6 +15,13 @@ const { initWebSocket } = require('./config/websocket');
 // Load environment variables
 dotenv.config();
 
+// Remove unnecessary console logs in production
+if (process.env.NODE_ENV === 'production') {
+    console.log = () => { };
+    console.info = () => { };
+    console.debug = () => { };
+}
+
 // Initialize Express app
 const app = express();
 
@@ -90,8 +97,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Body parser middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {
@@ -137,24 +144,26 @@ const PORT = process.env.PORT || 5000;
 
 const { initRedis } = require('./config/redis');
 const { startScoreWorker } = require('./workers/scoreWorker');
+const { startCodeExecutionWorker } = require('./workers/codeExecutionWorker');
 
 // Start server
 const startServer = async () => {
     try {
         // 0. Initialize Redis first (needed for Queues & Cache)
-        console.log('🔌 Connecting to Redis (Upstash)...');
+        console.warn('🔌 Connecting to Redis (Upstash)...');
         initRedis();
 
         // 1. Start Background Workers
-        console.log('👷 Starting background workers...');
+        console.warn('👷 Starting background workers...');
         startScoreWorker();
+        startCodeExecutionWorker();
 
         // 2. Connect to database
-        console.log('🔌 Connecting to database...');
+        /* startup log */ console.warn('🔌 Connecting to database...');
         await connectDB();
 
         // Test connection
-        console.log('🔌 Testing database connection...');
+        console.warn('🔌 Testing database connection...');
         const dbConnected = await testConnection();
 
         if (!dbConnected) {
@@ -163,34 +172,34 @@ const startServer = async () => {
         }
 
         // Create database indexes
-        console.log('📊 Creating database indexes...');
+        console.warn('📊 Creating database indexes...');
         await createIndexes();
 
         // Verify email configuration
-        console.log('📧 Verifying email service...');
+        console.warn('📧 Verifying email service...');
         await verifyEmailConfig();
 
         // Initialize WebSocket Server
-        console.log('🔌 Initializing WebSocket server...');
+        console.warn('🔌 Initializing WebSocket server...');
         initWebSocket(server);
 
         // Start cron jobs
         if (process.env.ENABLE_CRON_JOBS === 'true') {
-            console.log('⏰ Starting cron jobs...');
+            console.warn('⏰ Starting cron jobs...');
             startBatchExpiryJob();
             startProfileSyncJob();
         }
 
         // Start HTTP server
         server.listen(PORT, () => {
-            console.log('');
-            console.log('✅ ═══════════════════════════════════════════════════');
-            console.log(`✅ AlphaKnowledge API Server is running on port ${PORT}`);
-            console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
-            console.log(`✅ Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
-            console.log(`✅ WebSocket: Enabled on ws://localhost:${PORT}/ws`);
-            console.log('✅ ═══════════════════════════════════════════════════');
-            console.log('');
+            console.warn('');
+            console.warn('✅ ═══════════════════════════════════════════════════');
+            console.warn(`✅ AlphaKnowledge API Server is running on port ${PORT}`);
+            console.warn(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
+            console.warn(`✅ Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+            console.warn(`✅ WebSocket: Enabled on ws://localhost:${PORT}/ws`);
+            console.warn('✅ ═══════════════════════════════════════════════════');
+            console.warn('');
         });
     } catch (error) {
         console.error('❌ Server startup error:', error);

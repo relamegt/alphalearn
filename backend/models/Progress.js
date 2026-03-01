@@ -8,6 +8,7 @@ class Progress {
             _id: new ObjectId(),
             studentId: new ObjectId(studentId),
             problemsSolved: [],
+            viewedEditorials: [],
             sectionProgress: [
                 { section: 'Introduction', solved: 0, total: 0 },
                 { section: 'Arrays', solved: 0, total: 0 },
@@ -54,6 +55,28 @@ class Progress {
                 $set: { lastActiveDate: new Date() }
             }
         );
+    }
+
+    // Mark editorial as viewed
+    static async markEditorialViewed(studentId, problemId) {
+        const progress = await Progress.findByStudent(studentId);
+        if (!progress) {
+            await Progress.create(studentId);
+        }
+
+        return await collections.progress.updateOne(
+            { studentId: new ObjectId(studentId) },
+            { $addToSet: { viewedEditorials: new ObjectId(problemId) } }
+        );
+    }
+
+    // Check if editorial was viewed
+    static async hasViewedEditorial(studentId, problemId) {
+        const progress = await Progress.findByStudent(studentId);
+        if (!progress || !progress.viewedEditorials) return false;
+
+        // Ensure comparison matches object types or strings
+        return progress.viewedEditorials.some(id => id.toString() === problemId.toString());
     }
 
     // Update section progress

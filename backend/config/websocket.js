@@ -357,11 +357,22 @@ const notifyContestEnd = (contestId) => {
     });
 };
 
+const notifyExecutionResult = (contestId, userId, resultData) => {
+    const userIdStr = userId ? userId.toString() : null;
+    broadcastToContest(contestId, {
+        type: 'executionResult',
+        targetUserId: userIdStr,
+        ...resultData,
+        timestamp: new Date().toISOString()
+    });
+};
+
 module.exports = {
     initWebSocket,
     broadcastToContest,
     notifyLeaderboardUpdate,
     notifySubmission,
     notifyViolation,
-    notifyContestEnd
+    notifyContestEnd,
+    notifyExecutionResult
 };

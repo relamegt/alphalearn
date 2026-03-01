@@ -20,6 +20,7 @@ const SectionManager = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [expandedSection, setExpandedSection] = useState(null);
     const [expandedSubsection, setExpandedSubsection] = useState(null);
+    const [selectedToRemove, setSelectedToRemove] = useState([]);
 
     // Modals
     const [showCreateSectionModal, setShowCreateSectionModal] = useState(false);
@@ -185,14 +186,27 @@ const SectionManager = () => {
     };
 
     const handleRemoveProblem = async (sectionId, subsectionId, problemId) => {
-        if (!window.confirm('Remove problem from this subsection?')) return;
+        // Can handle array or single string
+        const isMultiple = Array.isArray(problemId);
+        const count = isMultiple ? problemId.length : 1;
+
+        if (count === 0) return;
+        if (!window.confirm(`Remove ${count} problem(s) from this subsection?`)) return;
+
         try {
             await sectionService.removeProblemFromSubsection(sectionId, subsectionId, problemId);
-            toast.success('Problem removed');
+            toast.success(`${count} problem(s) removed`);
+            if (isMultiple) setSelectedToRemove([]);
             fetchSections();
         } catch (error) {
             toast.error(error.message);
         }
+    };
+
+    const toggleProblemToRemove = (pid) => {
+        setSelectedToRemove(prev =>
+            prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid]
+        );
     };
 
     const toggleSection = (id) => {
@@ -209,6 +223,7 @@ const SectionManager = () => {
         } else {
             setExpandedSubsection(id);
         }
+        setSelectedToRemove([]); // Reset multiple selection when switching
     };
 
     return (
@@ -324,36 +339,57 @@ const SectionManager = () => {
                                                 {expandedSubsection === sub._id && (
                                                     <div className="border-t border-gray-100 bg-gray-50/30">
                                                         {sub.problemIds && sub.problemIds.length > 0 ? (
-                                                            <ul className="divide-y divide-gray-100">
-                                                                {sub.problemIds.map(pid => {
-                                                                    const problem = problemsMap[pid];
-                                                                    return (
-                                                                        <li key={pid} className="flex justify-between items-center text-sm p-3 hover:bg-white transition-colors pl-12 group">
-                                                                            <div className="flex items-center space-x-3">
-                                                                                <FileText size={16} className="text-gray-400" />
-                                                                                <span className="text-gray-700 font-medium">
-                                                                                    {problem ? problem.title : 'Unknown Problem'}
-                                                                                </span>
-                                                                                {problem && (
-                                                                                    <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${problem.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
-                                                                                        problem.difficulty === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                                                                                            'bg-rose-100 text-rose-700'
-                                                                                        }`}>
-                                                                                        {problem.difficulty}
+                                                            <>
+                                                                {selectedToRemove.length > 0 && (
+                                                                    <div className="px-4 py-2 bg-red-50 border-b border-red-100 flex justify-between items-center">
+                                                                        <span className="text-sm font-medium text-red-700">{selectedToRemove.length} selected</span>
+                                                                        <button
+                                                                            onClick={() => handleRemoveProblem(section._id, sub._id, selectedToRemove)}
+                                                                            className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded shadow-sm transition-colors"
+                                                                        >
+                                                                            Remove Selected
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                                <ul className="divide-y divide-gray-100">
+                                                                    {sub.problemIds.map(pid => {
+                                                                        const problem = problemsMap[pid];
+                                                                        const isChecked = selectedToRemove.includes(pid);
+
+                                                                        return (
+                                                                            <li key={pid} className={`flex justify-between items-center text-sm p-3 transition-colors pl-4 group ${isChecked ? 'bg-red-50/40' : 'hover:bg-white'}`}>
+                                                                                <div className="flex items-center space-x-3">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={isChecked}
+                                                                                        onChange={() => toggleProblemToRemove(pid)}
+                                                                                        className="w-4 h-4 text-primary-600 bg-white border-gray-300 rounded focus:ring-primary-500 mr-2 cursor-pointer"
+                                                                                    />
+                                                                                    <FileText size={16} className="text-gray-400" />
+                                                                                    <span className="text-gray-700 font-medium">
+                                                                                        {problem ? problem.title : 'Unknown Problem'}
                                                                                     </span>
-                                                                                )}
-                                                                            </div>
-                                                                            <button
-                                                                                onClick={() => handleRemoveProblem(section._id, sub._id, pid)}
-                                                                                className="text-gray-300 hover:text-red-500 p-1.5 rounded hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
-                                                                                title="Remove from subsection"
-                                                                            >
-                                                                                <Trash2 size={14} />
-                                                                            </button>
-                                                                        </li>
-                                                                    );
-                                                                })}
-                                                            </ul>
+                                                                                    {problem && (
+                                                                                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${problem.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
+                                                                                            problem.difficulty === 'Medium' ? 'bg-amber-100 text-amber-700' :
+                                                                                                'bg-rose-100 text-rose-700'
+                                                                                            }`}>
+                                                                                            {problem.difficulty}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <button
+                                                                                    onClick={() => handleRemoveProblem(section._id, sub._id, pid)}
+                                                                                    className="text-gray-300 hover:text-red-500 p-1.5 rounded hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                                                                                    title="Remove from subsection"
+                                                                                >
+                                                                                    <Trash2 size={14} />
+                                                                                </button>
+                                                                            </li>
+                                                                        );
+                                                                    })}
+                                                                </ul>
+                                                            </>
                                                         ) : (
                                                             <div className="p-6 text-center">
                                                                 <p className="text-sm text-gray-400 flex flex-col items-center gap-2">

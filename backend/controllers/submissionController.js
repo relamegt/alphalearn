@@ -254,10 +254,18 @@ const submitCode = async (req, res) => {
             isFirstSolve = !alreadyInProgress;
 
             if (isFirstSolve) {
-                // Award coins atomically (thread-safe $inc)
-                coinsEarned = problem.points || 0;
-                await User.addCoins(studentId, coinsEarned);
-                console.log(`   💰 Coins Awarded: +${coinsEarned} to student ${studentId}`);
+                // Check if they viewed the editorial
+                const hasViewedEditorial = await Progress.hasViewedEditorial(studentId, problem._id);
+
+                if (hasViewedEditorial) {
+                    coinsEarned = 0;
+                    console.log(`   ℹ️ Editorial was viewed - 0 coins awarded to student ${studentId}`);
+                } else {
+                    // Award coins atomically (thread-safe $inc)
+                    coinsEarned = problem.points || 0;
+                    await User.addCoins(studentId, coinsEarned);
+                    console.log(`   💰 Coins Awarded: +${coinsEarned} to student ${studentId}`);
+                }
             } else {
                 console.log(`   ℹ️ Problem already solved before - no duplicate coins`);
             }

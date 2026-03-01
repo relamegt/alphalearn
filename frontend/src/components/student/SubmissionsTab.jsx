@@ -85,6 +85,13 @@ const getVc = (verdict) =>
 //  Submission Detail Modal
 // ═══════════════════════════════════════════════════════════════════════════
 const SubmissionModal = ({ sub, onClose }) => {
+    // Close on Escape
+    useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [onClose]);
+
     if (!sub) return null;
 
     const vc = getVc(sub.verdict);
@@ -95,13 +102,6 @@ const SubmissionModal = ({ sub, onClose }) => {
     const handleBackdrop = (e) => {
         if (e.target === e.currentTarget) onClose();
     };
-
-    // Close on Escape
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [onClose]);
 
     return (
         <div
@@ -189,7 +189,7 @@ const SubmissionModal = ({ sub, onClose }) => {
                                     readOnly: true,
                                     minimap: { enabled: false },
                                     fontSize: 13,
-                                    fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                                    fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
                                     fontLigatures: true,
                                     lineNumbers: 'on',
                                     scrollBeyondLastLine: false,
@@ -272,7 +272,6 @@ const SubmissionsTab = ({ problemId }) => {
                     const vc = getVc(sub.verdict);
                     const VIcon = vc.Icon;
                     const submittedDate = sub.submittedAt ? new Date(sub.submittedAt) : null;
-                    const isAccepted = sub.verdict === 'Accepted';
 
                     return (
                         <button

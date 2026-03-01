@@ -92,7 +92,7 @@ const submissionService = {
     },
 
     // Get Submission Statistics → GET /student/statistics
-    getSubmissionStatistics: async (studentId = null) => {
+    getSubmissionStatistics: async () => {
         try {
             const response = await apiClient.get('/student/statistics');
             return response.data;

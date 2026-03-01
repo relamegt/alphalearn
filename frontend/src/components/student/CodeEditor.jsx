@@ -1,34 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
-import {
-    Play,
-    CheckCircle,
-    AlertTriangle,
-    ChevronDown,
-    Maximize2,
-    Minimize2,
-    Loader2,
-    Code2,
-    FileText,
-    List,
-    CheckSquare,
-    Terminal,
-    Coins,
-    Lock,
-    XCircle,
-    Clock,
-    Pause,
-    ChevronLeft,
-    ChevronRight,
-    Settings,
-    MoreVertical,
-    X,
-    PanelLeft,
-    Plus,
-    Trash2,
-    Save,
-} from 'lucide-react';
+import { Play, CheckCircle, AlertTriangle, ChevronDown, Maximize2, Minimize2, Loader2, Code2, FileText, List, CheckSquare, Terminal, Coins, Lock, XCircle, Clock, Pause, ChevronLeft, ChevronRight, Settings, MoreVertical, X, PanelLeft, Plus, Trash2, Save, Edit3 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import submissionService from '../../services/submissionService';
 import problemService from '../../services/problemService';
 import useCodeExecution from '../../hooks/useCodeExecution';
@@ -40,6 +16,27 @@ import EditorialRenderer from './EditorialRenderer';
 import { GoSidebarCollapse, GoSidebarExpand } from 'react-icons/go';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import CustomDropdown from '../../components/shared/CustomDropdown';
+
+const MarkdownComponents = {
+    h1: ({ children }) => <h1 className="text-xl font-bold text-gray-900 mt-5 mb-3">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-lg font-bold text-gray-900 mt-5 mb-2">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-md font-semibold text-gray-800 mt-4 mb-1.5">{children}</h3>,
+    p: ({ children }) => <p className="text-gray-700 text-[14px] leading-6 mb-3 whitespace-pre-wrap break-words">{children}</p>,
+    ul: ({ children }) => <ul className="text-gray-700 text-[14px] list-disc list-outside ml-4 mb-3 space-y-1">{children}</ul>,
+    ol: ({ children }) => <ol className="text-gray-700 text-[14px] list-decimal list-outside ml-4 mb-3 space-y-1">{children}</ol>,
+    li: ({ children }) => <li className="pl-1 leading-6 break-words">{children}</li>,
+    blockquote: ({ children }) => <blockquote className="border-l-4 border-primary-400 pl-4 py-1 italic text-gray-500 my-3 bg-primary-50 rounded-r">{children}</blockquote>,
+    a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline break-all">{children}</a>,
+    img: ({ src, alt }) => <img src={src} alt={alt} className="max-w-full rounded-xl border border-gray-200 my-4 shadow-sm" />,
+    code: ({ inline, className, children }) => {
+        const content = String(children).replace(/\n$/, '');
+        const match = /language-(\w+)/.exec(className || '');
+        if (inline || (!match && !content.includes('\n'))) {
+            return <code className="bg-primary-50 text-primary-700 px-1 py-0.5 rounded text-sm font-mono break-all">{children}</code>;
+        }
+        return <pre className="my-3 p-3 overflow-x-auto text-sm font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded-lg">{children}</pre>;
+    }
+};
 
 // ─── Success Pop — Lottie coin + light particles ─────────────────────────────────
 
@@ -64,8 +61,8 @@ const SuccessPopOverlay = ({ result, onClose }) => {
         requestAnimationFrame(() => setVisible(true));
         const t = setTimeout(() => {
             setVisible(false);
-            setTimeout(onClose, 400);
-        }, 4500);
+            setTimeout(onClose, 350);
+        }, 2600); // slightly longer dismiss
         return () => clearTimeout(t);
     }, []);
 
@@ -114,6 +111,10 @@ const SuccessPopOverlay = ({ result, onClose }) => {
                     src={COIN_LOTTIE_URL}
                     loop
                     autoplay
+                    speed={1.5}
+                    renderConfig={{
+                        devicePixelRatio: window.devicePixelRatio || 2, // Forces high-res rendering
+                    }}
                 />
             </div>
 
@@ -193,8 +194,8 @@ const DEFAULT_CODE = {
     c: '#include <stdio.h>\n\nint main() {\n    // your code\n    return 0;\n}',
     cpp: '#include <iostream>\nusing namespace std;\n\nint main() {\n    // your code\n    return 0;\n}',
     java: 'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        // your code\n    }\n}',
-    python: 'def main():\n    # your code\n    pass\n\nif __name__ == "__main__":\n    main()',
-    javascript: 'function main() {\n    // your code\n}\n\nmain();',
+    python: '# Write your Python code here\n',
+    javascript: '// Write your JavaScript code here\n',
     csharp: 'using System;\nusing System.Collections.Generic;\nusing System.Linq;\n\nclass Program {\n    static void Main() {\n        // your code\n    }\n}',
 };
 
@@ -320,10 +321,11 @@ const ProblemTimer = () => {
 const SettingsModal = ({ settings, onClose, onSave }) => {
     const [fontSize, setFontSize] = useState(settings.fontSize || 14);
     const [theme, setTheme] = useState(settings.theme || 'vs-light');
-    const [fontFamily, setFontFamily] = useState(settings.fontFamily || "'JetBrains Mono', 'Fira Code', Consolas, monospace");
+    const [fontFamily, setFontFamily] = useState(settings.fontFamily || 'Menlo, Monaco, Consolas, "Courier New", monospace');
 
     const FONTS = [
-        { value: "'JetBrains Mono', 'Fira Code', Consolas, monospace", label: 'Default (JetBrains/Fira)' },
+        { value: 'Menlo, Monaco, Consolas, "Courier New", monospace', label: 'Default (Menlo/Monaco)' },
+        { value: "'JetBrains Mono', 'Fira Code', Consolas, monospace", label: 'JetBrains Mono' },
         { value: "'Fira Code', monospace", label: 'Fira Code' },
         { value: "'Roboto Mono', monospace", label: 'Roboto Mono' },
         { value: "'Source Code Pro', monospace", label: 'Source Code Pro' },
@@ -417,6 +419,7 @@ const CodeEditor = () => {
 
     // ── problem data ──
     const [problem, setProblem] = useState(null);
+    const [hasViewedEditorial, setHasViewedEditorial] = useState(false);
     const [pageLoading, setPageLoading] = useState(!!problemId);
     const [loading, setLoading] = useState(!!problemId);
     const { user } = useAuth();
@@ -425,7 +428,7 @@ const CodeEditor = () => {
     const [showSettings, setShowSettings] = useState(false);
     const [editorSettings, setEditorSettings] = useState(() => {
         const saved = localStorage.getItem('editor_settings');
-        return saved ? JSON.parse(saved) : { fontSize: 14, theme: 'vs-light', fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace" };
+        return saved ? JSON.parse(saved) : { fontSize: 14, theme: 'vs-light', fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace' };
     });
 
     // ── custom test cases ──
@@ -468,6 +471,10 @@ const CodeEditor = () => {
 
     // ── tabs ──
     const [leftTab, setLeftTab] = useState('description');
+
+    const [isEditingDesc, setIsEditingDesc] = useState(false);
+    const [tempDesc, setTempDesc] = useState('');
+    const [isSavingDesc, setIsSavingDesc] = useState(false);
     const [bottomTab, setBottomTab] = useState('testcases');
 
     // ── ui misc ──
@@ -501,6 +508,7 @@ const CodeEditor = () => {
         if (PROBLEM_CACHE[problemId]) {
             const cachedData = PROBLEM_CACHE[problemId];
             setProblem(cachedData.problem);
+            setHasViewedEditorial(cachedData.hasViewedEditorial || false);
             setTestCases(cachedData.testCases);
             setPageLoading(false);
             setLoading(false);
@@ -515,6 +523,7 @@ const CodeEditor = () => {
             .then(data => {
                 if (!mounted) return;
                 setProblem(data.problem);
+                setHasViewedEditorial(data.hasViewedEditorial || false);
 
                 // Show all non-hidden test cases
                 const allCases = data.problem.testCases || [];
@@ -535,6 +544,7 @@ const CodeEditor = () => {
                 // Save to cache
                 PROBLEM_CACHE[problemId] = {
                     problem: data.problem,
+                    hasViewedEditorial: data.hasViewedEditorial || false,
                     testCases: loadedTestCases
                 };
 
@@ -628,15 +638,26 @@ const CodeEditor = () => {
             setBottomTab('results');
             if (activeResultCase === undefined || activeResultCase === null) setActiveResultCase(0);
         }
-        // Show success overlay ONLY on first solve (coins were actually awarded)
-        if (submitResult?.verdict === 'Accepted' && submitResult?.isFirstSolve === true) {
-            const timer = setTimeout(() => {
-                setSuccessResult(submitResult);
-                setShowSuccessPop(true);
-            }, 400);
-            return () => clearTimeout(timer);
+
+        if (submitResult?.verdict === 'Accepted' && submitResult?.problemId === problemId) {
+            // Signal global state that this problem was solved
+            window.dispatchEvent(new CustomEvent('problemSolved', { detail: { problemId } }));
+
+            // Update local problem state if available to immediately reflect in editor UI
+            if (problem && !problem.isSolved) {
+                setProblem(p => ({ ...p, isSolved: true }));
+            }
+
+            // Show success overlay ONLY on first solve (coins were actually awarded)
+            if (submitResult?.isFirstSolve === true) {
+                const timer = setTimeout(() => {
+                    setSuccessResult(submitResult);
+                    setShowSuccessPop(true);
+                }, 300);
+                return () => clearTimeout(timer);
+            }
         }
-    }, [runResult, submitResult, execError]);
+    }, [runResult, submitResult, execError, problemId, problem]);
 
     // ───── debug: log runResult on change ────────────────────────────────────
     useEffect(() => {
@@ -946,10 +967,9 @@ const CodeEditor = () => {
     const displayResult = submitResult || runResult || null;
     const displayResults = displayResult?.results || [];
 
-    // Count visible (non-hidden) results for tabs display
-    const visibleResults = displayResult?.isSubmitMode
-        ? displayResults // show all (hidden shows locked card)
-        : displayResults;
+    // For submit mode: never show per-case tabs/details — only the verdict card.
+    // For run mode: show all result cases as before.
+    const visibleResults = displayResult?.isSubmitMode ? [] : displayResults;
 
     // Determine executing state
     const isExecuting = running || submitting;
@@ -1061,11 +1081,89 @@ const CodeEditor = () => {
 
                         {/* ── Description ── */}
                         {leftTab === 'description' && (
-                            <div className="p-6 space-y-6">
-                                <div
-                                    className="prose max-w-none text-gray-700 prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed prose-code:text-primary-700 prose-code:bg-primary-50 prose-code:px-1 prose-code:rounded"
-                                    dangerouslySetInnerHTML={{ __html: problem.description }}
-                                />
+                            <div className="p-6 space-y-6 relative">
+                                {user?.role === 'admin' && !isEditingDesc && (
+                                    <button
+                                        onClick={() => {
+                                            setTempDesc(problem.description);
+                                            setIsEditingDesc(true);
+                                        }}
+                                        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
+                                    >
+                                        <Edit3 size={14} /> Edit Description
+                                    </button>
+                                )}
+
+                                {isEditingDesc ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-bold text-gray-800">Edit Problem Description</h3>
+                                            <div className="text-xs text-gray-500">Supports Markdown & Images `![alt](url)`</div>
+                                        </div>
+                                        <textarea
+                                            value={tempDesc}
+                                            onChange={(e) => setTempDesc(e.target.value)}
+                                            className="w-full h-80 p-4 font-mono text-sm text-gray-800 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y"
+                                            placeholder="Update problem description here using Markdown..."
+                                        />
+                                        <div className="flex items-center gap-2 justify-end">
+                                            <button
+                                                onClick={() => setIsEditingDesc(false)}
+                                                className="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    setIsSavingDesc(true);
+                                                    try {
+                                                        await problemService.updateProblem(problemId, { description: tempDesc });
+                                                        setProblem(prev => ({ ...prev, description: tempDesc }));
+                                                        toast.success('Description updated successfully');
+                                                        setIsEditingDesc(false);
+                                                    } catch (error) {
+                                                        toast.error(error.message || 'Failed to update description');
+                                                    } finally {
+                                                        setIsSavingDesc(false);
+                                                    }
+                                                }}
+                                                disabled={isSavingDesc}
+                                                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
+                                            >
+                                                {isSavingDesc ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                                Save Description
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="prose max-w-none text-gray-700 font-problem prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed prose-code:text-primary-700 prose-code:bg-primary-50 prose-code:px-1 prose-code:rounded">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
+                                            {problem.description}
+                                        </ReactMarkdown>
+                                    </div>
+                                )}
+
+                                {problem.inputFormat && (
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Input Format</h3>
+                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 prose prose-sm max-w-none">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
+                                                {problem.inputFormat}
+                                            </ReactMarkdown>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {problem.outputFormat && (
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Output Format</h3>
+                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 prose prose-sm max-w-none">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
+                                                {problem.outputFormat}
+                                            </ReactMarkdown>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {problem.examples?.map((ex, i) => (
                                     <div key={i} className="rounded-lg border border-gray-200 overflow-hidden">
@@ -1101,6 +1199,37 @@ const CodeEditor = () => {
                                         </ul>
                                     </div>
                                 )}
+
+                                {problem.edgeCases?.length > 0 && (
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Edge Cases</h3>
+                                        <ul className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-1">
+                                            {problem.edgeCases.map((c, i) => (
+                                                <li key={i} className="text-xs font-mono text-gray-700 list-disc list-inside">{c}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {(problem.timeComplexity || problem.spaceComplexity) && (
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Complexity</h3>
+                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
+                                            {problem.timeComplexity && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-gray-500 uppercase">Time:</span>
+                                                    <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm">{problem.timeComplexity}</span>
+                                                </div>
+                                            )}
+                                            {problem.spaceComplexity && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-gray-500 uppercase">Space:</span>
+                                                    <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm">{problem.spaceComplexity}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -1109,6 +1238,8 @@ const CodeEditor = () => {
                             <EditorialRenderer
                                 problem={problem}
                                 isAdmin={user?.role === 'admin'}
+                                hasViewedEditorial={hasViewedEditorial}
+                                onUnlockEditorial={() => setHasViewedEditorial(true)}
                                 onUpdateLinks={async (editorialLink, videoUrl) => {
                                     await problemService.updateProblem(problemId, { editorialLink, videoUrl });
                                     // Refresh problem data
@@ -1243,7 +1374,7 @@ const CodeEditor = () => {
                                 options={{
                                     minimap: { enabled: false },
                                     fontSize: editorSettings.fontSize,
-                                    fontFamily: editorSettings.fontFamily || "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                                    fontFamily: editorSettings.fontFamily || 'Menlo, Monaco, Consolas, "Courier New", monospace',
                                     fontLigatures: true,
                                     lineNumbers: 'on',
                                     renderLineHighlight: 'all',
@@ -1305,7 +1436,7 @@ const CodeEditor = () => {
 
                             {/* ── Test Cases tab ── */}
                             {bottomTab === 'testcases' && (
-                                <div className="flex flex-col h-full">
+                                <div className="flex flex-col h-full font-problem">
                                     {/* Tabs */}
                                     <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0">
                                         {/* Standard Cases */}
@@ -1367,13 +1498,13 @@ const CodeEditor = () => {
                                                     <div className="space-y-4 max-w-2xl">
                                                         <div>
                                                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap select-text">
+                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 whitespace-pre-wrap select-text">
                                                                 {tc.input}
                                                             </div>
                                                         </div>
                                                         <div>
                                                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap opacity-80 select-text">
+                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-600 whitespace-pre-wrap opacity-80 select-text">
                                                                 {tc.output}
                                                             </div>
                                                         </div>
@@ -1389,7 +1520,7 @@ const CodeEditor = () => {
                                                     <div className="space-y-2 h-full flex flex-col">
                                                         <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Input</p>
                                                         <textarea
-                                                            className="flex-1 w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none"
+                                                            className="flex-1 w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none"
                                                             value={cCase.input}
                                                             onChange={(e) => updateCustomCase(e.target.value)}
                                                             placeholder="Enter input here..."
@@ -1437,32 +1568,33 @@ const CodeEditor = () => {
 
                                     {/* ── Has results ── */}
                                     {!isExecuting && !isCompileErr && displayResult && (
-                                        <div className="flex flex-col h-full">
-                                            {/* ── LeetCode-style Verdict Header ── */}
+                                        <div className="flex flex-col h-full font-problem">
+                                            {/* ── Verdict Header ── */}
                                             {(() => {
                                                 const vc = getVerdictColor(displayResult.verdict);
                                                 const isAccepted = displayResult.verdict === 'Accepted';
+                                                const isTLE = displayResult.verdict === 'TLE';
+                                                const isSubmit = displayResult.isSubmitMode;
                                                 return (
                                                     <div className={`px-5 py-4 border-b shrink-0 ${vc.bg} ${vc.border}`}>
                                                         <div className="flex items-start justify-between gap-3">
                                                             <div className="flex items-center gap-3">
-                                                                <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                                    {isAccepted ? <CheckCircle size={20} /> : <XCircle size={20} />}
+                                                                <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 text-green-600' : isTLE ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
+                                                                    {isAccepted ? <CheckCircle size={20} /> : isTLE ? <Clock size={20} /> : <XCircle size={20} />}
                                                                 </div>
                                                                 <div>
                                                                     <h2 className={`text-lg font-bold ${vc.text}`}>
                                                                         {displayResult.verdict}
                                                                     </h2>
-                                                                    {/* X / Y testcases passed — always shown */}
                                                                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                                                                         <span className={`text-sm font-medium ${vc.text}`}>
                                                                             {displayResult.testCasesPassed} / {displayResult.totalTestCases} testcases passed
                                                                         </span>
-                                                                        {displayResult.isSubmitMode && (
+                                                                        {isSubmit && (
                                                                             <span className="text-xs text-gray-500">All Test Cases</span>
                                                                         )}
                                                                         {/* Show custom case count badge if custom cases were run */}
-                                                                        {!displayResult.isSubmitMode && displayResult.results?.some(r => r.isCustom) && (
+                                                                        {!isSubmit && displayResult.results?.some(r => r.isCustom) && (
                                                                             <span className="text-xs bg-blue-50 border border-blue-200 text-blue-600 px-2 py-0.5 rounded-full font-medium">
                                                                                 {displayResult.results.filter(r => r.isCustom).length} custom
                                                                             </span>
@@ -1472,7 +1604,7 @@ const CodeEditor = () => {
                                                             </div>
 
                                                             {/* Coins earned badge (submit only) */}
-                                                            {displayResult.isSubmitMode && displayResult.coinsEarned > 0 && (
+                                                            {isSubmit && displayResult.coinsEarned > 0 && (
                                                                 <div className="flex flex-col items-end gap-1">
                                                                     <span className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-sm font-bold">
                                                                         <Coins size={14} />
@@ -1489,6 +1621,89 @@ const CodeEditor = () => {
                                                     </div>
                                                 );
                                             })()}
+
+                                            {/* ── SUBMIT MODE: Clean summary only, no per-case details ── */}
+                                            {displayResult.isSubmitMode && (
+                                                <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 py-8">
+                                                    {/* Big status circle */}
+                                                    {(() => {
+                                                        const v = displayResult.verdict;
+                                                        const isAC = v === 'Accepted';
+                                                        const isTLE = v === 'TLE';
+                                                        const isWA = v === 'Wrong Answer';
+                                                        const isRE = v === 'Runtime Error';
+                                                        const pct = displayResult.totalTestCases > 0
+                                                            ? Math.round((displayResult.testCasesPassed / displayResult.totalTestCases) * 100)
+                                                            : 0;
+                                                        const circleColor = isAC ? '#22c55e' : isTLE ? '#eab308' : '#ef4444';
+                                                        const bgColor = isAC ? '#f0fdf4' : isTLE ? '#fefce8' : '#fef2f2';
+                                                        const radius = 52;
+                                                        const circ = 2 * Math.PI * radius;
+                                                        const dash = (pct / 100) * circ;
+                                                        return (
+                                                            <div className="flex flex-col items-center gap-4">
+                                                                {/* Circular progress */}
+                                                                <div style={{ position: 'relative', width: 140, height: 140 }}>
+                                                                    <svg width="140" height="140" style={{ transform: 'rotate(-90deg)' }}>
+                                                                        <circle cx="70" cy="70" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="10" />
+                                                                        <circle
+                                                                            cx="70" cy="70" r={radius}
+                                                                            fill="none"
+                                                                            stroke={circleColor}
+                                                                            strokeWidth="10"
+                                                                            strokeDasharray={`${dash} ${circ - dash}`}
+                                                                            strokeLinecap="round"
+                                                                            style={{ transition: 'stroke-dasharray 0.6s ease' }}
+                                                                        />
+                                                                    </svg>
+                                                                    <div style={{
+                                                                        position: 'absolute', inset: 0,
+                                                                        display: 'flex', flexDirection: 'column',
+                                                                        alignItems: 'center', justifyContent: 'center'
+                                                                    }}>
+                                                                        <span style={{ fontSize: 22, fontWeight: 800, color: circleColor, lineHeight: 1 }}>
+                                                                            {displayResult.testCasesPassed}
+                                                                        </span>
+                                                                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
+                                                                            / {displayResult.totalTestCases}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Verdict chips */}
+                                                                <div className="flex flex-col items-center gap-2">
+                                                                    <span style={{
+                                                                        background: bgColor, color: circleColor,
+                                                                        border: `1.5px solid ${circleColor}30`,
+                                                                        borderRadius: 99, padding: '4px 18px',
+                                                                        fontWeight: 700, fontSize: 13, letterSpacing: '0.02em'
+                                                                    }}>
+                                                                        {v}
+                                                                    </span>
+                                                                    <p className="text-xs text-gray-400 font-medium">
+                                                                        {isAC && 'Great job! All test cases passed.'}
+                                                                        {isTLE && `${displayResult.testCasesPassed} cases passed before time limit was exceeded.`}
+                                                                        {isWA && `${displayResult.testCasesPassed} / ${displayResult.totalTestCases} cases correct.`}
+                                                                        {isRE && 'Your code crashed on a test case.'}
+                                                                        {v === 'Compilation Error' && 'Fix your compile errors and resubmit.'}
+                                                                    </p>
+                                                                </div>
+
+                                                                {/* Runtime error message */}
+                                                                {displayResult.error && !isAC && (
+                                                                    <div className="w-full max-w-sm">
+                                                                        <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Error</p>
+                                                                        <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap">
+                                                                            {displayResult.error}
+                                                                        </pre>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            )}
+
 
                                             {/* ── Test Case Tabs (LeetCode style) ── */}
                                             {visibleResults.length > 0 && (
@@ -1543,7 +1758,7 @@ const CodeEditor = () => {
                                                                 {/* Input */}
                                                                 <div>
                                                                     <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
+                                                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
                                                                         {visibleResults[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
                                                                     </div>
                                                                 </div>
@@ -1553,7 +1768,7 @@ const CodeEditor = () => {
                                                                     {/* Your Output */}
                                                                     <div>
                                                                         <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Your Output</p>
-                                                                        <div className={`rounded-lg p-3 text-xs font-mono whitespace-pre-wrap border min-h-[48px]
+                                                                        <div className={`rounded-lg p-3 text-sm font-mono whitespace-pre-wrap border min-h-[48px]
                                                                             ${visibleResults[activeResultCase].passed
                                                                                 ? 'bg-green-50/40 border-green-200 text-gray-900'
                                                                                 : 'bg-red-50/40 border-red-200 text-gray-900'
@@ -1568,14 +1783,14 @@ const CodeEditor = () => {
                                                                         visibleResults[activeResultCase].expectedOutput !== '(No reference solution available)' ? (
                                                                         <div>
                                                                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
+                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
                                                                                 {visibleResults[activeResultCase].expectedOutput}
                                                                             </div>
                                                                         </div>
                                                                     ) : visibleResults[activeResultCase].isCustom ? (
                                                                         <div>
                                                                             <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-400 whitespace-pre-wrap min-h-[48px] italic">
+                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-400 whitespace-pre-wrap min-h-[48px] italic">
                                                                                 No reference solution available for custom input
                                                                             </div>
                                                                         </div>
@@ -1596,7 +1811,7 @@ const CodeEditor = () => {
                                                     </div>
                                                 ) : (
                                                     <div className="flex items-center justify-center h-full text-gray-400 text-xs">
-                                                        No result data for this case.
+                                                        {/* No result data for this case. */}
                                                     </div>
                                                 )}
                                             </div>
