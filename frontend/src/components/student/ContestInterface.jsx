@@ -1454,22 +1454,27 @@ const ContestInterface = ({ isPractice = false }) => {
                                     )}
                                 </div>
                             ) : (
-                                <div className="prose prose-sm max-w-none font-problem">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-4 font-sans">{selectedProblem.title}</h2>
-                                    <div className="flex flex-wrap gap-2 mb-6 font-sans">
-                                        <DiffBadge d={selectedProblem.difficulty} />
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold">
-                                            <Coins size={10} /> {selectedProblem.points} pts
-                                        </span>
+                                <div className="space-y-6">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-gray-900 mb-2 font-sans">{selectedProblem.title}</h2>
+                                        <div className="flex flex-wrap gap-2 font-sans">
+                                            <DiffBadge d={selectedProblem.difficulty} />
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: '#92400e', background: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '1px solid #fcd34d', padding: '2px 7px', borderRadius: 20 }}>
+                                                <Coins size={10} color="#f59e0b" /> {selectedProblem.points} pts
+                                            </span>
+                                        </div>
                                     </div>
-                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
-                                        {selectedProblem.description}
-                                    </ReactMarkdown>
+
+                                    <div className="prose max-w-none text-gray-700 font-problem prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed prose-code:text-blue-700 prose-code:bg-blue-50 prose-code:px-1 prose-code:rounded">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
+                                            {selectedProblem.description}
+                                        </ReactMarkdown>
+                                    </div>
 
                                     {selectedProblem.inputFormat && (
-                                        <div className="mt-6">
-                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">Input Format</h3>
-                                            <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 text-sm text-gray-700">
+                                        <div>
+                                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Input Format</h3>
+                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 prose prose-sm max-w-none">
                                                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
                                                     {selectedProblem.inputFormat}
                                                 </ReactMarkdown>
@@ -1478,9 +1483,9 @@ const ContestInterface = ({ isPractice = false }) => {
                                     )}
 
                                     {selectedProblem.outputFormat && (
-                                        <div className="mt-6">
-                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">Output Format</h3>
-                                            <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 text-sm text-gray-700">
+                                        <div>
+                                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Output Format</h3>
+                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 prose prose-sm max-w-none">
                                                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
                                                     {selectedProblem.outputFormat}
                                                 </ReactMarkdown>
@@ -1489,63 +1494,65 @@ const ContestInterface = ({ isPractice = false }) => {
                                     )}
 
                                     {selectedProblem.examples?.map((ex, i) => (
-                                        <div key={i} className="mt-6">
-                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">Example {i + 1}</h3>
-                                            <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-                                                <div className="p-3 border-b border-gray-200/50 flex flex-col gap-1">
-                                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Input</span>
-                                                    <code className="text-xs font-mono text-gray-800 bg-white px-2 py-1 rounded border border-gray-100">{ex.input}</code>
+                                        <div key={i} className="rounded-lg border border-gray-200 overflow-hidden">
+                                            <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 text-xs font-bold text-gray-600 uppercase tracking-wide">
+                                                Example {i + 1}
+                                            </div>
+                                            <div className="p-4 space-y-3 bg-white">
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Input</p>
+                                                    <pre className="bg-gray-50 border border-gray-200 rounded p-2 text-xs font-mono text-gray-800 whitespace-pre-wrap">{ex.input}</pre>
                                                 </div>
-                                                <div className="p-3 flex flex-col gap-1">
-                                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Output</span>
-                                                    <code className="text-xs font-mono text-gray-800 bg-white px-2 py-1 rounded border border-gray-100">{ex.output}</code>
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Output</p>
+                                                    <pre className="bg-gray-50 border border-gray-200 rounded p-2 text-xs font-mono text-gray-800 whitespace-pre-wrap">{ex.output}</pre>
                                                 </div>
+                                                {ex.explanation && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Explanation</p>
+                                                        <p className="text-xs text-gray-600 bg-blue-50 rounded p-2 border border-blue-100">{ex.explanation}</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
 
                                     {selectedProblem.constraints?.length > 0 && (
-                                        <div className="mt-8">
-                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Constraints</h3>
-                                            <ul className="space-y-2">
+                                        <div>
+                                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Constraints</h3>
+                                            <ul className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-1">
                                                 {selectedProblem.constraints.map((c, i) => (
-                                                    <li key={i} className="text-xs font-mono text-gray-600 bg-gray-50 px-3 py-2 rounded border border-gray-100 flex items-start gap-2">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-1.5 shrink-0" />
-                                                        {c}
-                                                    </li>
+                                                    <li key={i} className="text-xs font-mono text-gray-700 list-disc list-inside">{c}</li>
                                                 ))}
                                             </ul>
                                         </div>
                                     )}
 
                                     {selectedProblem.edgeCases?.length > 0 && (
-                                        <div className="mt-8">
-                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Edge Cases</h3>
-                                            <ul className="space-y-2">
+                                        <div>
+                                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Edge Cases</h3>
+                                            <ul className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-1">
                                                 {selectedProblem.edgeCases.map((c, i) => (
-                                                    <li key={i} className="text-xs font-mono text-gray-600 bg-gray-50 px-3 py-2 rounded border border-gray-100 flex items-start gap-2">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-1.5 shrink-0" />
-                                                        {c}
-                                                    </li>
+                                                    <li key={i} className="text-xs font-mono text-gray-700 list-disc list-inside">{c}</li>
                                                 ))}
                                             </ul>
                                         </div>
                                     )}
 
                                     {(selectedProblem.timeComplexity || selectedProblem.spaceComplexity) && (
-                                        <div className="mt-8">
-                                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Complexity</h3>
-                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+                                        <div>
+                                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Complexity</h3>
+                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
                                                 {selectedProblem.timeComplexity && (
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-xs font-bold text-gray-500 uppercase w-12">Time:</span>
-                                                        <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-3 py-1 rounded shadow-sm">{selectedProblem.timeComplexity}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-gray-500 uppercase">Time:</span>
+                                                        <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm">{selectedProblem.timeComplexity}</span>
                                                     </div>
                                                 )}
                                                 {selectedProblem.spaceComplexity && (
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-xs font-bold text-gray-500 uppercase w-12">Space:</span>
-                                                        <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-3 py-1 rounded shadow-sm">{selectedProblem.spaceComplexity}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-gray-500 uppercase">Space:</span>
+                                                        <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm">{selectedProblem.spaceComplexity}</span>
                                                     </div>
                                                 )}
                                             </div>

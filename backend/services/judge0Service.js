@@ -158,7 +158,7 @@ const runGeneratorCached = async ({ jsScript = null, pyScript = null, label = 's
             // 3a. Redis hit (size-aware, gzip-capable)
             let redisClient = null;
             try {
-                const { getRedis } = require('./config/redis');
+                const { getRedis } = require('../config/redis');
                 redisClient = getRedis();
                 const redisVal = await redisGetSafe(redisClient, cacheKey);
                 if (redisVal) {
