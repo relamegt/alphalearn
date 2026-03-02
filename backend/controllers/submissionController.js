@@ -161,7 +161,7 @@ const runCode = async (req, res) => {
         } else {
             // ── Sample test cases mode — use problem._id (ObjectId), not slug ───
             const testCases = await Problem.getSampleTestCases(problem._id);
-            const result = await executeWithTestCases(language, code, testCases, problem.timeLimit);
+            const result = await executeWithTestCases(language, code, testCases, problem.timeLimit, problem._id.toString());
             results = result.results.map(r => ({
                 input: r.input,
                 expectedOutput: r.expectedOutput,
@@ -223,75 +223,20 @@ const submitCode = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Problem not found' });
         }
 
-        // Get all test cases (sample + hidden) — use problem._id (ObjectId), not slug
-        const allTestCases = await Problem.getAllTestCases(problem._id);
+        // Reuse already-fetched problem.testCases — avoids a second identical DB query
+        const allTestCases = problem.testCases || [];
 
-        // Execute code against all test cases
-        const result = await executeWithTestCases(language, code, allTestCases, problem.timeLimit);
+        // Execute code against all test cases — this is the main latency (Judge0)
+        // Pass problem._id so the execution result cache is keyed per-problem (avoids collisions)
+        const result = await executeWithTestCases(language, code, allTestCases, problem.timeLimit, problem._id.toString());
 
-        // Create submission record — use problem._id (ObjectId) not the raw problemId which may be a slug
-        const submission = await Submission.create({
-            studentId,
-            problemId: problem._id,
-            code,
-            language,
-            verdict: result.verdict,
-            testCasesPassed: result.testCasesPassed,
-            totalTestCases: result.totalTestCases
-        });
+        // Generate a predictable local ID so the response is immediate;
+        // the actual DB write happens in the background
+        const { ObjectId } = require('bson');
+        const tempSubmissionId = new ObjectId();
+        const submittedAt = new Date();
 
-        let coinsEarned = 0;
-        let totalCoins = 0;
-        let isFirstSolve = false;
-
-        // Award coins only on Accepted verdict for PRACTICE problems (not contest problems)
-        if (result.verdict === 'Accepted' && req.user.role === 'student' && !problem.isContestProblem) {
-            // Check if problem was ALREADY in progress before this submission
-            const progress = await Progress.findByStudent(studentId);
-            const alreadyInProgress = progress?.problemsSolved?.some(
-                id => id.toString() === problem._id.toString()
-            ) || false;
-            isFirstSolve = !alreadyInProgress;
-
-            if (isFirstSolve) {
-                // Check if they viewed the editorial
-                const hasViewedEditorial = await Progress.hasViewedEditorial(studentId, problem._id);
-
-                if (hasViewedEditorial) {
-                    coinsEarned = 0;
-                    console.log(`   ℹ️ Editorial was viewed - 0 coins awarded to student ${studentId}`);
-                } else {
-                    // Award coins atomically (thread-safe $inc)
-                    coinsEarned = problem.points || 0;
-                    await User.addCoins(studentId, coinsEarned);
-                    console.log(`   💰 Coins Awarded: +${coinsEarned} to student ${studentId}`);
-                }
-            } else {
-                console.log(`   ℹ️ Problem already solved before - no duplicate coins`);
-            }
-
-            // Always update progress and leaderboard on accepted — pass problem._id (ObjectId, not slug)
-            try {
-                await Progress.updateProblemsSolved(studentId, problem._id);
-                await Promise.all([
-                    Progress.recalculateSectionProgress(studentId),
-                    Progress.updateStreak(studentId)
-                ]);
-                // Fix #25: Offload score recalculation to BullMQ background worker.
-                // Previously Leaderboard.recalculateScores() blocked the HTTP response.
-                const { addScoreJob } = require('../config/queue');
-                await addScoreJob(studentId);
-            } catch (progressErr) {
-                console.error('   ⚠️ Progress/Leaderboard update error (non-fatal):', progressErr.message);
-            }
-        }
-
-        // Get updated coin total for the user
-        if (req.user.role === 'student') {
-            totalCoins = await User.getCoins(studentId);
-        }
-
-        // Map results, masking hidden test cases
+        // Build mapped results immediately (sync, no DB needed)
         const mappedResults = result.results.map(r => ({
             input: r.isHidden ? null : r.input,
             expectedOutput: r.isHidden ? null : r.expectedOutput,
@@ -302,8 +247,32 @@ const submitCode = async (req, res) => {
             isHidden: r.isHidden || false
         }));
 
-        console.log(`   ✅ Submit Complete: ${result.verdict} (${result.testCasesPassed}/${result.totalTestCases}), CoinsEarned: ${coinsEarned}`);
+        // ── Check if this is a first-time solve BEFORE sending response ────────────────
+        // Required for the celebration animation to work correctly on the first try.
+        let isFirstSolve = false;
+        let coinsEarned = 0;
 
+        if (result.verdict === 'Accepted' && req.user.role === 'student' && !problem.isContestProblem) {
+            try {
+                const progress = await Progress.findByStudent(studentId);
+                const alreadySolved = progress?.problemsSolved?.some(
+                    id => id.toString() === problem._id.toString()
+                ) || false;
+
+                if (!alreadySolved) {
+                    isFirstSolve = true;
+                    const hasViewedEditorial = await Progress.hasViewedEditorial(studentId, problem._id);
+                    if (!hasViewedEditorial) {
+                        coinsEarned = problem.points || 0;
+                    }
+                }
+            } catch (pErr) {
+                console.warn('   ⚠️ Progress check failed in submit (pre-response):', pErr.message);
+            }
+        }
+
+        // Respond immediately with the correct isFirstSolve/coinsEarned data
+        console.log(`   ✅ Submit Complete: ${result.verdict} (${result.testCasesPassed}/${result.totalTestCases}), CoinsEarned: ${coinsEarned}`);
         res.json({
             success: true,
             message: 'Code submitted successfully',
@@ -311,21 +280,68 @@ const submitCode = async (req, res) => {
             testCasesPassed: result.testCasesPassed,
             totalTestCases: result.totalTestCases,
             submission: {
-                id: submission._id,
-                verdict: submission.verdict,
-                testCasesPassed: submission.testCasesPassed,
-                totalTestCases: submission.totalTestCases,
-                submittedAt: submission.submittedAt,
+                id: tempSubmissionId,
+                verdict: result.verdict,
+                testCasesPassed: result.testCasesPassed,
+                totalTestCases: result.totalTestCases,
+                submittedAt,
                 coinsEarned,
-                totalCoins,
+                totalCoins: 0,
                 isFirstSolve
             },
             results: mappedResults,
             error: result.error,
             coinsEarned,
-            totalCoins,
+            totalCoins: 0,
             isFirstSolve
         });
+
+        // ── All DB writes + coin logic run in background after response is sent ──
+        Promise.resolve().then(async () => {
+            try {
+                const submission = await Submission.create({
+                    studentId,
+                    problemId: problem._id,
+                    code,
+                    language,
+                    verdict: result.verdict,
+                    testCasesPassed: result.testCasesPassed,
+                    totalTestCases: result.totalTestCases
+                });
+
+                if (result.verdict === 'Accepted' && req.user.role === 'student' && !problem.isContestProblem) {
+                    const progress = await Progress.findByStudent(studentId);
+                    const alreadyInProgress = progress?.problemsSolved?.some(
+                        id => id.toString() === problem._id.toString()
+                    ) || false;
+                    const isFirstSolve = !alreadyInProgress;
+
+                    if (isFirstSolve) {
+                        const hasViewedEditorial = await Progress.hasViewedEditorial(studentId, problem._id);
+                        if (!hasViewedEditorial) {
+                            const coinsEarned = problem.points || 0;
+                            await User.addCoins(studentId, coinsEarned);
+                            console.log(`   💰 Coins Awarded: +${coinsEarned} to student ${studentId}`);
+                        } else {
+                            console.log(`   ℹ️ Editorial was viewed - 0 coins awarded`);
+                        }
+                    } else {
+                        console.log(`   ℹ️ Problem already solved before - no duplicate coins`);
+                    }
+
+                    await Progress.updateProblemsSolved(studentId, problem._id);
+                    await Promise.all([
+                        Progress.recalculateSectionProgress(studentId),
+                        Progress.updateStreak(studentId)
+                    ]);
+                    const { addScoreJob } = require('../config/queue');
+                    await addScoreJob(studentId);
+                }
+            } catch (bgErr) {
+                console.error('   ⚠️ Background submission save error (non-fatal):', bgErr.message);
+            }
+        });
+
     } catch (error) {
         console.error('Submit code error:', error);
         res.status(500).json({

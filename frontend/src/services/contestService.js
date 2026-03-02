@@ -82,6 +82,8 @@ const contestService = {
             const response = await apiClient.post(`/contest/${contestId}/run`, codeData);
             return response.data;
         } catch (error) {
+            // Preserve the raw error for network failures (no error.response on network errors)
+            if (!error.response) throw error;
             throw error.response?.data || { message: 'Code execution failed' };
         }
     },
@@ -92,6 +94,8 @@ const contestService = {
             const response = await apiClient.post(`/contest/${contestId}/submit`, submissionData);
             return response.data;
         } catch (error) {
+            // Preserve the raw error for network failures
+            if (!error.response) throw error;
             throw error.response?.data || { message: 'Contest submission failed' };
         }
     },

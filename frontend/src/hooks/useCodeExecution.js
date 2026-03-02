@@ -22,18 +22,21 @@ const useCodeExecution = () => {
     const [runResult, setRunResult] = useState(null);
     const [submitResult, setSubmitResult] = useState(null);
     const [error, setError] = useState(null);
+    const [isOffline, setIsOffline] = useState(false);
 
     // Run Code (Sample Test Cases)
     const runCode = useCallback(async (problemId, code, language, customInput, customInputs) => {
         setRunning(true);
         setRunResult(null);
         setError(null);
+        setIsOffline(false);
         setSubmitResult(null); // clear previous submit result
 
         try {
             const response = await submissionService.runCode(problemId, code, language, customInput, customInputs);
 
             if (response.success) {
+                // ... (existing success logic)
                 const normalizedRunResult = {
                     problemId,
                     verdict: response.verdict,
@@ -47,11 +50,6 @@ const useCodeExecution = () => {
                     isSubmitMode: false,
                     isCustomInput: (customInput !== undefined && customInput !== null) || (customInputs !== undefined && customInputs !== null)
                 };
-                console.log('[RunResult] Total results:', normalizedRunResult.results.length,
-                    '| Custom:', normalizedRunResult.results.filter(r => r.isCustom).length,
-                    '| Standard:', normalizedRunResult.results.filter(r => !r.isCustom).length
-                );
-                console.log('[RunResult] Full results:', JSON.stringify(normalizedRunResult.results, null, 2));
                 setRunResult(normalizedRunResult);
 
                 if (response.verdict === 'Accepted') {
@@ -66,8 +64,6 @@ const useCodeExecution = () => {
             } else {
                 const errMsg = response.message || 'Execution failed';
                 setError(errMsg);
-
-                // Still set a run result so we can show the error in the results panel
                 if (response.verdict || response.results) {
                     setRunResult({
                         problemId,
@@ -86,7 +82,16 @@ const useCodeExecution = () => {
                 toast.error(errMsg);
             }
         } catch (err) {
-            const errMsg = err?.message || err?.error || 'Failed to execute code';
+            const offline = !navigator.onLine || err?.code === 'ERR_NETWORK' || err?.message === 'Network Error';
+            const timeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
+
+            setIsOffline(offline);
+            let errMsg = offline
+                ? 'No internet connection. Please check your network and try again.'
+                : timeout
+                    ? 'Server is taking too long to respond. Please try again in a moment.'
+                    : err?.message || err?.error || 'Failed to execute code';
+
             setError(errMsg);
             toast.error(errMsg);
         } finally {
@@ -99,6 +104,7 @@ const useCodeExecution = () => {
         setSubmitting(true);
         setSubmitResult(null);
         setError(null);
+        setIsOffline(false);
         setRunResult(null); // clear run result
 
         try {
@@ -135,8 +141,6 @@ const useCodeExecution = () => {
                 }
             } else {
                 const errMsg = response.message || 'Submission failed';
-
-                // Build partial result if possible so error is visible in results panel
                 if (response.verdict || response.results) {
                     setSubmitResult({
                         problemId,
@@ -158,7 +162,16 @@ const useCodeExecution = () => {
                 toast.error(errMsg);
             }
         } catch (err) {
-            const errMsg = err?.message || err?.error || 'Failed to submit code';
+            const offline = !navigator.onLine || err?.code === 'ERR_NETWORK' || err?.message === 'Network Error';
+            const timeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
+
+            setIsOffline(offline);
+            let errMsg = offline
+                ? 'No internet connection. Please check your network and try again.'
+                : timeout
+                    ? 'Submission timed out. The server may be under load — please try again.'
+                    : err?.message || err?.error || 'Failed to submit code';
+
             setError(errMsg);
             toast.error(errMsg);
         } finally {

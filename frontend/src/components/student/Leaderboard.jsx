@@ -1808,8 +1808,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                         </span>
                                                                     ) : (
                                                                         <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200 inline-block">
-                                                                            In Progress
-                                                                            b                                                                        </span>
+                                                                            In Progress                                                                     </span>
                                                                     )}
                                                                 </td>
                                                                 <td className="px-3 py-3 whitespace-nowrap text-center sticky right-0 bg-inherit z-10 border-l border-gray-100 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">

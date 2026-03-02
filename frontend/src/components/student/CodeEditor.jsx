@@ -58,11 +58,12 @@ const SuccessPopOverlay = ({ result, onClose }) => {
     const coins = result?.coinsEarned ?? 0;
 
     useEffect(() => {
-        requestAnimationFrame(() => setVisible(true));
+        // Pre-set visibility to trigger entry transitions immediately
+        setVisible(true);
         const t = setTimeout(() => {
             setVisible(false);
-            setTimeout(onClose, 350);
-        }, 2600); // slightly longer dismiss
+            setTimeout(onClose, 400);
+        }, 3000); // slightly longer to ensure full coin cycle
         return () => clearTimeout(t);
     }, []);
 
@@ -124,7 +125,7 @@ const SuccessPopOverlay = ({ result, onClose }) => {
                     textAlign: 'center', marginTop: -20,
                     transform: visible ? 'scale(1) translateY(0)' : 'scale(0.4) translateY(30px)',
                     opacity: visible ? 1 : 0,
-                    transition: 'transform 0.5s 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s 0.3s',
+                    transition: 'transform 0.5s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s',
                     lineHeight: 1,
                 }}>
                     <div style={{
@@ -282,6 +283,7 @@ const ExecutionProgress = ({ isRunning, isSubmitting, total }) => {
 const ProblemTimer = () => {
     const [seconds, setSeconds] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
     useEffect(() => {
         let interval;
@@ -419,6 +421,17 @@ const CodeEditor = () => {
 
     // ── problem data ──
     const [problem, setProblem] = useState(null);
+    const lastResultIdRef = useRef(null);
+    // ── prefetch success animation ──
+    useEffect(() => {
+        // Reset process tracker when problem changes
+        lastResultIdRef.current = null;
+        // Preload lottie to avoid slow first load — browser will cache it
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = COIN_LOTTIE_URL;
+        document.head.appendChild(link);
+    }, [problemId]);
     const [hasViewedEditorial, setHasViewedEditorial] = useState(false);
     const [pageLoading, setPageLoading] = useState(!!problemId);
     const [loading, setLoading] = useState(!!problemId);
@@ -488,7 +501,7 @@ const CodeEditor = () => {
     const [resultsAnimKey, setResultsAnimKey] = useState(0);
     const [isResizing, setIsResizing] = useState(false);
 
-    const { running, submitting, runResult, submitResult, runCode, submitCode, resetResults, error: execError } = useCodeExecution();
+    const { running, submitting, runResult, submitResult, runCode, submitCode, resetResults, error: execError, isOffline } = useCodeExecution();
 
     // ───── fetch problem ──────────────────────────────────────────────────────
     useEffect(() => {
@@ -501,9 +514,6 @@ const CodeEditor = () => {
             return;
         }
 
-        setPageLoading(true);
-        setLoading(true);
-
         // Check cache first
         if (PROBLEM_CACHE[problemId]) {
             const cachedData = PROBLEM_CACHE[problemId];
@@ -514,6 +524,9 @@ const CodeEditor = () => {
             setLoading(false);
             return;
         }
+
+        setPageLoading(true);
+        setLoading(true);
 
         if (!PENDING_PROBLEM_CALLS[problemId]) {
             PENDING_PROBLEM_CALLS[problemId] = problemService.getProblemById(problemId);
@@ -598,7 +611,47 @@ const CodeEditor = () => {
         };
 
         loadCode();
-    }, [problemId, language, user]);
+
+        // 4. Fetch latest submission to show persistent result state
+        const fetchLatestResult = async () => {
+            try {
+                const data = await submissionService.getProblemSubmissions(problemId);
+                const latest = data.submissions?.[0];
+                if (latest && (latest.verdict === 'Accepted' || latest.verdict === 'Wrong Answer' || latest.verdict === 'TLE' || latest.verdict === 'Runtime Error')) {
+                    // Normalize to match submitResult format
+                    const normalized = {
+                        problemId,
+                        verdict: latest.verdict,
+                        testCasesPassed: latest.testCasesPassed || 0,
+                        totalTestCases: latest.totalTestCases || 0,
+                        results: latest.results || [], // Might be empty if backend doesn't return full results for old subs
+                        error: latest.error || null,
+                        coinsEarned: 0,
+                        totalCoins: 0,
+                        isFirstSolve: false,
+                        isSubmitMode: true,
+                        isCustomInput: false,
+                        persisted: true
+                    };
+                    // Only set if we don't already have a more recent result from this session
+                    setSubmitResult(prev => (prev?.persisted || !prev) ? normalized : prev);
+                }
+            } catch (err) {
+                console.warn('Failed to fetch latest submission for persistence:', err);
+            }
+        };
+        fetchLatestResult();
+
+        // 5. Check sessionStorage for Run results from this session
+        const cachedRunResult = sessionStorage.getItem(`run_result_${user.id}_${problemId}`);
+        if (cachedRunResult) {
+            try {
+                setRunResult(JSON.parse(cachedRunResult));
+            } catch (e) {
+                sessionStorage.removeItem(`run_result_${user.id}_${problemId}`);
+            }
+        }
+    }, [problemId, user, language]);
 
     // ───── save draft ─────────────────────────────────────────────────────────
     useEffect(() => {
@@ -643,21 +696,35 @@ const CodeEditor = () => {
             // Signal global state that this problem was solved
             window.dispatchEvent(new CustomEvent('problemSolved', { detail: { problemId } }));
 
-            // Update local problem state if available to immediately reflect in editor UI
-            if (problem && !problem.isSolved) {
-                setProblem(p => ({ ...p, isSolved: true }));
+            // Update local problem state immediately
+            let wasSolvedBefore = false;
+            if (problem) {
+                wasSolvedBefore = problem.isSolved;
+                if (!wasSolvedBefore) {
+                    setProblem(p => ({ ...p, isSolved: true }));
+                }
             }
 
-            // Show success overlay ONLY on first solve (coins were actually awarded)
-            if (submitResult?.isFirstSolve === true) {
-                const timer = setTimeout(() => {
-                    setSuccessResult(submitResult);
-                    setShowSuccessPop(true);
-                }, 300);
-                return () => clearTimeout(timer);
+            // Create a unique key for this submission to avoid double-processing
+            const resKey = submitResult.submission?._id || `${submitResult.testCasesPassed}_${submitResult.totalTestCases}`;
+            if (lastResultIdRef.current === resKey) return;
+            lastResultIdRef.current = resKey;
+
+            // Show success overlay if it was either a code-first solve (isFirstSolve)
+            // or we just discovered it's NOT solved in our local state but Accepted now.
+            // AND ensure it's not a persisted result from a previous session
+            if (!submitResult.persisted && (submitResult?.isFirstSolve === true || !wasSolvedBefore)) {
+                // Remove the extra 300ms delay to make it feel faster
+                setSuccessResult(submitResult);
+                setShowSuccessPop(true);
             }
         }
-    }, [runResult, submitResult, execError, problemId, problem]);
+
+        // Persist run results to sessionStorage for refresh survival
+        if (runResult && !runResult.persisted) {
+            sessionStorage.setItem(`run_result_${user.id}_${problemId}`, JSON.stringify(runResult));
+        }
+    }, [submitResult, problemId, problem, user?.id, runResult]);
 
     // ───── debug: log runResult on change ────────────────────────────────────
     useEffect(() => {
@@ -778,9 +845,13 @@ const CodeEditor = () => {
         const monaco = monacoRef.current;
         const editor = editorRef.current;
         if (monaco && editor) monaco.editor.setModelMarkers(editor.getModel(), 'owner', []);
-        if (!code.trim()) return toast.error('Code cannot be empty');
 
-        // Build the combined list of test cases to run:
+        if (!navigator.onLine) {
+            toast.error('No internet connection', { icon: '📡' });
+            return;
+        }
+
+        if (!code.trim()) return toast.error('Code cannot be empty');
         // Standard cases (with known expectedOutput) + User-added custom cases (input only)
         const allCasesToRun = [
             // Standard (non-hidden) cases — include expectedOutput for comparison
@@ -815,6 +886,7 @@ const CodeEditor = () => {
         const editor = editorRef.current;
         if (monaco && editor) monaco.editor.setModelMarkers(editor.getModel(), 'owner', []);
         if (!code.trim()) return toast.error('Code cannot be empty');
+        if (!problemId) return toast.error('Problem ID is missing');
         // if (!window.confirm('Submit solution? This will be tracked.')) return;
         await submitCode(problemId, code, language);
     };
@@ -1344,29 +1416,56 @@ const CodeEditor = () => {
                                     editorRef.current = editor;
                                     monacoRef.current = monaco;
 
-                                    // ── Block paste inside Monaco editor ──────────────────
-                                    // Override Ctrl+V / Cmd+V at the Monaco command level
-                                    editor.addCommand(
-                                        monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV,
-                                        () => {
-                                            toast.error('Paste is disabled in the code editor', { icon: '🚫', id: 'paste-blocked' });
+                                    // ── Internal-only clipboard ───────────────────────────────
+                                    // Only text copied within THIS editor can be pasted back.
+                                    // External clipboard content is blocked entirely.
+                                    const internalClip = { text: '' };
+
+                                    // Ctrl+C: save selected text internally, also copy to system clipboard
+                                    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC, () => {
+                                        const sel = editor.getSelection();
+                                        if (sel && !sel.isEmpty()) {
+                                            internalClip.text = editor.getModel().getValueInRange(sel);
                                         }
-                                    );
-                                    // Also block Shift+Insert (alternate paste shortcut)
-                                    editor.addCommand(
-                                        monaco.KeyMod.Shift | monaco.KeyCode.Insert,
-                                        () => {
-                                            toast.error('Paste is disabled in the code editor', { icon: '🚫', id: 'paste-blocked' });
+                                        editor.trigger('keyboard', 'editor.action.clipboardCopyAction', null);
+                                    });
+                                    // Ctrl+X: cut, save internally
+                                    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX, () => {
+                                        const sel = editor.getSelection();
+                                        if (sel && !sel.isEmpty()) {
+                                            internalClip.text = editor.getModel().getValueInRange(sel);
                                         }
-                                    );
-                                    // Block paste from right-click context menu
-                                    editor.onContextMenu(() => { });
+                                        editor.trigger('keyboard', 'editor.action.clipboardCutAction', null);
+                                    });
+                                    // Ctrl+V: paste ONLY from internal clipboard
+                                    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
+                                        if (!internalClip.text) {
+                                            toast.error('Paste from external sources is disabled', { icon: '🚫', id: 'paste-blocked' });
+                                            return;
+                                        }
+                                        const sel = editor.getSelection();
+                                        editor.executeEdits('internal-paste', [{
+                                            range: sel,
+                                            text: internalClip.text,
+                                            forceMoveMarkers: true
+                                        }]);
+                                    });
+                                    // Shift+Insert (alternate paste shortcut)
+                                    editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Insert, () => {
+                                        if (!internalClip.text) return;
+                                        const sel = editor.getSelection();
+                                        editor.executeEdits('internal-paste', [{
+                                            range: sel,
+                                            text: internalClip.text,
+                                            forceMoveMarkers: true
+                                        }]);
+                                    });
+                                    // Block DOM-level paste (right-click context menu / drag from outside)
                                     const editorDomNode = editor.getDomNode();
                                     if (editorDomNode) {
                                         editorDomNode.addEventListener('paste', (e) => {
                                             e.stopPropagation();
                                             e.preventDefault();
-                                            toast.error('Paste is disabled in the code editor', { icon: '🚫', id: 'paste-blocked' });
                                         }, true);
                                     }
                                 }}
@@ -1537,6 +1636,35 @@ const CodeEditor = () => {
                             {bottomTab === 'results' && (
                                 <div className="h-full overflow-y-auto flex flex-col" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
 
+                                    {/* ── Network Error (Priority check) ── */}
+                                    {!isExecuting && isOffline && (
+                                        <div className="flex flex-col bg-red-50/30">
+                                            <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2 shrink-0">
+                                                <div className="bg-red-100 p-1.5 rounded-full">
+                                                    <XCircle size={16} className="text-red-600" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h3 className="text-red-800 font-bold text-sm">Network Error</h3>
+                                                    <p className="text-xs text-red-600">No internet connection. Please check your network and try again.</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => bottomTab === 'testcases' ? handleRun() : handleSubmit()}
+                                                    className="px-3 py-1 bg-white border border-red-200 text-red-600 rounded-md text-[10px] font-bold hover:bg-red-50 transition-colors"
+                                                >
+                                                    Retry
+                                                </button>
+                                            </div>
+                                            <div className="p-8 text-center animate-in fade-in duration-500">
+                                                <div className="w-16 h-16 rounded-full bg-red-100/50 flex items-center justify-center mb-4 mx-auto">
+                                                    <XCircle size={32} className="text-red-500" />
+                                                </div>
+                                                <p className="text-sm text-gray-500 max-w-xs mx-auto mb-4">
+                                                    We couldn't reach the execution server. Please check your internet connection and try again.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* ── Executing (live progress) ── */}
                                     {isExecuting && (
                                         <ExecutionProgress
@@ -1547,7 +1675,7 @@ const CodeEditor = () => {
                                     )}
 
                                     {/* ── Compilation Error ── */}
-                                    {!isExecuting && isCompileErr && (
+                                    {!isExecuting && !isOffline && isCompileErr && (
                                         <div className="flex flex-col bg-orange-50/30">
                                             <div className="bg-orange-50 border-b border-orange-100 px-4 py-3 flex items-center gap-2 shrink-0">
                                                 <div className="bg-orange-100 p-1.5 rounded-full">
@@ -1829,7 +1957,7 @@ const CodeEditor = () => {
                                     )}
 
                                     {/* ── Generic error (no results) ── */}
-                                    {!isExecuting && execError && !displayResult && (
+                                    {!isExecuting && !isOffline && execError && !displayResult && !isCompileErr && (
                                         <div className="p-4">
                                             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                                                 <p className="text-xs font-bold text-red-600 mb-2">Error</p>

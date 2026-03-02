@@ -9,6 +9,8 @@ const apiClient = axios.create({
         'Content-Type': 'application/json',
     },
     withCredentials: true,
+    // Abort requests after 12 seconds — catches hanging requests when internet drops mid-flight
+    timeout: 12000,
 });
 
 // Request Interceptor: Attach Token to every request automatically
@@ -21,5 +23,24 @@ apiClient.interceptors.request.use((config) => {
 }, (error) => {
     return Promise.reject(error);
 });
+
+// Response interceptor: re-throw network/timeout errors with the raw error
+// so callers can inspect error.code (ERR_NETWORK, ECONNABORTED, etc.)
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const isNetworkError = !error.response && (
+            error.code === 'ERR_NETWORK' ||
+            error.code === 'ECONNABORTED' ||
+            error.message === 'Network Error' ||
+            error.message?.includes('timeout')
+        );
+        if (isNetworkError) {
+            // Preserve the original error so callers can detect offline
+            return Promise.reject(error);
+        }
+        return Promise.reject(error);
+    }
+);
 
 export default apiClient;

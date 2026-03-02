@@ -14,7 +14,7 @@ const submissionService = {
                 // Single custom input string (legacy)
                 payload.customInput = customInput;
             }
-            const response = await apiClient.post('/student/code/run', payload);
+            const response = await apiClient.post('/student/code/run', payload, { timeout: 120000 });
             return response.data;
         } catch (error) {
             throw error.response?.data || { message: 'Code execution failed' };
@@ -28,7 +28,7 @@ const submissionService = {
                 problemId,
                 code,
                 language,
-            });
+            }, { timeout: 120000 });
             return response.data;
         } catch (error) {
             throw error.response?.data || { message: 'Code submission failed' };

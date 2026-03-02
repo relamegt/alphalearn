@@ -68,36 +68,13 @@ export const disableDevTools = () => {
     return () => document.removeEventListener('keydown', keydownHandler);
 };
 
-// Detect DevTools open (size-based detection)
-export const detectDevTools = (onDetect) => {
-    if (isDevelopment()) {
-        console.log('🔓 DevTools detection disabled (Development mode)');
-        return () => { };
-    }
-
-    const threshold = 160;
-    let isOpen = false;
-
-    const checkDevTools = () => {
-        const widthThreshold = window.outerWidth - window.innerWidth > threshold;
-        const heightThreshold = window.outerHeight - window.innerHeight > threshold;
-
-        if ((widthThreshold || heightThreshold) && !isOpen) {
-            isOpen = true;
-            if (onDetect) {
-                onDetect();
-            }
-        } else if (!(widthThreshold || heightThreshold) && isOpen) {
-            isOpen = false;
-        }
-    };
-
-    const interval = setInterval(checkDevTools, 1000);
-
-    console.log('🔒 DevTools detection enabled (Production mode)');
-
-    // Cleanup
-    return () => clearInterval(interval);
+// Detect DevTools open
+// NOTE: Size-based detection (outerWidth vs innerWidth) is unreliable — it produces
+// false positives when the user zooms the page or when the OS scrollbar is visible.
+// We disable that heuristic entirely and rely only on keyboard-shortcut blocking above.
+export const detectDevTools = (_onDetect) => {
+    // No-op: size-based polling removed to prevent false positives on zoom.
+    return () => { };
 };
 
 // Apply secure mode to body

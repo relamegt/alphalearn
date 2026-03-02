@@ -519,13 +519,15 @@ const submitContestCode = async (req, res) => {
     }
 };
 
-// Run code in contest (Sample test cases only - no submission)
+// Run code in contest (Sample test cases only, or custom input)
 const runContestCode = async (req, res) => {
     try {
         const { contestId } = req.params;
-        const { problemId, code, language, isPractice = false } = req.body;
+        const { problemId, code, language, isPractice = false, customInput, customInputs } = req.body;
         const studentId = req.user.userId;
         const isPracticeMode = isPractice === true || isPractice === 'true';
+        const isCustom = customInput !== undefined && customInput !== null && String(customInput).trim() !== '';
+        const isMultiCustom = Array.isArray(customInputs) && customInputs.length > 0;
 
         // Check if contest is submitted
         const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
@@ -536,7 +538,6 @@ const runContestCode = async (req, res) => {
             });
         }
 
-        // Check if problem already solved
         // Check if problem already solved
         const isProblemSolved = await ContestSubmission.isProblemSolved(studentId, contestId, problemId);
         if (isProblemSolved && !isPracticeMode) {
@@ -549,18 +550,12 @@ const runContestCode = async (req, res) => {
         // Check if contest exists
         const contest = await Contest.findById(contestId);
         if (!contest) {
-            return res.status(404).json({
-                success: false,
-                message: 'Contest not found'
-            });
+            return res.status(404).json({ success: false, message: 'Contest not found' });
         }
 
         // Validate code
         if (!code || !code.trim()) {
-            return res.status(400).json({
-                success: false,
-                message: 'Code cannot be empty'
-            });
+            return res.status(400).json({ success: false, message: 'Code cannot be empty' });
         }
 
         const validation = validateCode(code, language);
@@ -575,15 +570,150 @@ const runContestCode = async (req, res) => {
         // Get problem
         const problem = await Problem.findById(problemId);
         if (!problem) {
-            return res.status(404).json({
-                success: false,
-                message: 'Problem not found'
-            });
+            return res.status(404).json({ success: false, message: 'Problem not found' });
         }
 
-        // Get test cases (All for practice, Sample for contest)
-        // For 'Run', strictly ONLY expose non-hidden (sample) test cases.
-        // We never run against hidden cases for 'Run' action.
+        // Helper: get solution code
+        const getSolutionCode = () => {
+            const solCode = problem.solutionCode?.[language] ||
+                Object.values(problem.solutionCode || {}).find(c => c);
+            const solLang = problem.solutionCode?.[language]
+                ? language
+                : Object.keys(problem.solutionCode || {}).find(k => problem.solutionCode[k]);
+            return { solCode, solLang };
+        };
+
+        const { notifyExecutionResult } = require('../config/websocket');
+
+        // ── Multi Custom Input Mode ──────────────────────────────────────────
+        if (isMultiCustom) {
+            const casesNeedingSolution = customInputs.filter(c => c.expectedOutput === undefined || c.expectedOutput === null);
+            const userTestCases = customInputs.map(c => ({ input: c.input, output: c.expectedOutput ?? undefined, isHidden: false }));
+            const { solCode, solLang } = getSolutionCode();
+            const needsSolution = casesNeedingSolution.length > 0 && solCode && solLang;
+
+            const [userResult, solResult] = await Promise.all([
+                executeWithTestCases(language, code, userTestCases, problem.timeLimit),
+                needsSolution
+                    ? executeWithTestCases(solLang, solCode, casesNeedingSolution.map(c => ({ input: c.input, output: undefined, isHidden: false })), problem.timeLimit).catch(e => {
+                        console.warn('[Contest Run] Solution code failed:', e.message);
+                        return null;
+                    })
+                    : Promise.resolve(null)
+            ]);
+
+            let solOutputMap = {};
+            if (solResult) {
+                casesNeedingSolution.forEach((c, idx) => {
+                    solOutputMap[c.input] = solResult.results[idx]?.actualOutput ?? null;
+                });
+            }
+
+            const results = customInputs.map((c, i) => {
+                const userOut = userResult.results[i]?.actualOutput ?? '';
+                const userVerdict = userResult.results[i]?.verdict ?? userResult.verdict;
+                const userError = userResult.results[i]?.error ?? null;
+                const expectedOut = c.expectedOutput ?? solOutputMap[c.input] ?? null;
+                const passed = expectedOut !== null
+                    ? (userOut?.trim() === expectedOut?.trim())
+                    : (userVerdict === 'Accepted' || !userError);
+                return {
+                    input: c.input,
+                    expectedOutput: expectedOut ?? '(No reference solution available)',
+                    actualOutput: userOut,
+                    passed,
+                    verdict: passed ? 'Accepted' : (userError ? userVerdict : 'Wrong Answer'),
+                    error: userError,
+                    isHidden: false,
+                    isCustom: c.isCustom ?? true,
+                    hasSolution: expectedOut !== null
+                };
+            });
+
+            const totalPassed = results.filter(r => r.passed).length;
+            const finalVerdict = results.every(r => r.passed) ? 'Accepted'
+                : results.some(r => r.verdict === 'Compilation Error') ? 'Compilation Error'
+                    : results.some(r => r.verdict === 'Runtime Error') ? 'Runtime Error'
+                        : results.some(r => r.verdict === 'TLE') ? 'TLE'
+                            : 'Wrong Answer';
+
+            const runResult = {
+                isRun: true,
+                success: true,
+                problemId,
+                isCustomInput: true,
+                verdict: finalVerdict,
+                testCasesPassed: totalPassed,
+                totalTestCases: results.length,
+                results,
+                error: results.find(r => r.error)?.error || null,
+                message: 'Custom input executed successfully'
+            };
+
+            notifyExecutionResult(contest._id.toString(), studentId, runResult);
+            return res.json({ success: true, isProcessing: true, message: 'Custom input code run queued...' });
+        }
+
+        // ── Single Custom Input Mode ──────────────────────────────────────────
+        if (isCustom) {
+            const userTestCase = [{ input: customInput, output: undefined, isHidden: false }];
+            const { solCode, solLang } = getSolutionCode();
+
+            const [userResult, solRunResult] = await Promise.all([
+                executeWithTestCases(language, code, userTestCase, problem.timeLimit),
+                solCode && solLang
+                    ? executeWithTestCases(solLang, solCode, [{ input: customInput, output: undefined, isHidden: false }], problem.timeLimit).catch(e => {
+                        console.warn('[Contest Run] Solution code failed:', e.message);
+                        return null;
+                    })
+                    : Promise.resolve(null)
+            ]);
+
+            const userOutput = userResult.results[0]?.actualOutput ?? '';
+            const userVerdict = userResult.results[0]?.verdict ?? userResult.verdict;
+            const userError = userResult.results[0]?.error ?? userResult.error;
+
+            let expectedOutput = null;
+            if (solRunResult) {
+                expectedOutput = solRunResult.results[0]?.actualOutput ?? null;
+            }
+
+            const passed = expectedOutput !== null
+                ? (userOutput?.trim() === expectedOutput?.trim())
+                : (userVerdict === 'Accepted' || userVerdict === 'No output');
+
+            const results = [{
+                input: customInput,
+                expectedOutput: expectedOutput ?? '(No reference solution available)',
+                actualOutput: userOutput,
+                passed,
+                verdict: expectedOutput !== null
+                    ? (passed ? 'Accepted' : (userError ? userVerdict : 'Wrong Answer'))
+                    : userVerdict,
+                error: userError,
+                isHidden: false,
+                isCustom: true,
+                hasSolution: !!expectedOutput
+            }];
+
+            const runResult = {
+                isRun: true,
+                success: true,
+                problemId,
+                isCustomInput: true,
+                verdict: results[0].verdict,
+                testCasesPassed: passed ? 1 : 0,
+                totalTestCases: 1,
+                results,
+                error: userError || null,
+                message: 'Custom input executed successfully'
+            };
+
+            notifyExecutionResult(contest._id.toString(), studentId, runResult);
+            return res.json({ success: true, isProcessing: true, message: 'Custom input code run queued...' });
+        }
+
+        // ── Standard Mode: run sample test cases via queue ────────────────────
         let testCases = await Problem.getAllTestCases(problemId);
         testCases = testCases.filter(tc => !tc.isHidden);
 
@@ -599,7 +729,7 @@ const runContestCode = async (req, res) => {
         await addExecutionJob({
             type: 'run',
             studentId,
-            contestId: contest._id.toString(), // Always use the real _id so WS room key matches
+            contestId: contest._id.toString(),
             problemId,
             code,
             language,

@@ -27,6 +27,7 @@ const startCodeExecutionWorker = () => {
                 const runResult = {
                     isRun: true,
                     success: true,
+                    problemId: data.problemId,
                     message: 'Code executed successfully',
                     results: result.results.map(r => ({
                         input: r.input,
@@ -48,6 +49,7 @@ const startCodeExecutionWorker = () => {
                 const practiceResult = {
                     success: true,
                     isPractice: true,
+                    problemId: data.problemId,
                     message: result.verdict === 'Accepted' ? 'Practice submission passed!' : 'Practice submission completed',
                     submission: {
                         _id: 'temporary-practice-id',
@@ -99,6 +101,7 @@ const startCodeExecutionWorker = () => {
 
             const finalResult = {
                 success: true,
+                problemId: data.problemId,
                 message: data.isAutoSubmit
                     ? 'Code auto-submitted due to violations'
                     : result.verdict === 'Accepted'
@@ -156,6 +159,7 @@ const startCodeExecutionWorker = () => {
             notifyExecutionResult(data.contestId, data.studentId, {
                 success: false,
                 isError: true,
+                problemId: data.problemId,
                 message: error.message || 'Execution failed'
             });
             throw error;

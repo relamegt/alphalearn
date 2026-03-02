@@ -1,4 +1,4 @@
-const axios = require('axios');
+﻿const axios = require('axios');
 const Bottleneck = require('bottleneck');
 const util = require('util');
 const execFileAsync = util.promisify(require('child_process').execFile);
@@ -8,27 +8,93 @@ const zlib = require('zlib');
 const zlibGzip = util.promisify(zlib.gzip);
 const zlibGunzip = util.promisify(zlib.gunzip);
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // GENERATOR SCRIPT CACHE
 // Two-level cache: (1) in-process LRU so same worker never spawns Python twice,
 // (2) Redis so any of the 5 BullMQ worker concurrency slots share one warm cache
 // across Render restarts and across all 1000 concurrent users.
 //
-// Render Free only has 0.1 vCPU — every avoided Python spawn saves ~150-400ms.
+// Render Free only has 0.1 vCPU ΓÇö every avoided Python spawn saves ~150-400ms.
 // Upstash Free gives 10 000 commands/day which is ample for caching stable
 // deterministic generator outputs (they never change for the same script).
-// ─────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 // --- BUG-2 FIX: Byte-capped LRU prevents OOM on Render Free (512 MB RAM) ---
-// LRU_MAX=200 with 7MB entries = 1.4GB potential → guaranteed OOM kill.
+// LRU_MAX=200 with 7MB entries = 1.4GB potential ΓåÆ guaranteed OOM kill.
 // Now we track cumulative bytes and evict oldest when exceeding cap.
 const LRU_BYTE_CAP = 80 * 1024 * 1024; // 80 MB hard cap
-const REDIS_RAW_MAX = 900 * 1024;       // 900 KB → safe to push raw to Upstash (1 MB limit)
+const REDIS_RAW_MAX = 900 * 1024;       // 900 KB ΓåÆ safe to push raw to Upstash (1 MB limit)
 const REDIS_GZ_MAX = 900 * 1024;       // 900 KB compressed
 
 const _lruCache = new Map();
 const _lruOrder = [];
 let _lruBytes = 0;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXECUTION RESULT CACHE
+// Keyed by sha1(language:problemId:code). TTL = 10 min.
+// Massive win for classrooms: 1000 students, many submit the same solution.
+// First submit executes via Judge0 (~10-30s), all others return in <5ms.
+// Stampede protection: concurrent identical submits share ONE in-flight Judge0 req.
+// ─────────────────────────────────────────────────────────────────────────────
+const EXEC_LRU_BYTE_CAP = 32 * 1024 * 1024; // 32 MB for exec results
+const EXEC_TTL_MS = 10 * 60 * 1000;         // 10 minutes in-process
+const _execLruCache = new Map();   // key → { value: JSONstring, expiresAt: number }
+const _execLruOrder = [];
+let _execLruBytes = 0;
+const _execInFlight = new Map(); // stampede protection for exec results
+
+const execResultKey = (language, problemId, code, testCases) => {
+    const tcHash = crypto.createHash('sha1').update(testCases.map(t => t.input || '').join('|')).digest('hex').slice(0, 8);
+    return 'exec:' + crypto.createHash('sha1')
+        .update(`${language}:${problemId || ''}:${code}:${tcHash}`)
+        .digest('hex').slice(0, 24);
+};
+
+const execLruGet = (key) => {
+    const entry = _execLruCache.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+        _execLruCache.delete(key);
+        const idx = _execLruOrder.indexOf(key);
+        if (idx !== -1) _execLruOrder.splice(idx, 1);
+        const valueStr = typeof entry.value === 'string' ? entry.value : JSON.stringify(entry.value);
+        _execLruBytes -= Buffer.byteLength(valueStr, 'utf8');
+        return null;
+    }
+    const idx = _execLruOrder.indexOf(key);
+    if (idx !== -1) { _execLruOrder.splice(idx, 1); _execLruOrder.push(key); }
+    return entry.value;
+};
+
+const execLruSet = (key, value) => {
+    const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
+    const newBytes = Buffer.byteLength(valueStr, 'utf8');
+
+    // Evict old entries until we have space
+    while (_execLruBytes + newBytes > EXEC_LRU_BYTE_CAP && _execLruOrder.length > 0) {
+        const evictKey = _execLruOrder.shift();
+        const entry = _execLruCache.get(evictKey);
+        if (entry) {
+            const entryStr = typeof entry.value === 'string' ? entry.value : JSON.stringify(entry.value);
+            _execLruBytes -= Buffer.byteLength(entryStr, 'utf8');
+        }
+        _execLruCache.delete(evictKey);
+    }
+
+    // Overwrite existing if present
+    if (_execLruCache.has(key)) {
+        const oldEntry = _execLruCache.get(key);
+        const oldStr = typeof oldEntry.value === 'string' ? oldEntry.value : JSON.stringify(oldEntry.value);
+        _execLruBytes -= Buffer.byteLength(oldStr, 'utf8');
+        const oi = _execLruOrder.indexOf(key);
+        if (oi !== -1) _execLruOrder.splice(oi, 1);
+    }
+
+    _execLruCache.set(key, { value, expiresAt: Date.now() + EXEC_TTL_MS });
+    _execLruOrder.push(key);
+    _execLruBytes += newBytes;
+};
 
 const lruGet = (key) => {
     if (!_lruCache.has(key)) return null;
@@ -58,7 +124,7 @@ const lruSet = (key, value) => {
 };
 
 // --- Stampede protection: pending promises per cache key ---
-const _inFlight = new Map(); // key → Promise<string>
+const _inFlight = new Map(); // key ΓåÆ Promise<string>
 
 // Stable hash for a script so the cache key stays short
 const scriptHash = (script) =>
@@ -76,12 +142,12 @@ const redisSetSafe = async (client, key, value) => {
             const compressed = await zlibGzip(value);
             if (compressed.length <= REDIS_GZ_MAX) {
                 await client.set(`${key}:gz`, compressed.toString('base64'), 'EX', 7 * 24 * 60 * 60);
-                console.log(`   🗄️  [Redis] gzip stored: ${(rawLen / 1024 | 0)} KB → ${(compressed.length / 1024 | 0)} KB`);
+                console.log(`   ≡ƒùä∩╕Å  [Redis] gzip stored: ${(rawLen / 1024 | 0)} KB ΓåÆ ${(compressed.length / 1024 | 0)} KB`);
             } else {
-                console.log(`   ⚠️  [Redis] ${(rawLen / 1024 | 0)} KB too large — LRU only`);
+                console.log(`   ΓÜá∩╕Å  [Redis] ${(rawLen / 1024 | 0)} KB too large ΓÇö LRU only`);
             }
         }
-    } catch (e) { console.warn(`   ⚠️  [Redis write] ${e.message}`); }
+    } catch (e) { console.warn(`   ΓÜá∩╕Å  [Redis write] ${e.message}`); }
 };
 
 const redisGetSafe = async (client, key) => {
@@ -93,11 +159,11 @@ const redisGetSafe = async (client, key) => {
             const buf = await zlibGunzip(Buffer.from(gz, 'base64'));
             return buf.toString('utf8');
         }
-    } catch (e) { console.warn(`   ⚠️  [Redis read] ${e.message}`); }
+    } catch (e) { console.warn(`   ΓÜá∩╕Å  [Redis read] ${e.message}`); }
     return null;
 };
 
-// --- BUG-1 FIX: vm.runInNewContext is SYNCHRONOUS — use setImmediate to yield ---
+// --- BUG-1 FIX: vm.runInNewContext is SYNCHRONOUS ΓÇö use setImmediate to yield ---
 // vm.runInNewContext blocks the event loop for ~200ms for 10^6-element arrays.
 // setImmediate defers execution to after pending I/O callbacks (WebSocket pings,
 // HTTP keepalives, BullMQ state updates) are processed first.
@@ -125,13 +191,13 @@ const runJsInSandbox = (script) => new Promise((resolve, reject) => {
  * runGeneratorCached({ jsScript, pyScript, label })
  *
  * Priority:
- *   1. LRU cache hit      — ~0 ms  (byte-capped in-process Map, BUG-2 fixed)
- *   2. Redis cache hit    — ~5 ms  (gzip-aware read, BUG-3 fixed)
- *   3. jsScript via vm   — ~1–200 ms async via setImmediate (BUG-1 fixed)
- *   4. pyScript Python   — ~150–400 ms async subprocess
+ *   1. LRU cache hit      ΓÇö ~0 ms  (byte-capped in-process Map, BUG-2 fixed)
+ *   2. Redis cache hit    ΓÇö ~5 ms  (gzip-aware read, BUG-3 fixed)
+ *   3. jsScript via vm   ΓÇö ~1ΓÇô200 ms async via setImmediate (BUG-1 fixed)
+ *   4. pyScript Python   ΓÇö ~150ΓÇô400 ms async subprocess
  *
  * Stampede protection: all 1000 concurrent users sharing ONE execution Promise
- * per unique script — only one vm/Python run ever happens at a time.
+ * per unique script ΓÇö only one vm/Python run ever happens at a time.
  */
 const runGeneratorCached = async ({ jsScript = null, pyScript = null, label = 'script' }) => {
     const canonicalScript = jsScript || pyScript;
@@ -139,16 +205,16 @@ const runGeneratorCached = async ({ jsScript = null, pyScript = null, label = 's
 
     const cacheKey = `tcgen:${scriptHash(canonicalScript)}`;
 
-    // 1. LRU hit — instant, no I/O
+    // 1. LRU hit ΓÇö instant, no I/O
     const lruHit = lruGet(cacheKey);
     if (lruHit !== null) {
-        console.log(`   ⚡ [L1-LRU] ${label} (~0ms, ${(Buffer.byteLength(lruHit) / 1024 | 0)} KB)`);
+        console.log(`   ΓÜí [L1-LRU] ${label} (~0ms, ${(Buffer.byteLength(lruHit) / 1024 | 0)} KB)`);
         return lruHit;
     }
 
-    // 2. Stampede protection — join in-flight Promise
+    // 2. Stampede protection ΓÇö join in-flight Promise
     if (_inFlight.has(cacheKey)) {
-        console.log(`   ⏳ [Stampede] ${label} awaiting in-flight generator...`);
+        console.log(`   ΓÅ│ [Stampede] ${label} awaiting in-flight generator...`);
         return _inFlight.get(cacheKey);
     }
 
@@ -162,12 +228,12 @@ const runGeneratorCached = async ({ jsScript = null, pyScript = null, label = 's
                 redisClient = getRedis();
                 const redisVal = await redisGetSafe(redisClient, cacheKey);
                 if (redisVal) {
-                    console.log(`   🗄️  [L2-Redis] ${label} hit`);
+                    console.log(`   ≡ƒùä∩╕Å  [L2-Redis] ${label} hit`);
                     lruSet(cacheKey, redisVal); // Warm LRU from Redis
                     return redisVal;
                 }
             } catch (redisErr) {
-                console.warn(`   ⚠️  [Redis] unavailable: ${redisErr.message}`);
+                console.warn(`   ΓÜá∩╕Å  [Redis] unavailable: ${redisErr.message}`);
             }
 
             // 3b. Execute generator
@@ -176,18 +242,18 @@ const runGeneratorCached = async ({ jsScript = null, pyScript = null, label = 's
 
             if (jsScript) {
                 // BUG-1 FIXED: setImmediate wrapper makes this non-blocking
-                console.log(`   ⚡ [JS-vm] ${label}...`);
+                console.log(`   ΓÜí [JS-vm] ${label}...`);
                 result = await runJsInSandbox(jsScript);
-                console.log(`   ✅ [JS-vm] ${label} done in ${Date.now() - start}ms (${(Buffer.byteLength(result) / 1024 | 0)} KB)`);
+                console.log(`   Γ£à [JS-vm] ${label} done in ${Date.now() - start}ms (${(Buffer.byteLength(result) / 1024 | 0)} KB)`);
             } else {
-                console.log(`   🐍 [Python] ${label}...`);
+                console.log(`   ≡ƒÉì [Python] ${label}...`);
                 const { stdout } = await execFileAsync('python', ['-c', pyScript], {
                     encoding: 'utf-8',
                     timeout: 10000,
                     maxBuffer: 50 * 1024 * 1024
                 });
                 result = stdout;
-                console.log(`   ✅ [Python] ${label} done in ${Date.now() - start}ms (${(Buffer.byteLength(result) / 1024 | 0)} KB)`);
+                console.log(`   Γ£à [Python] ${label} done in ${Date.now() - start}ms (${(Buffer.byteLength(result) / 1024 | 0)} KB)`);
             }
 
             // BUG-2 FIXED: byte-capped LRU set
@@ -311,7 +377,7 @@ const executeCode = async (language, code, stdin = '', timeLimit = 3000) => {
     }
 };
 
-// ──────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // OPTIMIZED: Single-submission multi-test-case execution (CodeChef/Codeforces style)
 //
 // Instead of sending N separate Judge0 submissions (N API credits), we wrap the
@@ -320,7 +386,7 @@ const executeCode = async (language, code, stdin = '', timeLimit = 3000) => {
 // output block, then we split and map back to individual test case results.
 //
 // COST: 1 Judge0 credit regardless of how many test cases there are.
-// ──────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 const CASE_SENTINEL = '---CASE_END---';
 
@@ -339,17 +405,17 @@ const CASE_SENTINEL = '---CASE_END---';
  * an I/O redirection harness. For Java/C# we use a similar technique.
  */
 /**
- * buildHarness — builds language-specific harness source + packed stdin.
+ * buildHarness ΓÇö builds language-specific harness source + packed stdin.
  *
  * TWO modes:
- *  COMPARE mode  — when `expectedOutputs` array is provided (submit path).
+ *  COMPARE mode  ΓÇö when `expectedOutputs` array is provided (submit path).
  *    Expected outputs travel in stdin AFTER a __SPLIT__ sentinel.
  *    Harness captures student output, compares, emits only:
  *      "PASS\n---CASE_END---\n"  or  "FAIL\n<first 512 chars of actual>\n---CASE_END---\n"
- *    → stdout stays tiny (~50 bytes/case) regardless of output size.
- *    → Solves Judge0 file-size-limit (SIGXFSZ / NZEC id=11) for large outputs.
+ *    ΓåÆ stdout stays tiny (~50 bytes/case) regardless of output size.
+ *    ΓåÆ Solves Judge0 file-size-limit (SIGXFSZ / NZEC id=11) for large outputs.
  *
- *  PASSTHROUGH mode — when `expectedOutputs` is null/undefined (run path).
+ *  PASSTHROUGH mode ΓÇö when `expectedOutputs` is null/undefined (run path).
  *    Original behaviour: harness echos full output, backend compares.
  */
 const buildHarness = (language, userCode, testInputs, expectedOutputs = null) => {
@@ -948,8 +1014,8 @@ async function submitSingle(languageId, sourceCode, stdin) {
         const token = result.token;
         if (!token) throw new Error('Judge0 returned 201 but no token found');
 
-        const maxRetries = 30;
-        const delay = 1000;
+        const maxRetries = 100;
+        const delay = 500;     // Balanced poll: 500ms
         let attempts = 0;
         let finished = false;
 
@@ -1006,13 +1072,13 @@ function splitCombinedOutput(rawOutput, T) {
     return caseOutputs;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // MAIN EXPORT: executeWithTestCases
 //
 // Now uses single-submission harness (1 Judge0 credit for all N test cases).
 // Falls back to the old batch approach only if harness generation fails.
-// ──────────────────────────────────────────────────────────────────────────────
-const executeWithTestCases = async (language, code, testCases, timeLimit = 3000) => {
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+const executeWithTestCases = async (language, code, testCases, timeLimit = 3000, problemId = null) => {
     const languageId = LANGUAGE_IDS[language];
     if (!languageId) throw new Error(`Unsupported language: ${language}`);
 
@@ -1021,6 +1087,40 @@ const executeWithTestCases = async (language, code, testCases, timeLimit = 3000)
     }
 
     const T = testCases.length;
+
+    // Keyed on (language + problemId + code + tcHash). Skips Judge0 entirely for repeated
+    // identical submissions (extremely common in classrooms of 1000 students).
+    const cacheKey = execResultKey(language, problemId, code, testCases);
+    const cachedResult = execLruGet(cacheKey);
+    if (cachedResult) {
+        console.log(`   ⚡ [ExecCache] HIT — skipping Judge0 for ${language}:${problemId || 'adhoc'} (${T} cases)`);
+        return typeof cachedResult === 'string' ? JSON.parse(cachedResult) : cachedResult;
+    }
+
+    // Stampede protection: if another concurrent request is already running Judge0
+    // for this exact (code + problem), share its result instead of double-billing.
+    if (_execInFlight.has(cacheKey)) {
+        console.log(`   ⏳ [ExecCache] Stampede — joining in-flight execution...`);
+        return _execInFlight.get(cacheKey);
+    }
+
+    // Build the actual execution promise and register it for stampede protection
+    const execPromise = (async () => {
+        try {
+            const result = await _runExecuteWithTestCases(language, code, testCases, timeLimit, languageId, T);
+            execLruSet(cacheKey, result);
+            return result;
+        } finally {
+            _execInFlight.delete(cacheKey);
+        }
+    })();
+
+    _execInFlight.set(cacheKey, execPromise);
+    return execPromise;
+};
+
+// Inner implementation (called only on cache miss)
+const _runExecuteWithTestCases = async (language, code, testCases, timeLimit, languageId, T) => {
     console.log(`\n🚀 [Judge0] Single-Submit Harness (${T} cases, 1 credit)`);
     console.log(`   Language: ${language} (ID: ${languageId})`);
 
@@ -1028,7 +1128,7 @@ const executeWithTestCases = async (language, code, testCases, timeLimit = 3000)
     const cleanInputs = await Promise.all(testCases.map(async (tc, index) => {
         let inputStr = tc.input || '';
 
-        // Run input generator — prefer jsGeneratorScript (vm, ~1ms) over generatorScript (Python, ~150ms)
+        // Run input generator ΓÇö prefer jsGeneratorScript (vm, ~1ms) over generatorScript (Python, ~150ms)
         if (tc.jsGeneratorScript || tc.generatorScript) {
             try {
                 const raw = await runGeneratorCached({
@@ -1038,12 +1138,12 @@ const executeWithTestCases = async (language, code, testCases, timeLimit = 3000)
                 });
                 inputStr = raw;
             } catch (err) {
-                console.error(`❌ [TC ${index + 1}] Input generator error:`, err.message);
+                console.error(`Γ¥î [TC ${index + 1}] Input generator error:`, err.message);
                 throw new Error(`Failed to generate test case input for test case ${index + 1}`);
             }
         }
 
-        // Run output generator — prefer jsOutputGenerator (vm) over tcOutputGenerator (Python)
+        // Run output generator ΓÇö prefer jsOutputGenerator (vm) over tcOutputGenerator (Python)
         if ((tc.jsOutputGenerator || tc.tcOutputGenerator) && tc.output === undefined) {
             try {
                 const raw = await runGeneratorCached({
@@ -1053,7 +1153,7 @@ const executeWithTestCases = async (language, code, testCases, timeLimit = 3000)
                 });
                 tc.output = raw.trim();
             } catch (err) {
-                console.error(`❌ [TC ${index + 1}] Output generator error:`, err.message);
+                console.error(`Γ¥î [TC ${index + 1}] Output generator error:`, err.message);
                 throw new Error(`Failed to generate test case output for test case ${index + 1}`);
             }
         }
@@ -1062,11 +1162,11 @@ const executeWithTestCases = async (language, code, testCases, timeLimit = 3000)
         return String(inputStr).replace(/\r/g, '').split('\n').map(l => l.trimEnd()).join('\n');
     }));
 
-    // ── Output-size guard: estimate total stdout size and split into batches if needed ──
+    // ΓöÇΓöÇ Output-size guard: estimate total stdout size and split into batches if needed ΓöÇΓöÇ
     // Judge0 enforces a file-size limit on stdout ("ulimit -f"). For pattern problems
     // with N=1000 the output alone can be ~500 KB. Multiple such test cases packed
     // together easily exceed the 2-4 MB limit, causing status=11 (NZEC / File size
-    // limit exceeded). We split into batches whose *estimated* total output is ≤ 1.5 MB.
+    // limit exceeded). We split into batches whose *estimated* total output is Γëñ 1.5 MB.
     const OUTPUT_BATCH_LIMIT = 1.5 * 1024 * 1024; // 1.5 MB
     const estimatedOutputSizes = testCases.map((tc, i) => {
         // Use known expected output size as proxy for student output size
@@ -1090,35 +1190,22 @@ const executeWithTestCases = async (language, code, testCases, timeLimit = 3000)
     batches.push({ start: batchStart, end: T });
 
     if (batches.length > 1) {
-        console.log(`   📦 Output too large — splitting into ${batches.length} sub-batches`);
+        console.log(`   ≡ƒôª Output too large ΓÇö splitting into ${batches.length} sub-batches`);
     }
 
-    // ── Run each batch and merge results ──
+    // ── Run sub-harness batches serially ──
+    // Serial is faster for Judge0 throughput on single-node setups (prevents worker contention)
+    // Also allows early exit on Compilation Error.
     const allResults = [];
     for (const { start, end } of batches) {
         const batchTCs = testCases.slice(start, end);
         const batchInputs = cleanInputs.slice(start, end);
-        const batchResult = await runSingleHarnessBatch(language, code, batchTCs, batchInputs, languageId, timeLimit);
+        const batchRes = await runSingleHarnessBatch(language, code, batchTCs, batchInputs, languageId, timeLimit);
 
-        allResults.push(...batchResult.results);
+        allResults.push(...batchRes.results);
 
-        // If the batch itself failed globally (CE/TLE/RE with no partial), stop early
-        if (['Compilation Error'].includes(batchResult.verdict) && batchResult.results.every(r => !r.passed)) {
-            // Pad remaining test cases with the same verdict
-            const remaining = testCases.slice(end);
-            for (const tc of remaining) {
-                allResults.push({
-                    input: tc.input,
-                    expectedOutput: tc.output ?? null,
-                    actualOutput: '',
-                    passed: false,
-                    verdict: batchResult.verdict,
-                    error: batchResult.error,
-                    isHidden: tc.isHidden || false
-                });
-            }
-            break;
-        }
+        // Early exit if the whole batch has a blocking error (e.g. CE)
+        if (batchRes.verdict === 'Compilation Error') break;
     }
 
     const passedCount = allResults.filter(r => r.passed).length;
@@ -1136,8 +1223,8 @@ const executeWithTestCases = async (language, code, testCases, timeLimit = 3000)
 /**
  * Run a single harness batch for a slice of test cases.
  * Uses COMPARE mode when all test cases have known expected output:
- *   → harness compares internally, stdout is only ~50 bytes/case (PASS/FAIL)
- *   → no more "File size limit exceeded" for large outputs
+ *   ΓåÆ harness compares internally, stdout is only ~50 bytes/case (PASS/FAIL)
+ *   ΓåÆ no more "File size limit exceeded" for large outputs
  * Falls back to PASSTHROUGH mode (old behaviour) when expected output unknown.
  */
 async function runSingleHarnessBatch(language, code, testCases, cleanInputs, languageId, timeLimit) {
@@ -1159,7 +1246,7 @@ async function runSingleHarnessBatch(language, code, testCases, cleanInputs, lan
         const parsed = parseJudge0Response(raw);
         console.log(`   [Judge0] Batch(${compareMode ? 'CMP' : 'PASS'}) Status: ${raw.status?.description} (id=${raw.status?.id})`);
 
-        // ── Compilation Error ──
+        // ΓöÇΓöÇ Compilation Error ΓöÇΓöÇ
         if (raw.status?.id === 6) {
             const compileErr = parsed.error || 'Compilation Error';
             return {
@@ -1172,7 +1259,7 @@ async function runSingleHarnessBatch(language, code, testCases, cleanInputs, lan
             };
         }
 
-        // ── TLE ──
+        // ΓöÇΓöÇ TLE ΓöÇΓöÇ
         if (raw.status?.id === 5) {
             const partialStdout = raw.stdout ? Buffer.from(raw.stdout, 'base64').toString('utf-8') : '';
             const partialOutputs = splitCombinedOutput(partialStdout, T);
@@ -1212,7 +1299,7 @@ async function runSingleHarnessBatch(language, code, testCases, cleanInputs, lan
             return { verdict: 'TLE', testCasesPassed: passedCount, totalTestCases: T, results, error: 'Time Limit Exceeded' };
         }
 
-        // ── Runtime Error / other non-success ──
+        // ΓöÇΓöÇ Runtime Error / other non-success ΓöÇΓöÇ
         if (!parsed.success && raw.status?.id !== 3) {
             const errMsg = parsed.error || 'Runtime Error';
             const stdout = raw.stdout ? Buffer.from(raw.stdout, 'base64').toString('utf-8') : '';
@@ -1235,7 +1322,7 @@ async function runSingleHarnessBatch(language, code, testCases, cleanInputs, lan
             };
         }
 
-        // ── Success ──
+        // ΓöÇΓöÇ Success ΓöÇΓöÇ
         const combinedOutput = parsed.output || '';
         const caseOutputs = splitCombinedOutput(combinedOutput, T);
 
@@ -1266,14 +1353,14 @@ async function runSingleHarnessBatch(language, code, testCases, cleanInputs, lan
 /**
  * Parse compare-mode harness output (PASS/FAIL lines) into result objects.
  * Each caseOutput is either:
- *   "PASS"                    → passed
- *   "FAIL\n<excerpt 512 chars>" → failed
+ *   "PASS"                    ΓåÆ passed
+ *   "FAIL\n<excerpt 512 chars>" ΓåÆ failed
  */
 function parseCmpResults(testCases, caseOutputs, defaultError) {
     return testCases.map((tc, i) => {
         const raw = (caseOutputs[i] || '').trim();
         if (raw === '') {
-            // No output at all — harness crashed on this case
+            // No output at all ΓÇö harness crashed on this case
             return {
                 input: tc.input, expectedOutput: tc.output ?? null,
                 actualOutput: '', passed: false, verdict: defaultError || 'Runtime Error',
@@ -1289,7 +1376,7 @@ function parseCmpResults(testCases, caseOutputs, defaultError) {
             expectedOutput: tc.output ?? null,
             // Show first 200 chars of expected when correct (for display in run mode)
             actualOutput: passed
-                ? (tc.output != null ? String(tc.output).slice(0, 200) + (String(tc.output).length > 200 ? '…' : '') : '')
+                ? (tc.output != null ? String(tc.output).slice(0, 200) + (String(tc.output).length > 200 ? 'ΓÇª' : '') : '')
                 : excerpt.slice(0, 512),
             passed,
             verdict: passed ? 'Accepted' : 'Wrong Answer',
@@ -1323,7 +1410,7 @@ function buildResults(testCases, caseOutputs, defaultVerdict, defaultError) {
         }
 
         if (!passed && i === 0) {
-            console.log(`   ❌ [Case ${i + 1}] Expected: ${expectedOutput?.substring(0, 80)} | Got: ${actualOutput?.substring(0, 80)}`);
+            console.log(`   Γ¥î [Case ${i + 1}] Expected: ${expectedOutput?.substring(0, 80)} | Got: ${actualOutput?.substring(0, 80)}`);
         }
 
         return {
@@ -1349,9 +1436,9 @@ function determineVerdict(results) {
     return 'Wrong Answer';
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // LEGACY BATCH MODE: Used as fallback for unsupported languages
-// ──────────────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const executeWithTestCasesBatch = async (language, code, testCases, timeLimit = 3000) => {
     const languageId = LANGUAGE_IDS[language];
     if (!languageId) throw new Error(`Unsupported language: ${language}`);
@@ -1359,7 +1446,7 @@ const executeWithTestCasesBatch = async (language, code, testCases, timeLimit = 
     const T = testCases.length;
 
     try {
-        console.log(`\n🚀 [Judge0] Batch Mode (${T} cases)`);
+        console.log(`\n≡ƒÜÇ [Judge0] Batch Mode (${T} cases)`);
 
         const submissions = testCases.map((tc) => {
             const input = String(tc.input || '').replace(/\r/g, '').split('\n').map(l => l.trimEnd()).join('\n');
@@ -1447,7 +1534,7 @@ const executeWithTestCasesBatch = async (language, code, testCases, timeLimit = 
         return { verdict, testCasesPassed: passedCount, totalTestCases: T, results, error: results.find(r => r.error)?.error || null };
 
     } catch (error) {
-        console.error('❌ [Judge0] Batch Error:', error.message);
+        console.error('Γ¥î [Judge0] Batch Error:', error.message);
         return { verdict: 'Runtime Error', testCasesPassed: 0, totalTestCases: T, results: [], error: `System Error: ${error.message}` };
     }
 };

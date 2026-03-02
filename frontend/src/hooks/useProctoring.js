@@ -141,18 +141,10 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, [isActive, contestId, studentId]);
 
-    // ─── Block Paste ───
-    useEffect(() => {
-        if (!isActive) return;
-
-        const handlePaste = (e) => {
-            e.preventDefault();
-            toast('Paste is disabled during the contest!', { icon: '⚠️' });
-        };
-
-        document.addEventListener('paste', handlePaste);
-        return () => document.removeEventListener('paste', handlePaste);
-    }, [isActive]);
+    // ─── Paste Security ───
+    // External paste is blocked at the Monaco editor level via an internal-clipboard
+    // system (onMount in ContestInterface). No document-level handler needed —
+    // it would interfere with Monaco's own internal copy/paste pipeline.
 
     // ─── Check max violations threshold ───
     useEffect(() => {
@@ -182,7 +174,7 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
             oscillator.stop(audioContext.currentTime + 0.5);
         } catch (e) { /* silent */ }
 
-        setTimeout(() => setShowViolationModal(false), 3500);
+        setTimeout(() => setShowViolationModal(false), 2500);
     };
 
     const enterFullscreen = useCallback(async () => {
