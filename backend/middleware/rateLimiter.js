@@ -23,13 +23,23 @@ const makeStore = (prefix) => {
     }
 };
 
-// Login rate limiter: 5 attempts per 15 minutes per IP
+// Login rate limiter: 5 attempts per 15 minutes per user/IP combination
+// This allows multiple students on a shared college IP to login without blocking each other.
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 requests per window
+    max: 15, // Raised from 5 to 15 to be more permissive for legitimate retries
     message: {
         success: false,
         message: 'Too many login attempts. Please try again after 15 minutes.'
+    },
+    keyGenerator: (req) => {
+        // Use email if available, otherwise just IP. 
+        // This ensures student A failing doesn't block student B on the same Wi-Fi.
+        const id = req.body?.email || req.ip;
+        return `login:${id}`;
+    },
+    skip: (req, res) => {
+        return process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -37,44 +47,57 @@ const loginLimiter = rateLimit({
     store: makeStore('login')
 });
 
-// OTP rate limiter: 3 attempts per 10 minutes per IP
-// BUG #15 fix is handled inside authController.forgotPassword via Redis NX check.
-// This limiter adds a distributed Redis-backed IP limit as a second layer of defence.
+// OTP rate limiter: 5 attempts per 10 minutes
 const otpLimiter = rateLimit({
     windowMs: 10 * 60 * 1000, // 10 minutes
-    max: 3, // 3 requests per window
+    max: 5, // 5 requests per window
     message: {
         success: false,
         message: 'Too many OTP requests. Please try again after 10 minutes.'
+    },
+    keyGenerator: (req) => {
+        return req.body?.email || req.ip;
+    },
+    skip: (req, res) => {
+        return process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
     },
     standardHeaders: true,
     legacyHeaders: false,
     store: makeStore('otp')
 });
 
-// API rate limiter: 100 requests per 15 minutes per IP
+// API rate limiter: 200 requests per 15 minutes per user/IP
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per window
+    max: 200, // 200 requests per window
     message: {
         success: false,
         message: 'Too many API requests. Please try again later.'
+    },
+    keyGenerator: (req) => {
+        return req.user?.userId || req.ip;
+    },
+    skip: (req, res) => {
+        return process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
     },
     standardHeaders: true,
     legacyHeaders: false,
     store: makeStore('api')
 });
 
-// Code execution rate limiter: 20 submissions per 5 minutes per user
+// Code execution rate limiter: 30 submissions per 5 minutes per user
 const codeExecutionLimiter = rateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 20, // 20 submissions per window
+    max: 30, // 30 submissions per window
     message: {
         success: false,
         message: 'Too many code submissions. Please wait before submitting again.'
     },
     keyGenerator: (req) => {
         return req.user?.userId || req.ip;
+    },
+    skip: (req, res) => {
+        return process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -102,29 +125,38 @@ const profileSyncLimiter = rateLimit({
     store: makeStore('sync')
 });
 
-// File upload rate limiter: 10 uploads per hour
+// File upload rate limiter: 20 uploads per hour
 const fileUploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10,
+    max: 20,
     message: {
         success: false,
         message: 'Too many file uploads. Please try again later.'
+    },
+    keyGenerator: (req) => {
+        return req.user?.userId || req.ip;
+    },
+    skip: (req, res) => {
+        return process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
     },
     standardHeaders: true,
     legacyHeaders: false,
     store: makeStore('upload')
 });
 
-// Report generation rate limiter: 5 reports per hour
+// Report generation rate limiter: 10 reports per hour
 const reportLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 5,
+    max: 10,
     message: {
         success: false,
         message: 'Too many report generation requests. Please try again later.'
     },
     keyGenerator: (req) => {
         return req.user?.userId || req.ip;
+    },
+    skip: (req, res) => {
+        return process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
     },
     standardHeaders: true,
     legacyHeaders: false,

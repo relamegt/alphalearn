@@ -17,6 +17,38 @@ import { GoSidebarCollapse, GoSidebarExpand } from 'react-icons/go';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import CustomDropdown from '../../components/shared/CustomDropdown';
 
+// —"—"—" Description Cleaner —"—"—"
+const cleanDescription = (desc) => {
+    if (!desc) return '';
+    // Headers that are now rendered separately in dedicated sections
+    // Only strip Examples as they are the most common duplicates
+    const redundantHeaders = [
+        '**Example:**',
+        '**Example**',
+        '### Example',
+        '### Examples',
+        '## Example',
+        '## Examples',
+        'Example:',
+        'Example 1:',
+        'Examples:'
+    ];
+
+    let minIndex = desc.length;
+    redundantHeaders.forEach(header => {
+        const idx = desc.indexOf(header);
+        // We only want to truncate if it's likely a header (at start of line or preceded by newlines)
+        if (idx !== -1 && idx < minIndex) {
+            // Check if it's the start of the string or preceded by a newline
+            if (idx === 0 || desc[idx - 1] === '\n') {
+                minIndex = idx;
+            }
+        }
+    });
+
+    return desc.substring(0, minIndex).trim();
+};
+
 const MarkdownComponents = {
     h1: ({ children }) => <h1 className="text-xl font-bold text-gray-900 mt-5 mb-3">{children}</h1>,
     h2: ({ children }) => <h2 className="text-lg font-bold text-gray-900 mt-5 mb-2">{children}</h2>,
@@ -892,9 +924,34 @@ const CodeEditor = () => {
     };
 
     const handleLangChange = (e) => {
-        const l = e.target.value;
-        setLanguage(l);
-        if (!code.trim() || code === DEFAULT_CODE[language]) setCode(DEFAULT_CODE[l]);
+        const newLang = e.target.value;
+        const oldLang = language;
+
+        // Save current code to draft immediately to ensure it's not lost
+        if (problemId && user && code) {
+            localStorage.setItem(`draft_${user.id}_${problemId}_${oldLang}`, code);
+        }
+
+        setLanguage(newLang);
+
+        // Explicitly load code for the new language from draft or fallback.
+        // This ensures the editor updates immediately and correctly.
+        const draftKey = `draft_${user.id}_${problemId}_${newLang}`;
+        const draft = localStorage.getItem(draftKey);
+
+        const previousSubKey = `submission_${user.id}_${problemId}_${newLang}`;
+        const previousCode = localStorage.getItem(previousSubKey);
+
+        const tplKey = `tpl_${user.id}_${newLang}`;
+        const customTpl = localStorage.getItem(tplKey);
+
+        if (draft) {
+            setCode(draft);
+        } else if (previousCode) {
+            setCode(previousCode);
+        } else {
+            setCode(customTpl || DEFAULT_CODE[newLang]);
+        }
     };
 
     // ───── derived ───────────────────────────────────────────────────────────
@@ -1210,8 +1267,19 @@ const CodeEditor = () => {
                                 ) : (
                                     <div className="prose max-w-none text-gray-700 font-problem prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed prose-code:text-primary-700 prose-code:bg-primary-50 prose-code:px-1 prose-code:rounded">
                                         <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
-                                            {problem.description}
+                                            {cleanDescription(problem.description)}
                                         </ReactMarkdown>
+                                    </div>
+                                )}
+
+                                {problem.constraints?.length > 0 && (
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Constraints</h3>
+                                        <ul className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-1">
+                                            {problem.constraints.map((c, i) => (
+                                                <li key={i} className="text-xs font-mono text-gray-700 list-disc list-inside">{c}</li>
+                                            ))}
+                                        </ul>
                                     </div>
                                 )}
 
@@ -1260,17 +1328,6 @@ const CodeEditor = () => {
                                         </div>
                                     </div>
                                 ))}
-
-                                {problem.constraints?.length > 0 && (
-                                    <div>
-                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Constraints</h3>
-                                        <ul className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-1">
-                                            {problem.constraints.map((c, i) => (
-                                                <li key={i} className="text-xs font-mono text-gray-700 list-disc list-inside">{c}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
 
                                 {problem.edgeCases?.length > 0 && (
                                     <div>

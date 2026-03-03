@@ -66,27 +66,37 @@ const buildRateLimitStore = (prefix) => {
 // each = 500 total/IP/15min — dangerously close to the old cap with normal contest usage.
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 2000,
+    max: 10000, // Raised to 10000 per 15 min to accommodate large schools/colleges
     standardHeaders: true,
     legacyHeaders: false,
     store: buildRateLimitStore('rl:api:'),
-    skip: (req) => req.path.startsWith('/auth'), // skip when mounted under /api — path is relative
+    skip: (req) => {
+        // Skip in development or for specific paths
+        return process.env.NODE_ENV === 'development' || !process.env.NODE_ENV || req.path.startsWith('/auth');
+    },
     message: { success: false, message: 'Too many requests, please try again later.' }
 });
 
 // Auth-specific limiter — stricter limits for login/register/forgot-password
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 50,
+    max: 500, // Raised to 500 per 15 min to accommodate multiple students logging in from same college Wi-Fi
     standardHeaders: true,
     legacyHeaders: false,
     store: buildRateLimitStore('rl:auth:'),
+    skip: (req) => {
+        return process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+    },
     message: { success: false, message: 'Too many login attempts, please try again in 15 minutes.' }
 });
 
 // Apply rate limiting
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
+
+// Body parser middleware (Moved earlier to support potential body-based rate limit keys)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // CORS configuration (whitelist frontend)
 const corsOptions = {
@@ -95,10 +105,6 @@ const corsOptions = {
     optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
-
-// Body parser middleware
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {

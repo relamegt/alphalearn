@@ -320,7 +320,7 @@ const ProblemManager = () => {
             {
                 title: 'Right-Angle Triangle Pattern',
                 difficulty: 'Easy',
-                description: 'Given an integer N, print a right-angled triangle pattern of stars (`*`) with N rows. Each row must be printed on a new line.\n\n```\n*\n**\n***\n```',
+                description: 'Given an integer N, print a right-angled triangle pattern of stars (`*`) with N rows. Each row must be printed on a new line.\n\n**Input Format:**\n- An integer N representing the number of rows.',
                 constraints: ['1 <= N <= 1000'],
                 examples: [
                     {
@@ -344,7 +344,7 @@ const ProblemManager = () => {
             {
                 title: "Largest Element in Array",
                 difficulty: "Easy",
-                description: "Given an array of integers `arr` of size `N`, find and return the **largest element** in the array.\n\n**Input Format:**\n- First line: integer `N`.\n- Second line: `N` space-separated integers.\n\n**Output Format:**\n- Print a single integer — the largest element.\n\n**Example:**\n```\nInput:\n5\n3 1 4 1 5\n\nOutput:\n5\n```",
+                description: "Given an array of integers `arr` of size `N`, find and return the **largest element** in the array.\n\n**Input Format:**\n- First line: integer `N`.\n- Second line: `N` space-separated integers.\n\n**Output Format:**\n- Print a single integer — the largest element.",
                 constraints: [
                     "1 <= N <= 10^6",
                     "-10^9 <= arr[i] <= 10^9"
