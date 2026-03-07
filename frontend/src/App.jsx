@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
+import { useTheme } from './contexts/ThemeContext';
 
 // Auth Components
 import LoginForm from './components/auth/LoginForm';
@@ -49,7 +50,7 @@ const ProtectedRoute = ({ children, allowedRoles, hideNavbar = false }) => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-screen">
+            <div className="flex justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors">
                 <div className="spinner"></div>
             </div>
         );
@@ -80,7 +81,7 @@ const ProtectedRoute = ({ children, allowedRoles, hideNavbar = false }) => {
     return (
         <>
             {!hideNavbar && !user.isSpotUser && <Navbar />}
-            <div className="min-h-screen bg-gray-50">{children}</div>
+            <div className="min-h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors">{children}</div>
         </>
     );
 };
@@ -91,7 +92,7 @@ const PublicRoute = ({ children }) => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-screen">
+            <div className="flex justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors">
                 <div className="spinner"></div>
             </div>
         );
@@ -120,6 +121,7 @@ const PublicRoute = ({ children }) => {
 const DynamicToaster = () => {
     const location = useLocation();
     const path = location.pathname;
+    const { isDark } = useTheme();
 
     // Show toasts at top-center for all coding interfaces so they don't
     // overlap the Run / Submit buttons on the right side of the screen.
@@ -132,7 +134,33 @@ const DynamicToaster = () => {
     return (
         <Toaster
             position={isCodingInterface ? 'top-center' : 'top-right'}
-            toastOptions={{ style: { maxWidth: 420 } }}
+            toastOptions={{
+                style: {
+                    maxWidth: 420,
+                    borderRadius: '16px',
+                    background: isDark ? '#0a0f1a' : '#ffffff',
+                    color: isDark ? '#f8fafc' : '#111827',
+                    border: isDark ? '1px solid #1e293b' : '1px solid #f3f4f6',
+                    boxShadow: isDark
+                        ? '0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.5)'
+                        : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    padding: '12px 16px',
+                },
+                success: {
+                    iconTheme: {
+                        primary: '#10b981',
+                        secondary: '#ffffff',
+                    },
+                },
+                error: {
+                    iconTheme: {
+                        primary: '#ef4444',
+                        secondary: '#ffffff',
+                    },
+                },
+            }}
         />
     );
 };
@@ -430,12 +458,12 @@ function App() {
                         <Route
                             path="/unauthorized"
                             element={
-                                <div className="flex justify-center items-center h-screen">
+                                <div className="flex justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors">
                                     <div className="text-center">
-                                        <h1 className="text-4xl font-bold text-red-600 mb-4">
+                                        <h1 className="text-4xl font-bold text-red-600 dark:text-red-400 mb-4">
                                             403 - Unauthorized
                                         </h1>
-                                        <p className="text-gray-600">
+                                        <p className="text-gray-600 dark:text-gray-400">
                                             You don't have permission to access this page.
                                         </p>
                                     </div>
@@ -445,10 +473,10 @@ function App() {
                         <Route
                             path="*"
                             element={
-                                <div className="flex justify-center items-center h-screen">
+                                <div className="flex justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors">
                                     <div className="text-center">
-                                        <h1 className="text-4xl font-bold text-gray-900 mb-4">404 - Not Found</h1>
-                                        <p className="text-gray-600">The page you're looking for doesn't exist.</p>
+                                        <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">404 - Not Found</h1>
+                                        <p className="text-gray-600 dark:text-gray-400">The page you're looking for doesn't exist.</p>
                                     </div>
                                 </div>
                             }

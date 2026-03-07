@@ -159,7 +159,7 @@ const ContestJoin = () => {
     // ── loading / error screens ───────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-screen bg-gray-50">
+            <div className="flex justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
             </div>
         );
@@ -167,13 +167,13 @@ const ContestJoin = () => {
 
     if (error && !contest) {
         return (
-            <div className="flex flex-col justify-center items-center h-screen bg-gray-50 p-4">
-                <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+            <div className="flex flex-col justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors p-4">
+                <div className="bg-white dark:bg-[#0a0f1a] p-8 rounded-xl shadow-lg max-w-md w-full text-center border border-gray-100 dark:border-gray-800">
                     <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                         {error === 'Contest not found.' ? 'Contest Not Found' : 'Unavailable'}
                     </h2>
-                    <p className="text-gray-600 mb-6">{error}</p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
                     {/* <button
                         onClick={() => navigate('/login')}
                         className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
@@ -189,7 +189,7 @@ const ContestJoin = () => {
 
     // ── main render ───────────────────────────────────────────────────────────
     return (
-        <div className="h-screen bg-gray-50 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
             {/* Logo */}
             <div className="flex items-center gap-3 mb-4">
                 <img
@@ -197,13 +197,13 @@ const ContestJoin = () => {
                     alt="AlphaKnowledge"
                     className="h-10 w-auto object-contain"
                 />
-                <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                     AlphaKnowledge
                 </span>
             </div>
 
             <div
-                className="bg-white max-w-lg w-full rounded-2xl shadow-xl border border-gray-100 flex flex-col overflow-hidden"
+                className="bg-white dark:bg-[#0a0f1a] max-w-lg w-full rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden transition-colors"
                 style={{ maxHeight: '85vh' }}
             >
                 {/* Banner */}
@@ -214,7 +214,7 @@ const ContestJoin = () => {
 
                 <div className="p-6 overflow-y-auto">
                     {/* Info row */}
-                    <div className="flex flex-col sm:flex-row gap-6 mb-8 p-6 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="flex flex-col sm:flex-row gap-6 mb-8 p-6 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
                         <div className="flex-1 flex items-start gap-3">
                             <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
                                 <Calendar className="w-5 h-5" />
@@ -229,16 +229,16 @@ const ContestJoin = () => {
                                 </p>
                             </div>
                         </div>
-                        <div className="hidden sm:block w-px bg-gray-200" />
+                        <div className="hidden sm:block w-px bg-gray-200 dark:bg-gray-700" />
                         <div className="flex-1 flex items-start gap-3">
-                            <div className="p-2 bg-green-100 rounded-lg text-green-600">
+                            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg text-green-600 dark:text-green-400">
                                 <Clock className="w-5 h-5" />
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-gray-500">Status</p>
-                                {status === 'upcoming' && <p className="font-semibold text-amber-600">Upcoming</p>}
-                                {status === 'active' && <p className="font-semibold text-green-600 animate-pulse">Active Now</p>}
-                                {status === 'ended' && <p className="font-semibold text-red-600">Ended</p>}
+                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
+                                {status === 'upcoming' && <p className="font-semibold text-amber-600 dark:text-amber-400">Upcoming</p>}
+                                {status === 'active' && <p className="font-semibold text-green-600 dark:text-green-400 animate-pulse">Active Now</p>}
+                                {status === 'ended' && <p className="font-semibold text-red-600 dark:text-red-400">Ended</p>}
                             </div>
                         </div>
                     </div>
@@ -254,42 +254,42 @@ const ContestJoin = () => {
                             <div className="flex items-start justify-center w-full gap-3">
                                 {/* Days */}
                                 <div className="timer w-14">
-                                    <div className="bg-white border border-amber-200 rounded-lg px-2 py-2 shadow-sm">
-                                        <h3 ref={daysRef} className="font-semibold text-2xl text-indigo-600 text-center tabular-nums leading-none">
+                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm">
+                                        <h3 ref={daysRef} className="font-semibold text-2xl text-indigo-600 dark:text-indigo-400 text-center tabular-nums leading-none">
                                             {init.d}
                                         </h3>
                                     </div>
-                                    <p className="text-xs font-normal text-amber-700 mt-1 text-center">days</p>
+                                    <p className="text-xs font-normal text-amber-700 dark:text-amber-500 mt-1 text-center">days</p>
                                 </div>
-                                <h3 className="font-semibold text-2xl text-amber-700 mt-2">:</h3>
+                                <h3 className="font-semibold text-2xl text-amber-700 dark:text-amber-500 mt-2">:</h3>
                                 {/* Hours */}
                                 <div className="timer w-14">
-                                    <div className="bg-white border border-amber-200 rounded-lg px-2 py-2 shadow-sm">
-                                        <h3 ref={hoursRef} className="font-semibold text-2xl text-indigo-600 text-center tabular-nums leading-none">
+                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm">
+                                        <h3 ref={hoursRef} className="font-semibold text-2xl text-indigo-600 dark:text-indigo-400 text-center tabular-nums leading-none">
                                             {init.h}
                                         </h3>
                                     </div>
-                                    <p className="text-xs font-normal text-amber-700 mt-1 text-center">hours</p>
+                                    <p className="text-xs font-normal text-amber-700 dark:text-amber-500 mt-1 text-center">hours</p>
                                 </div>
-                                <h3 className="font-semibold text-2xl text-amber-700 mt-2">:</h3>
+                                <h3 className="font-semibold text-2xl text-amber-700 dark:text-amber-500 mt-2">:</h3>
                                 {/* Minutes */}
                                 <div className="timer w-14">
-                                    <div className="bg-white border border-amber-200 rounded-lg px-2 py-2 shadow-sm">
-                                        <h3 ref={minutesRef} className="font-semibold text-2xl text-indigo-600 text-center tabular-nums leading-none">
+                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm">
+                                        <h3 ref={minutesRef} className="font-semibold text-2xl text-indigo-600 dark:text-indigo-400 text-center tabular-nums leading-none">
                                             {init.m}
                                         </h3>
                                     </div>
-                                    <p className="text-xs font-normal text-amber-700 mt-1 text-center">minutes</p>
+                                    <p className="text-xs font-normal text-amber-700 dark:text-amber-500 mt-1 text-center">minutes</p>
                                 </div>
-                                <h3 className="font-semibold text-2xl text-amber-700 mt-2">:</h3>
+                                <h3 className="font-semibold text-2xl text-amber-700 dark:text-amber-500 mt-2">:</h3>
                                 {/* Seconds */}
                                 <div className="timer w-14">
-                                    <div className="bg-white border border-amber-200 rounded-lg px-2 py-2 shadow-sm">
-                                        <h3 ref={secondsRef} className="font-semibold text-2xl text-indigo-600 text-center tabular-nums leading-none">
+                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm">
+                                        <h3 ref={secondsRef} className="font-semibold text-2xl text-indigo-600 dark:text-indigo-400 text-center tabular-nums leading-none">
                                             {init.s}
                                         </h3>
                                     </div>
-                                    <p className="text-xs font-normal text-amber-700 mt-1 text-center">seconds</p>
+                                    <p className="text-xs font-normal text-amber-700 dark:text-amber-500 mt-1 text-center">seconds</p>
                                 </div>
                             </div>
                         </div>
@@ -309,7 +309,7 @@ const ContestJoin = () => {
                         <div className="mt-8">
                             {user ? (
                                 <div className="text-center">
-                                    <div className="bg-indigo-50 text-indigo-800 p-4 rounded-lg mb-6 flex items-center justify-center gap-2">
+                                    <div className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 p-4 rounded-lg mb-6 flex items-center justify-center gap-2">
                                         <Users className="w-5 h-5" />
                                         <span>Logged in as <b>{user.firstName || user.name || user.email}</b></span>
                                     </div>
@@ -333,33 +333,33 @@ const ContestJoin = () => {
                                     </h3>
                                     <form onSubmit={handleRegister} className="space-y-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name *</label>
                                             <input
                                                 type="text" required
                                                 value={formData.name}
                                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                                                 placeholder="e.g. John Doe"
                                             />
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Roll Number *</label>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Roll Number *</label>
                                                 <input
                                                     type="text" required
                                                     value={formData.rollNumber}
                                                     onChange={e => setFormData({ ...formData, rollNumber: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                                                     placeholder="e.g. 21XJ1A0100"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch *</label>
                                                 <input
                                                     type="text" required
                                                     value={formData.branch}
                                                     onChange={e => setFormData({ ...formData, branch: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                                                     placeholder="e.g. CSE"
                                                 />
                                             </div>

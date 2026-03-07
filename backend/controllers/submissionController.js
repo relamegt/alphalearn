@@ -252,22 +252,25 @@ const submitCode = async (req, res) => {
         let isFirstSolve = false;
         let coinsEarned = 0;
 
-        if (result.verdict === 'Accepted' && req.user.role === 'student' && !problem.isContestProblem) {
+        if (result.verdict === 'Accepted' && req.user.role === 'student') {
             try {
-                const progress = await Progress.findByStudent(studentId);
-                const alreadySolved = progress?.problemsSolved?.some(
-                    id => id.toString() === problem._id.toString()
-                ) || false;
+                // Use Submission.isProblemSolved to check all past attempts regardless of practice/contest
+                const Submission = require('../models/Submission');
+                const alreadySolved = await Submission.isProblemSolved(studentId, problem._id);
 
                 if (!alreadySolved) {
                     isFirstSolve = true;
-                    const hasViewedEditorial = await Progress.hasViewedEditorial(studentId, problem._id);
-                    if (!hasViewedEditorial) {
-                        coinsEarned = problem.points || 0;
+                    // Reward coins ONLY for regular practice problems
+                    if (!problem.isContestProblem) {
+                        const Progress = require('../models/Progress');
+                        const hasViewedEditorial = await Progress.hasViewedEditorial(studentId, problem._id);
+                        if (!hasViewedEditorial) {
+                            coinsEarned = problem.points || 0;
+                        }
                     }
                 }
             } catch (pErr) {
-                console.warn('   ⚠️ Progress check failed in submit (pre-response):', pErr.message);
+                console.warn('   ⚠️ Progress/Submission check failed in submit (pre-response):', pErr.message);
             }
         }
 
@@ -279,6 +282,8 @@ const submitCode = async (req, res) => {
             verdict: result.verdict,
             testCasesPassed: result.testCasesPassed,
             totalTestCases: result.totalTestCases,
+            isFirstSolve,
+            coinsEarned,
             submission: {
                 id: tempSubmissionId,
                 verdict: result.verdict,

@@ -82,13 +82,14 @@ const useCodeExecution = () => {
                 toast.error(errMsg);
             }
         } catch (err) {
-            const offline = !navigator.onLine || err?.code === 'ERR_NETWORK' || err?.message === 'Network Error';
+            const offline = !navigator.onLine;
+            const netErr = err?.code === 'ERR_NETWORK' || err?.message === 'Network Error';
             const timeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
 
             setIsOffline(offline);
             let errMsg = offline
                 ? 'No internet connection. Please check your network and try again.'
-                : timeout
+                : (netErr || timeout)
                     ? 'Server is taking too long to respond. Please try again in a moment.'
                     : err?.message || err?.error || 'Failed to execute code';
 
@@ -162,13 +163,14 @@ const useCodeExecution = () => {
                 toast.error(errMsg);
             }
         } catch (err) {
-            const offline = !navigator.onLine || err?.code === 'ERR_NETWORK' || err?.message === 'Network Error';
+            const offline = !navigator.onLine;
+            const netErr = err?.code === 'ERR_NETWORK' || err?.message === 'Network Error';
             const timeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
 
             setIsOffline(offline);
             let errMsg = offline
                 ? 'No internet connection. Please check your network and try again.'
-                : timeout
+                : (netErr || timeout)
                     ? 'Submission timed out. The server may be under load — please try again.'
                     : err?.message || err?.error || 'Failed to submit code';
 

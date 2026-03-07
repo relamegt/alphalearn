@@ -117,6 +117,16 @@ const getProblemById = async (req, res) => {
             });
         }
 
+        // Add isSolved status for students
+        if (req.user && req.user.role === 'student') {
+            const progress = await Progress.findByStudent(req.user.userId);
+            if (progress && progress.problemsSolved) {
+                problem.isSolved = progress.problemsSolved.some(id => id.toString() === problem._id.toString());
+            } else {
+                problem.isSolved = false;
+            }
+        }
+
         // Hide hidden test cases and reference solution for students
         if (req.user.role === 'student') {
             problem.testCases = problem.testCases.map(tc => ({

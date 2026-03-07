@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import submissionService from '../../services/submissionService';
 import Editor from '@monaco-editor/react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
     CheckCircle,
     XCircle,
@@ -36,37 +37,37 @@ const LANG_MONACO = {
 // ── Verdict helpers ──────────────────────────────────────────────────────────
 const VERDICT_CONFIG = {
     'Accepted': {
-        color: 'text-green-700',
-        bg: 'bg-green-50',
-        border: 'border-green-200',
+        color: 'text-green-700 dark:text-green-400',
+        bg: 'bg-green-50 dark:bg-green-900/30',
+        border: 'border-green-200 dark:border-green-900/50',
         dot: 'bg-green-500',
         Icon: CheckCircle
     },
     'Wrong Answer': {
-        color: 'text-red-700',
-        bg: 'bg-red-50',
-        border: 'border-red-200',
+        color: 'text-red-700 dark:text-red-400',
+        bg: 'bg-red-50 dark:bg-red-900/30',
+        border: 'border-red-200 dark:border-red-900/50',
         dot: 'bg-red-500',
         Icon: XCircle
     },
     'Compilation Error': {
-        color: 'text-orange-700',
-        bg: 'bg-orange-50',
-        border: 'border-orange-200',
+        color: 'text-orange-700 dark:text-orange-400',
+        bg: 'bg-orange-50 dark:bg-orange-900/30',
+        border: 'border-orange-200 dark:border-orange-900/50',
         dot: 'bg-orange-500',
         Icon: AlertTriangle
     },
     'Runtime Error': {
-        color: 'text-red-700',
-        bg: 'bg-red-50',
-        border: 'border-red-200',
+        color: 'text-red-700 dark:text-red-400',
+        bg: 'bg-red-50 dark:bg-red-900/30',
+        border: 'border-red-200 dark:border-red-900/50',
         dot: 'bg-red-500',
         Icon: AlertTriangle
     },
     'TLE': {
-        color: 'text-yellow-700',
-        bg: 'bg-yellow-50',
-        border: 'border-yellow-200',
+        color: 'text-yellow-700 dark:text-yellow-400',
+        bg: 'bg-yellow-50 dark:bg-yellow-900/30',
+        border: 'border-yellow-200 dark:border-yellow-900/50',
         dot: 'bg-yellow-500',
         Icon: Clock
     }
@@ -74,10 +75,10 @@ const VERDICT_CONFIG = {
 
 const getVc = (verdict) =>
     VERDICT_CONFIG[verdict] || {
-        color: 'text-gray-700',
-        bg: 'bg-gray-50',
-        border: 'border-gray-200',
-        dot: 'bg-gray-400',
+        color: 'text-gray-700 dark:text-gray-300',
+        bg: 'bg-gray-50 dark:bg-[#0a0f1a]/50',
+        border: 'border-gray-200 dark:border-gray-700',
+        dot: 'bg-gray-400 dark:bg-[#0a0f1a]',
         Icon: XCircle
     };
 
@@ -85,6 +86,8 @@ const getVc = (verdict) =>
 //  Submission Detail Modal
 // ═══════════════════════════════════════════════════════════════════════════
 const SubmissionModal = ({ sub, onClose }) => {
+    const { isDarkMode } = useTheme();
+
     // Close on Escape
     useEffect(() => {
         const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -105,20 +108,20 @@ const SubmissionModal = ({ sub, onClose }) => {
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-colors"
+            style={{ backgroundColor: isDarkMode ? 'rgba(0,0,0,0.8)' : 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}
             onClick={handleBackdrop}
         >
             <div
-                className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden animate-fade-in"
+                className="relative w-full max-w-3xl bg-white dark:bg-[#0a0f1a] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden animate-fade-in transition-colors"
                 style={{ maxHeight: '90vh' }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* ── Header ── */}
-                <div className={`px-6 py-5 border-b ${vc.border} ${vc.bg} shrink-0`}>
+                <div className={`px-6 py-5 border-b ${vc.border} ${vc.bg} shrink-0 transition-colors`}>
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-full bg-white shadow-sm`}>
+                            <div className={`p-2 rounded-full bg-white dark:bg-[#0a0f1a] shadow-sm transition-colors`}>
                                 <VIcon size={20} className={vc.color} />
                             </div>
                             <div>
@@ -126,7 +129,7 @@ const SubmissionModal = ({ sub, onClose }) => {
                                     {sub.verdict}
                                 </h2>
                                 {sub.testCasesPassed !== undefined && sub.totalTestCases !== undefined && (
-                                    <p className="text-xs text-gray-500 mt-0.5">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                         {sub.testCasesPassed} / {sub.totalTestCases} test cases passed
                                     </p>
                                 )}
@@ -134,7 +137,7 @@ const SubmissionModal = ({ sub, onClose }) => {
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white transition-colors"
+                            className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white dark:hover:bg-[#141b2b] transition-colors"
                         >
                             <X size={18} />
                         </button>
@@ -142,25 +145,25 @@ const SubmissionModal = ({ sub, onClose }) => {
 
                     {/* Meta pills */}
                     <div className="flex flex-wrap gap-3 mt-4">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 px-2.5 py-1 rounded-full">
-                            <Code2 size={11} className="text-gray-400" />
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2.5 py-1 rounded-full transition-colors">
+                            <Code2 size={11} className="text-gray-400 dark:text-gray-500" />
                             {LANG_LABELS[sub.language] || sub.language}
                         </span>
                         {submittedDate && (
                             <>
-                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 px-2.5 py-1 rounded-full">
-                                    <Calendar size={11} className="text-gray-400" />
+                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2.5 py-1 rounded-full transition-colors">
+                                    <Calendar size={11} className="text-gray-400 dark:text-gray-500" />
                                     {format(submittedDate, 'MMM d, yyyy h:mm a')}
                                 </span>
-                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 px-2.5 py-1 rounded-full">
-                                    <Clock size={11} className="text-gray-400" />
+                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2.5 py-1 rounded-full transition-colors">
+                                    <Clock size={11} className="text-gray-400 dark:text-gray-500" />
                                     {formatDistanceToNow(submittedDate, { addSuffix: true })}
                                 </span>
                             </>
                         )}
                         {sub.executionTime && (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 px-2.5 py-1 rounded-full">
-                                <Layers size={11} className="text-gray-400" />
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2.5 py-1 rounded-full transition-colors">
+                                <Layers size={11} className="text-gray-400 dark:text-gray-500" />
                                 {sub.executionTime} ms
                             </span>
                         )}
@@ -168,12 +171,12 @@ const SubmissionModal = ({ sub, onClose }) => {
                 </div>
 
                 {/* ── Code Viewer ── */}
-                <div className="flex flex-col flex-1 overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-100 shrink-0">
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                <div className="flex flex-col flex-1 overflow-hidden transition-colors">
+                    <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-[#0a0f1a] border-b border-gray-100 dark:border-gray-700 shrink-0 transition-colors">
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center gap-2">
                             <Code2 size={12} /> Submitted Code
                         </span>
-                        <span className="text-[10px] text-gray-400 font-mono bg-gray-100 px-2 py-0.5 rounded">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono bg-gray-100 dark:bg-[#0a0f1a] px-2 py-0.5 rounded transition-colors">
                             {LANG_LABELS[sub.language] || sub.language}
                         </span>
                     </div>
@@ -184,7 +187,7 @@ const SubmissionModal = ({ sub, onClose }) => {
                                 height="100%"
                                 language={LANG_MONACO[sub.language] || 'plaintext'}
                                 value={sub.code}
-                                theme="vs-light"
+                                theme={isDarkMode ? 'vs-dark' : 'vs-light'}
                                 options={{
                                     readOnly: true,
                                     minimap: { enabled: false },
@@ -208,10 +211,10 @@ const SubmissionModal = ({ sub, onClose }) => {
                 </div>
 
                 {/* ── Footer ── */}
-                <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex justify-end shrink-0">
+                <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] flex justify-end shrink-0 transition-colors">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                        className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-[#141b2b] hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
                     >
                         Close
                     </button>
@@ -254,12 +257,12 @@ const SubmissionsTab = ({ problemId }) => {
     // ── Empty ──
     if (submissions.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
-                <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center">
+            <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400 dark:text-gray-600">
+                <div className="w-14 h-14 rounded-2xl bg-gray-50 dark:bg-[#0a0f1a] border border-gray-100 dark:border-gray-700 flex items-center justify-center transition-colors">
                     <Code2 size={24} className="opacity-30" />
                 </div>
-                <p className="text-sm font-medium text-gray-500">No submissions yet</p>
-                <p className="text-xs text-gray-400">Submit your solution to see history here.</p>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No submissions yet</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">Submit your solution to see history here.</p>
             </div>
         );
     }
@@ -267,7 +270,7 @@ const SubmissionsTab = ({ problemId }) => {
     return (
         <>
             {/* ── Submission List ── */}
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-100 dark:divide-gray-800 transition-colors">
                 {submissions.map((sub) => {
                     const vc = getVc(sub.verdict);
                     const VIcon = vc.Icon;
@@ -277,7 +280,7 @@ const SubmissionsTab = ({ problemId }) => {
                         <button
                             key={sub._id || sub.id}
                             onClick={() => setSelectedSub(sub)}
-                            className="w-full text-left px-5 py-4 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors group"
+                            className="w-full text-left px-5 py-4 flex items-center justify-between gap-3 hover:bg-gray-50 dark:hover:bg-[#141b2b]/50 transition-colors group"
                         >
                             {/* Left: verdict + meta */}
                             <div className="flex items-center gap-3 min-w-0">
@@ -298,21 +301,21 @@ const SubmissionsTab = ({ problemId }) => {
                                     </div>
                                     {/* Sub-meta */}
                                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                        <span className="text-[11px] text-gray-400 font-medium">
+                                        <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
                                             {LANG_LABELS[sub.language] || sub.language}
                                         </span>
                                         {sub.executionTime && (
                                             <>
-                                                <span className="text-gray-200">·</span>
-                                                <span className="text-[11px] text-gray-400">
+                                                <span className="text-gray-200 dark:text-gray-800 transition-colors">·</span>
+                                                <span className="text-[11px] text-gray-400 dark:text-gray-500 transition-colors">
                                                     {sub.executionTime} ms
                                                 </span>
                                             </>
                                         )}
                                         {submittedDate && (
                                             <>
-                                                <span className="text-gray-200">·</span>
-                                                <span className="text-[11px] text-gray-400">
+                                                <span className="text-gray-200 dark:text-gray-800 transition-colors">·</span>
+                                                <span className="text-[11px] text-gray-400 dark:text-gray-500 transition-colors">
                                                     {formatDistanceToNow(submittedDate, { addSuffix: true })}
                                                 </span>
                                             </>
@@ -324,13 +327,13 @@ const SubmissionsTab = ({ problemId }) => {
                             {/* Right: date + chevron */}
                             <div className="flex items-center gap-3 flex-shrink-0">
                                 {submittedDate && (
-                                    <span className="text-[11px] text-gray-400 hidden sm:block">
+                                    <span className="text-[11px] text-gray-400 dark:text-gray-500 hidden sm:block">
                                         {format(submittedDate, 'MMM d, h:mm a')}
                                     </span>
                                 )}
                                 <ChevronRight
                                     size={15}
-                                    className="text-gray-300 group-hover:text-gray-500 transition-colors"
+                                    className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors"
                                 />
                             </div>
                         </button>

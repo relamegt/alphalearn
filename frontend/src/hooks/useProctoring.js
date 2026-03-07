@@ -64,7 +64,7 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
     // to avoid resetting to 0 from backend on refresh. Violations are now sent
     // to the backend only on problem submission.
 
-    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(!!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || document.webkitIsFullScreen || document.mozFullScreen));
     const [showViolationModal, setShowViolationModal] = useState(false);
     const [currentViolationType, setCurrentViolationType] = useState('');
 
@@ -112,16 +112,28 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
     }, [isActive, contestId, studentId]);
 
     // ─── Track Fullscreen ───
-    useEffect(() => {
-        if (!isActive) return;
+    const getIsFullscreen = () => {
+        return !!(
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement ||
+            document.webkitIsFullScreen ||
+            document.mozFullScreen ||
+            document.msFullscreenElement
+        );
+    };
 
+    // ─── Track Fullscreen ───
+    useEffect(() => {
         const handleFullscreenChange = () => {
-            const isFullscreenNow = !!document.fullscreenElement;
+            const isFullscreenNow = getIsFullscreen();
             setIsFullscreen(isFullscreenNow);
 
             // Do NOT count as violation if:
             // 1. We didn't request fullscreen yet (initial state)
             // 2. User is intentionally finishing
+            // 3. Proctoring is not active
             if (!isFullscreenNow && fullscreenRequestedRef.current && isActive && !isFinishingRef.current) {
                 setViolations(prev => {
                     const next = { ...prev, fullscreenExits: prev.fullscreenExits + 1 };
@@ -137,8 +149,15 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
             }
         };
 
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        // Initialize state on mount/change
+        setIsFullscreen(getIsFullscreen());
+
+        const events = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+        events.forEach(event => document.addEventListener(event, handleFullscreenChange));
+
+        return () => {
+            events.forEach(event => document.removeEventListener(event, handleFullscreenChange));
+        };
     }, [isActive, contestId, studentId]);
 
     // ─── Paste Security ───
@@ -179,13 +198,22 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
 
     const enterFullscreen = useCallback(async () => {
         try {
-            if (document.fullscreenElement) return;
+            if (getIsFullscreen()) return;
             fullscreenRequestedRef.current = true;
             const el = document.documentElement;
-            if (el.requestFullscreen) await el.requestFullscreen();
-            else if (el.mozRequestFullScreen) await el.mozRequestFullScreen();
-            else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
-            else if (el.msRequestFullscreen) await el.msRequestFullscreen();
+            if (el.requestFullscreen) {
+                await el.requestFullscreen();
+                setIsFullscreen(true);
+            } else if (el.mozRequestFullScreen) {
+                await el.mozRequestFullScreen();
+                setIsFullscreen(true);
+            } else if (el.webkitRequestFullscreen) {
+                await el.webkitRequestFullscreen();
+                setIsFullscreen(true);
+            } else if (el.msRequestFullscreen) {
+                await el.msRequestFullscreen();
+                setIsFullscreen(true);
+            }
         } catch (error) {
             console.log('Fullscreen request failed:', error.message);
         }
@@ -199,8 +227,12 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
     const exitFullscreenSilently = useCallback(async () => {
         isFinishingRef.current = true;
         try {
-            if (document.fullscreenElement) {
-                await document.exitFullscreen();
+            if (getIsFullscreen()) {
+                const doc = document;
+                if (doc.exitFullscreen) await doc.exitFullscreen();
+                else if (doc.mozCancelFullScreen) await doc.mozCancelFullScreen();
+                else if (doc.webkitExitFullscreen) await doc.webkitExitFullscreen();
+                else if (doc.msExitFullscreen) await doc.msExitFullscreen();
             }
         } catch (e) { /* silent */ }
     }, []);

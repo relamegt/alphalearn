@@ -9,6 +9,7 @@ import submissionService from '../../services/submissionService';
 import problemService from '../../services/problemService';
 import useCodeExecution from '../../hooks/useCodeExecution';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import toast from 'react-hot-toast';
 import ProblemSidebar from './ProblemSidebar';
 import SubmissionsTab from './SubmissionsTab';
@@ -50,23 +51,23 @@ const cleanDescription = (desc) => {
 };
 
 const MarkdownComponents = {
-    h1: ({ children }) => <h1 className="text-xl font-bold text-gray-900 mt-5 mb-3">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-lg font-bold text-gray-900 mt-5 mb-2">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-md font-semibold text-gray-800 mt-4 mb-1.5">{children}</h3>,
-    p: ({ children }) => <p className="text-gray-700 text-[14px] leading-6 mb-3 whitespace-pre-wrap break-words">{children}</p>,
-    ul: ({ children }) => <ul className="text-gray-700 text-[14px] list-disc list-outside ml-4 mb-3 space-y-1">{children}</ul>,
-    ol: ({ children }) => <ol className="text-gray-700 text-[14px] list-decimal list-outside ml-4 mb-3 space-y-1">{children}</ol>,
+    h1: ({ children }) => <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-5 mb-3">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mt-5 mb-2">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-1.5">{children}</h3>,
+    p: ({ children }) => <p className="text-gray-700 dark:text-gray-300 text-[14px] leading-6 mb-3 whitespace-pre-wrap break-words">{children}</p>,
+    ul: ({ children }) => <ul className="text-gray-700 dark:text-gray-300 text-[14px] list-disc list-outside ml-4 mb-3 space-y-1">{children}</ul>,
+    ol: ({ children }) => <ol className="text-gray-700 dark:text-gray-300 text-[14px] list-decimal list-outside ml-4 mb-3 space-y-1">{children}</ol>,
     li: ({ children }) => <li className="pl-1 leading-6 break-words">{children}</li>,
-    blockquote: ({ children }) => <blockquote className="border-l-4 border-primary-400 pl-4 py-1 italic text-gray-500 my-3 bg-primary-50 rounded-r">{children}</blockquote>,
-    a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline break-all">{children}</a>,
-    img: ({ src, alt }) => <img src={src} alt={alt} className="max-w-full rounded-xl border border-gray-200 my-4 shadow-sm" />,
+    blockquote: ({ children }) => <blockquote className="border-l-4 border-primary-400 pl-4 py-1 italic text-gray-500 dark:text-gray-400 my-3 bg-primary-50 dark:bg-primary-900/10 rounded-r">{children}</blockquote>,
+    a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline break-all">{children}</a>,
+    img: ({ src, alt }) => <img src={src} alt={alt} className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700 my-4 shadow-sm" />,
     code: ({ inline, className, children }) => {
         const content = String(children).replace(/\n$/, '');
         const match = /language-(\w+)/.exec(className || '');
         if (inline || (!match && !content.includes('\n'))) {
-            return <code className="bg-primary-50 text-primary-700 px-1 py-0.5 rounded text-sm font-mono break-all">{children}</code>;
+            return <code className="bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 px-1 py-0.5 rounded text-sm font-mono break-all">{children}</code>;
         }
-        return <pre className="my-3 p-3 overflow-x-auto text-sm font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded-lg">{children}</pre>;
+        return <pre className="my-3 p-3 overflow-x-auto text-sm font-mono text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg">{children}</pre>;
     }
 };
 
@@ -189,7 +190,7 @@ const BookOpenIcon = ({ size = 14, className = '' }) => (
 const DragHandleH = ({ onMouseDown }) => (
     <div
         onMouseDown={onMouseDown}
-        className="w-1 bg-gray-200 hover:bg-primary-400 cursor-col-resize shrink-0 transition-colors z-10 group relative"
+        className="w-1 bg-gray-200 dark:bg-[#0a0f1a] hover:bg-primary-400 dark:hover:bg-primary-500 cursor-col-resize shrink-0 transition-colors z-10 group relative"
         title="Drag to resize"
     >
         <div className="absolute inset-y-0 -left-1 -right-1" />
@@ -199,7 +200,7 @@ const DragHandleH = ({ onMouseDown }) => (
 const DragHandleV = ({ onMouseDown }) => (
     <div
         onMouseDown={onMouseDown}
-        className="h-1 bg-gray-200 hover:bg-primary-400 cursor-row-resize shrink-0 transition-colors z-10 relative"
+        className="h-1 bg-gray-200 dark:bg-[#0a0f1a] hover:bg-primary-400 dark:hover:bg-primary-500 cursor-row-resize shrink-0 transition-colors z-10 relative"
         title="Drag to resize"
     >
         <div className="absolute inset-x-0 -top-1 -bottom-1" />
@@ -234,10 +235,23 @@ const DEFAULT_CODE = {
 
 // ─── Difficulty badge ───────────────────────────────────────────────────────
 const DiffBadge = ({ d }) => {
+    const { isDark } = useTheme();
     const styles = {
-        Easy: { background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' },
-        Medium: { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' },
-        Hard: { background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' },
+        Easy: {
+            background: isDark ? 'rgba(34, 197, 94, 0.15)' : '#dcfce7',
+            color: isDark ? '#4ade80' : '#166534',
+            border: isDark ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid #bbf7d0'
+        },
+        Medium: {
+            background: isDark ? 'rgba(234, 179, 8, 0.15)' : '#fef9c3',
+            color: isDark ? '#facc15' : '#854d0e',
+            border: isDark ? '1px solid rgba(234, 179, 8, 0.3)' : '1px solid #fde047'
+        },
+        Hard: {
+            background: isDark ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2',
+            color: isDark ? '#f87171' : '#991b1b',
+            border: isDark ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid #fca5a5'
+        },
     };
     const dot = { Easy: '#22c55e', Medium: '#eab308', Hard: '#ef4444' };
     return (
@@ -250,14 +264,17 @@ const DiffBadge = ({ d }) => {
 
 // ─── Verdict color helper ───────────────────────────────────────────────────
 const getVerdictColor = (verdict) => {
-    switch (verdict) {
-        case 'Accepted': return { text: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' };
-        case 'Wrong Answer': return { text: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' };
-        case 'Compilation Error': return { text: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100' };
-        case 'Runtime Error': return { text: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' };
-        case 'TLE': return { text: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-100' };
-        default: return { text: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' };
-    }
+    return {
+        text: verdict === 'Accepted' ? 'text-green-600 dark:text-green-400' :
+            verdict === 'Compilation Error' ? 'text-orange-600 dark:text-orange-400' :
+                verdict === 'TLE' ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400',
+        bg: verdict === 'Accepted' ? 'bg-green-50 dark:bg-green-900/10' :
+            verdict === 'Compilation Error' ? 'bg-orange-50 dark:bg-orange-900/10' :
+                verdict === 'TLE' ? 'bg-yellow-50 dark:bg-yellow-900/10' : 'bg-red-50 dark:bg-red-900/10',
+        border: verdict === 'Accepted' ? 'border-green-100 dark:border-green-900/30' :
+            verdict === 'Compilation Error' ? 'border-orange-100 dark:border-orange-900/30' :
+                verdict === 'TLE' ? 'border-yellow-100 dark:border-yellow-900/30' : 'border-red-100 dark:border-red-900/30'
+    };
 };
 
 // ─── LeetCode-style Progress Bar ────────────────────────────────────────────
@@ -288,13 +305,13 @@ const ExecutionProgress = ({ isRunning, isSubmitting, total }) => {
     const label = isSubmitting ? 'Submitting' : 'Running';
 
     return (
-        <div className="flex flex-col h-full items-center justify-center gap-4 px-8">
+        <div className="flex flex-col h-full items-center justify-center gap-4 px-8 bg-white dark:bg-[#0a0f1a] transition-colors">
             <div className="text-center">
-                <p className="text-sm font-semibold text-gray-700 mb-1">
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
                     {label} test cases...
                 </p>
-                <p className="text-2xl font-bold text-primary-600">
-                    {count} <span className="text-gray-400 text-lg font-normal">/ {total}</span>
+                <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+                    {count} <span className="text-gray-400 dark:text-gray-500 text-lg font-normal">/ {total}</span>
                 </p>
             </div>
             <div className="w-full max-w-xs bg-gray-100 rounded-full h-2 overflow-hidden">
@@ -335,14 +352,14 @@ const ProblemTimer = () => {
     };
 
     return (
-        <div className="flex items-center gap-2 bg-gray-100/80 hover:bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 transition-colors">
-            <Clock size={14} className="text-gray-500" />
-            <span className="font-mono text-sm font-medium text-gray-700 min-w-[48px] text-center">
+        <div className="flex items-center gap-2 bg-gray-100/80 dark:bg-[#0a0f1a]/80 hover:bg-gray-100 dark:hover:bg-gray-700/80 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 transition-colors">
+            <Clock size={14} className="text-gray-500 dark:text-gray-400" />
+            <span className="font-mono text-sm font-medium text-gray-700 dark:text-gray-200 min-w-[48px] text-center">
                 {formatTime(seconds)}
             </span>
             <button
                 onClick={() => setIsRunning(!isRunning)}
-                className="ml-1 p-1 hover:bg-gray-200 rounded-full text-gray-500 transition-colors"
+                className="ml-1 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500 dark:text-gray-400 transition-colors"
                 title={isRunning ? "Pause Timer" : "Resume Timer"}
             >
                 {isRunning ? <Pause size={12} className="fill-current" /> : <Play size={12} className="fill-current" />}
@@ -372,28 +389,28 @@ const SettingsModal = ({ settings, onClose, onSave }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[1001] bg-black/20 backdrop-blur-sm flex items-center justify-center -1" onClick={onClose}>
-            <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-[500px] overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
-                <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
-                    <h3 className="font-bold text-gray-800">Editor Settings</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle size={18} /></button>
+        <div className="fixed inset-0 z-[1001] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-colors" onClick={onClose}>
+            <div className="bg-white dark:bg-[#0a0f1a] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 transition-colors" onClick={e => e.stopPropagation()}>
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a] shrink-0 transition-colors">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100">Editor Settings</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"><XCircle size={18} /></button>
                 </div>
 
-                <div className="p-5 overflow-y-auto flex-1 custom-scrollbar space-y-6">
+                <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-7 transition-colors">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Font Size</label>
-                        <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                            <span className="text-xs font-bold text-gray-400">10px</span>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Font Size</label>
+                        <div className="flex items-center gap-4 bg-gray-50 dark:bg-[#0a0f1a] p-4 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors shadow-sm">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase">Min</span>
                             <input
                                 type="range" min="10" max="24"
                                 value={fontSize} onChange={(e) => setFontSize(e.target.value)}
-                                className="flex-1 accent-primary-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                className="flex-1 accent-primary-600 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
                             />
-                            <span className="text-sm font-mono font-bold text-gray-700 w-8 text-center">{fontSize}px</span>
+                            <span className="text-sm font-mono font-bold text-primary-600 dark:text-primary-400 w-10 text-center bg-white dark:bg-[#0a0f1a] py-1 rounded border border-gray-100 dark:border-gray-700 shadow-sm transition-colors">{fontSize}px</span>
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Font Style</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Font Style</label>
                         <CustomDropdown
                             options={FONTS}
                             value={fontFamily}
@@ -401,30 +418,34 @@ const SettingsModal = ({ settings, onClose, onSave }) => {
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Theme</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Editor Theme</label>
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => setTheme('vs-light')}
-                                className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${theme === 'vs-light' ? 'bg-primary-50 border-primary-500 ring-1 ring-primary-500' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}
+                                className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all ${theme === 'vs-light' ? 'bg-primary-50/50 dark:bg-primary-900/20 border-primary-500 ring-4 ring-primary-500/10' : 'bg-gray-50 dark:bg-[#0a0f1a]/30 border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600'}`}
                             >
-                                <div className="w-4 h-4 rounded-full bg-white border border-gray-300"></div>
-                                <span className={`text-sm font-bold ${theme === 'vs-light' ? 'text-primary-700' : 'text-gray-600'}`}>Light Mode</span>
+                                <div className="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center">
+                                    <div className="w-5 h-5 rounded-full bg-gray-100"></div>
+                                </div>
+                                <span className={`text-xs font-bold ${theme === 'vs-light' ? 'text-primary-700 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400'}`}>Light Mode</span>
                             </button>
                             <button
                                 onClick={() => setTheme('vs-dark')}
-                                className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${theme === 'vs-dark' ? 'bg-gray-800 border-gray-700 ring-1 ring-gray-600' : 'bg-white border-gray-200 hover:border-gray-300'}`}
+                                className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all ${theme === 'vs-dark' ? 'bg-gray-800 dark:bg-[#0a0f1a] border-primary-500 ring-4 ring-primary-500/10' : 'bg-gray-50 dark:bg-[#0a0f1a]/30 border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600'}`}
                             >
-                                <div className="w-4 h-4 rounded-full bg-gray-900 border border-gray-600"></div>
-                                <span className={`text-sm font-bold ${theme === 'vs-dark' ? 'text-white' : 'text-gray-600'}`}>Dark Mode</span>
+                                <div className="w-10 h-10 rounded-full bg-gray-900 border border-gray-700 shadow-sm flex items-center justify-center">
+                                    <div className="w-5 h-5 rounded-full bg-gray-700"></div>
+                                </div>
+                                <span className={`text-xs font-bold ${theme === 'vs-dark' ? 'text-white' : 'text-gray-600 dark:text-gray-400'}`}>Dark Mode</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                <div className="p-4 bg-gray-50 dark:bg-[#0a0f1a] border-t border-gray-100 dark:border-gray-700 flex justify-end transition-colors">
                     <button
                         onClick={handleSave}
-                        className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm shadow-primary-200"
+                        className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary-500/20 active:scale-95"
                     >
                         Apply Changes
                     </button>
@@ -468,6 +489,7 @@ const CodeEditor = () => {
     const [pageLoading, setPageLoading] = useState(!!problemId);
     const [loading, setLoading] = useState(!!problemId);
     const { user } = useAuth();
+    const { isDark } = useTheme();
 
     // ── settings & persistence ──
     const [showSettings, setShowSettings] = useState(false);
@@ -738,15 +760,15 @@ const CodeEditor = () => {
             }
 
             // Create a unique key for this submission to avoid double-processing
-            const resKey = submitResult.submission?._id || `${submitResult.testCasesPassed}_${submitResult.totalTestCases}`;
+            // Back-end uses .id for the temp ID in the response
+            const resKey = submitResult.submission?.id || submitResult.submission?._id || `${submitResult.testCasesPassed}_${submitResult.totalTestCases}`;
             if (lastResultIdRef.current === resKey) return;
             lastResultIdRef.current = resKey;
 
-            // Show success overlay if it was either a code-first solve (isFirstSolve)
-            // or we just discovered it's NOT solved in our local state but Accepted now.
+            // Show success overlay ONLY if it's the first time this problem is solved (isFirstSolve)
+            // This prevents the animation from showing on subsequent correct submissions
             // AND ensure it's not a persisted result from a previous session
-            if (!submitResult.persisted && (submitResult?.isFirstSolve === true || !wasSolvedBefore)) {
-                // Remove the extra 300ms delay to make it feel faster
+            if (!submitResult.persisted && submitResult?.isFirstSolve === true) {
                 setSuccessResult(submitResult);
                 setShowSuccessPop(true);
             }
@@ -959,7 +981,7 @@ const CodeEditor = () => {
         return (
             <div
                 ref={containerRef}
-                className="flex flex-col bg-gray-50 text-gray-800 select-none overflow-hidden fixed inset-0 z-[100]"
+                className="flex flex-col bg-[#F7F5FF] dark:bg-[#0a0f1a] text-gray-800 dark:text-gray-200 select-none overflow-hidden fixed inset-0 z-[100] transition-colors"
             >
                 {/* Header Skeleton/Empty */}
                 {/* <div className="h-14 border-b border-gray-200 bg-white flex items-center px-4 justify-between shrink-0">
@@ -980,7 +1002,7 @@ const CodeEditor = () => {
                             width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px`,
                             transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
                         }}
-                        className="relative flex flex-col shrink-0 border-r border-gray-200 bg-white z-20"
+                        className="relative flex flex-col shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] z-20 transition-colors"
                     >
                         <div className="flex-1 overflow-hidden flex flex-col relative h-full">
                             <div className={`flex-1 flex flex-col overflow-hidden h-full transition-opacity duration-300 ${showSidebar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none hidden'}`}>
@@ -1000,7 +1022,7 @@ const CodeEditor = () => {
                         </div>
                         <button
                             onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
-                            className="absolute -right-[14px] top-1/2 -translate-y-1/2 z-50 w-[14px] h-14 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md flex items-center justify-center text-gray-400 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                            className="absolute -right-[14px] top-1/2 -translate-y-1/2 z-50 w-[14px] h-14 bg-white dark:bg-[#0a0f1a] border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg shadow-md flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         >
                             {showSidebar ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
                         </button>
@@ -1011,66 +1033,66 @@ const CodeEditor = () => {
                     {pageLoading ? (
                         <div className="flex-1 flex overflow-hidden animate-pulse">
                             {/* Left Panel (Description) */}
-                            <div className="w-1/2 border-r border-gray-200 bg-white flex flex-col">
-                                <div className="h-10 border-b border-gray-200 bg-white flex items-center px-4 gap-4 shrink-0">
-                                    <div className="w-20 h-4 bg-gray-200 rounded"></div>
-                                    <div className="w-20 h-4 bg-gray-200 rounded"></div>
+                            <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] flex flex-col transition-colors">
+                                <div className="h-10 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] flex items-center px-4 gap-4 shrink-0 transition-colors">
+                                    <div className="w-20 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
+                                    <div className="w-20 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
                                 </div>
                                 <div className="p-6 flex flex-col gap-4 flex-1">
-                                    <div className="w-3/4 h-8 bg-gray-200 rounded"></div>
+                                    <div className="w-3/4 h-8 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
                                     <div className="flex gap-2">
-                                        <div className="w-16 h-6 bg-gray-200 rounded-full"></div>
-                                        <div className="w-20 h-6 bg-gray-200 rounded-full"></div>
+                                        <div className="w-16 h-6 bg-gray-200 dark:bg-[#0a0f1a] rounded-full"></div>
+                                        <div className="w-20 h-6 bg-gray-200 dark:bg-[#0a0f1a] rounded-full"></div>
                                     </div>
-                                    <div className="w-full h-4 bg-gray-200 rounded mt-4"></div>
-                                    <div className="w-5/6 h-4 bg-gray-200 rounded"></div>
-                                    <div className="w-full h-4 bg-gray-200 rounded"></div>
-                                    <div className="w-4/5 h-4 bg-gray-200 rounded"></div>
+                                    <div className="w-full h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded mt-4"></div>
+                                    <div className="w-5/6 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
+                                    <div className="w-full h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
+                                    <div className="w-4/5 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
 
-                                    <div className="w-1/3 h-6 bg-gray-200 rounded mt-8 mb-2"></div>
-                                    <div className="w-full h-32 bg-gray-100 rounded-lg"></div>
+                                    <div className="w-1/3 h-6 bg-gray-200 dark:bg-[#0a0f1a] mt-8 mb-2 rounded"></div>
+                                    <div className="w-full h-32 bg-gray-100 dark:bg-[#0a0f1a] rounded-lg"></div>
                                 </div>
                             </div>
 
                             {/* Right Panel (Editor) */}
-                            <div className="w-1/2 flex flex-col">
-                                <div className="h-12 border-b border-gray-200 bg-white flex items-center justify-between px-3 shrink-0">
+                            <div className="w-1/2 flex flex-col bg-white dark:bg-[#0a0f1a] transition-colors">
+                                <div className="h-12 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] flex items-center justify-between px-3 shrink-0 transition-colors">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-32 h-8 bg-gray-200 rounded"></div>
-                                        <div className="w-24 h-6 bg-gray-200 rounded"></div>
+                                        <div className="w-32 h-8 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
+                                        <div className="w-24 h-6 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 bg-gray-200 rounded"></div>
-                                        <div className="w-32 h-8 bg-gray-200 rounded"></div>
+                                        <div className="w-8 h-8 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
+                                        <div className="w-32 h-8 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
                                     </div>
                                 </div>
-                                <div className="flex-1 bg-white p-6 flex flex-col gap-4">
-                                    <div className="w-1/3 h-4 bg-gray-200 rounded"></div>
-                                    <div className="w-1/4 h-4 bg-gray-200 rounded ml-4"></div>
-                                    <div className="w-1/2 h-4 bg-gray-200 rounded ml-4"></div>
+                                <div className="flex-1 bg-white dark:bg-[#0a0f1a] p-6 flex flex-col gap-4 transition-colors">
+                                    <div className="w-1/3 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
+                                    <div className="w-1/4 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded ml-4"></div>
+                                    <div className="w-1/2 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded ml-4"></div>
                                 </div>
                                 {/* Terminal area */}
-                                <div className="h-48 border-t border-gray-200 bg-white flex flex-col shrink-0">
-                                    <div className="h-9 border-b border-gray-200 bg-gray-50 flex items-center px-4 gap-4 w-full shrink-0">
-                                        <div className="w-20 h-4 bg-gray-300 rounded"></div>
-                                        <div className="w-20 h-4 bg-gray-200 rounded"></div>
+                                <div className="h-48 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] flex flex-col shrink-0 transition-colors">
+                                    <div className="h-9 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] flex items-center px-4 gap-4 w-full shrink-0">
+                                        <div className="w-20 h-4 bg-gray-300 dark:bg-gray-700 rounded"></div>
+                                        <div className="w-20 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
                                     </div>
                                     <div className="p-4 flex flex-col gap-2">
-                                        <div className="w-1/2 h-4 bg-gray-200 rounded mt-2"></div>
-                                        <div className="w-1/3 h-4 bg-gray-200 rounded"></div>
+                                        <div className="w-1/2 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded mt-2"></div>
+                                        <div className="w-1/3 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 bg-gray-50 flex items-center justify-center relative">
+                        <div className="flex-1 bg-gray-50 dark:bg-[#0a0f1a] flex items-center justify-center relative transition-colors">
                             {/* Actual Empty State message */}
                             <div className="flex flex-col items-center justify-center text-center p-8 max-w-sm animate-fade-in relative -top-10">
-                                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-gray-200 flex items-center justify-center mb-5 relative before:absolute before:inset-0 before:bg-primary-50 before:rounded-2xl before:-z-10 before:scale-110 before:opacity-50">
-                                    <Code2 className="w-8 h-8 text-primary-500" />
+                                <div className="w-16 h-16 bg-white dark:bg-[#0a0f1a] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center mb-5 relative before:absolute before:inset-0 before:bg-primary-50 dark:before:bg-primary-900/10 before:rounded-2xl before:-z-10 before:scale-110 before:opacity-50 transition-colors">
+                                    <Code2 className="w-8 h-8 text-primary-500 dark:text-primary-400" />
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-800 mb-2">Practice Workspace</h2>
-                                <p className="text-sm text-gray-500 leading-relaxed font-medium">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">Practice Workspace</h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
                                     Select a problem from the sidebar to view its description and start writing your solution.
                                 </p>
                             </div>
@@ -1109,7 +1131,7 @@ const CodeEditor = () => {
     return (
         <div
             ref={containerRef}
-            className="flex flex-col bg-white text-gray-800 select-none overflow-hidden fixed inset-0 z-[100]"
+            className="flex flex-col bg-[#F7F5FF] dark:bg-[#0a0f1a] text-gray-800 dark:text-gray-200 select-none overflow-hidden fixed inset-0 z-[100] transition-colors"
         >
             {/* Resizing Overlay - Captures events over iframes/editor */}
             {isResizing && (
@@ -1131,7 +1153,7 @@ const CodeEditor = () => {
                         width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px`,
                         transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
                     }}
-                    className="relative flex flex-col shrink-0 border-r border-gray-200 bg-white z-20"
+                    className="relative flex flex-col shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] z-20 transition-colors"
                 >
                     <div className="flex-1 overflow-hidden flex flex-col relative h-full">
                         <div className={`flex-1 flex flex-col overflow-hidden h-full transition-opacity duration-300 ${showSidebar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none hidden'}`}>
@@ -1140,10 +1162,10 @@ const CodeEditor = () => {
 
                         {!showSidebar && (
                             <div
-                                className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors"
+                                className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-[#0a0f1a]/10 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] transition-colors"
                                 onClick={() => setShowSidebar(true)}
                             >
-                                <div style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-bold text-gray-400 tracking-widest uppercase select-none">
+                                <div style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase select-none">
                                     <span className="rotate-180">Problem List</span>
                                 </div>
                             </div>
@@ -1153,7 +1175,7 @@ const CodeEditor = () => {
                     {/* Toggle Tab — vertically centered on right edge, matching contest style */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
-                        className="absolute -right-[14px] top-1/2 -translate-y-1/2 z-50 w-[14px] h-14 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md flex items-center justify-center text-gray-400 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                        className="absolute -right-[14px] top-1/2 -translate-y-1/2 z-50 w-[14px] h-14 bg-white dark:bg-[#0a0f1a] border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg shadow-md flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         title={showSidebar ? "Collapse Sidebar" : "Expand Sidebar"}
                     >
                         {showSidebar ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
@@ -1163,24 +1185,24 @@ const CodeEditor = () => {
                 {showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
 
                 {/* ─ Col 2: Description / Editorial / Submissions ─ */}
-                <div style={{ width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 bg-white">
+                <div style={{ width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] transition-colors">
                     {/* Problem Header (Title & Meta) */}
-                    <div className="px-5 py-4 border-b border-gray-200 bg-gray-50/40 shrink-0">
+                    <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] shrink-0 transition-colors">
                         <div className="flex items-center justify-between mb-2">
-                            <h1 className="text-xl font-bold text-gray-900 leading-tight truncate mr-2" title={problem.title}>
+                            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight truncate mr-2" title={problem.title}>
                                 {problem.title}
                             </h1>
                         </div>
                         <div className="flex items-center gap-3">
                             <DiffBadge d={problem.difficulty} />
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: '#92400e', background: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '1px solid #fcd34d', padding: '2px 7px', borderRadius: 20 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: '#92400e', background: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '1px solid #fcd34d', padding: '2px 7px', borderRadius: 20 }} className="dark:opacity-90">
                                 <Coins size={10} color="#f59e0b" />{problem.points} pts
                             </span>
                         </div>
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex items-center h-10 border-b border-gray-200 bg-white shrink-0">
+                    <div className="flex items-center h-10 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] shrink-0 transition-colors">
                         {[
                             { id: 'description', label: 'Description', Icon: FileText },
                             { id: 'editorial', label: 'Editorial', Icon: BookOpenIcon },
@@ -1191,8 +1213,8 @@ const CodeEditor = () => {
                                 onClick={() => setLeftTab(id)}
                                 className={`flex items-center gap-1.5 px-4 h-full text-xs font-medium transition-colors border-b-2
                                     ${leftTab === id
-                                        ? 'border-primary-600 text-primary-700 bg-white'
-                                        : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                                        ? 'border-purple-600 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]'
+                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
                                     }`}
                             >
                                 <Icon size={12} />{label}
@@ -1201,9 +1223,9 @@ const CodeEditor = () => {
                     </div>
 
                     {/* Tab content */}
-                    <div className="flex-1 overflow-y-auto relative custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto relative custom-scrollbar bg-white dark:bg-[#0a0f1a] transition-colors">
                         {loading && (
-                            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex justify-center items-center">
+                            <div className="absolute inset-0 bg-white/80 dark:bg-[#0a0f1a]/80 backdrop-blur-sm z-10 flex justify-center items-center transition-colors">
                                 <Loader2 className="animate-spin text-primary-500" size={24} />
                             </div>
                         )}
@@ -1217,7 +1239,7 @@ const CodeEditor = () => {
                                             setTempDesc(problem.description);
                                             setIsEditingDesc(true);
                                         }}
-                                        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
+                                        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/40 rounded-md transition-colors"
                                     >
                                         <Edit3 size={14} /> Edit Description
                                     </button>
@@ -1226,19 +1248,19 @@ const CodeEditor = () => {
                                 {isEditingDesc ? (
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-bold text-gray-800">Edit Problem Description</h3>
-                                            <div className="text-xs text-gray-500">Supports Markdown & Images `![alt](url)`</div>
+                                            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">Edit Problem Description</h3>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400">Supports Markdown & Images `![alt](url)`</div>
                                         </div>
                                         <textarea
                                             value={tempDesc}
                                             onChange={(e) => setTempDesc(e.target.value)}
-                                            className="w-full h-80 p-4 font-mono text-sm text-gray-800 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y"
+                                            className="w-full h-80 p-4 font-mono text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#0a0f1a] border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y transition-colors"
                                             placeholder="Update problem description here using Markdown..."
                                         />
                                         <div className="flex items-center gap-2 justify-end">
                                             <button
                                                 onClick={() => setIsEditingDesc(false)}
-                                                className="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                                className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-[#0a0f1a] hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                             >
                                                 Cancel
                                             </button>
@@ -1265,7 +1287,7 @@ const CodeEditor = () => {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="prose max-w-none text-gray-700 font-problem prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed prose-code:text-primary-700 prose-code:bg-primary-50 prose-code:px-1 prose-code:rounded">
+                                    <div className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 font-problem prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed prose-code:text-primary-700 dark:prose-code:text-primary-400 prose-code:bg-primary-50 dark:prose-code:bg-primary-900/20 prose-code:px-1 prose-code:rounded">
                                         <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
                                             {cleanDescription(problem.description)}
                                         </ReactMarkdown>
@@ -1274,10 +1296,10 @@ const CodeEditor = () => {
 
                                 {problem.constraints?.length > 0 && (
                                     <div>
-                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Constraints</h3>
-                                        <ul className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-1">
+                                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Constraints</h3>
+                                        <ul className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-1 transition-colors">
                                             {problem.constraints.map((c, i) => (
-                                                <li key={i} className="text-xs font-mono text-gray-700 list-disc list-inside">{c}</li>
+                                                <li key={i} className="text-xs font-mono text-gray-700 dark:text-gray-300 list-disc list-inside">{c}</li>
                                             ))}
                                         </ul>
                                     </div>
@@ -1285,8 +1307,8 @@ const CodeEditor = () => {
 
                                 {problem.inputFormat && (
                                     <div>
-                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Input Format</h3>
-                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 prose prose-sm max-w-none">
+                                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Input Format</h3>
+                                        <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300 prose dark:prose-invert prose-sm max-w-none transition-colors">
                                             <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
                                                 {problem.inputFormat}
                                             </ReactMarkdown>
@@ -1296,8 +1318,8 @@ const CodeEditor = () => {
 
                                 {problem.outputFormat && (
                                     <div>
-                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Output Format</h3>
-                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 prose prose-sm max-w-none">
+                                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Output Format</h3>
+                                        <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300 prose dark:prose-invert prose-sm max-w-none transition-colors">
                                             <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
                                                 {problem.outputFormat}
                                             </ReactMarkdown>
@@ -1306,23 +1328,23 @@ const CodeEditor = () => {
                                 )}
 
                                 {problem.examples?.map((ex, i) => (
-                                    <div key={i} className="rounded-lg border border-gray-200 overflow-hidden">
-                                        <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 text-xs font-bold text-gray-600 uppercase tracking-wide">
+                                    <div key={i} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
+                                        <div className="bg-gray-50 dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
                                             Example {i + 1}
                                         </div>
-                                        <div className="p-4 space-y-3 bg-white">
+                                        <div className="p-4 space-y-3 bg-white dark:bg-[#0a0f1a]">
                                             <div>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Input</p>
-                                                <pre className="bg-gray-50 border border-gray-200 rounded p-2 text-xs font-mono text-gray-800 whitespace-pre-wrap">{ex.input}</pre>
+                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Input</p>
+                                                <pre className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded p-2 text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap transition-colors">{ex.input}</pre>
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Output</p>
-                                                <pre className="bg-gray-50 border border-gray-200 rounded p-2 text-xs font-mono text-gray-800 whitespace-pre-wrap">{ex.output}</pre>
+                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Expected Output</p>
+                                                <pre className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded p-2 text-xs font-mono text-gray-600 dark:text-white whitespace-pre-wrap opacity-80 select-text transition-colors">{ex.output}</pre>
                                             </div>
                                             {ex.explanation && (
                                                 <div>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Explanation</p>
-                                                    <p className="text-xs text-gray-600 bg-blue-50 rounded p-2 border border-blue-100">{ex.explanation}</p>
+                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Explanation</p>
+                                                    <p className="text-xs text-gray-600 dark:text-gray-300 bg-primary-50 dark:bg-primary-900/20 rounded p-2 border border-primary-100 dark:border-primary-900/50 transition-colors">{ex.explanation}</p>
                                                 </div>
                                             )}
                                         </div>
@@ -1331,10 +1353,10 @@ const CodeEditor = () => {
 
                                 {problem.edgeCases?.length > 0 && (
                                     <div>
-                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Edge Cases</h3>
-                                        <ul className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-1">
+                                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Edge Cases</h3>
+                                        <ul className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-1 transition-colors">
                                             {problem.edgeCases.map((c, i) => (
-                                                <li key={i} className="text-xs font-mono text-gray-700 list-disc list-inside">{c}</li>
+                                                <li key={i} className="text-xs font-mono text-gray-700 dark:text-gray-300 list-disc list-inside">{c}</li>
                                             ))}
                                         </ul>
                                     </div>
@@ -1342,18 +1364,18 @@ const CodeEditor = () => {
 
                                 {(problem.timeComplexity || problem.spaceComplexity) && (
                                     <div>
-                                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Complexity</h3>
-                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
+                                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Complexity</h3>
+                                        <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2 transition-colors">
                                             {problem.timeComplexity && (
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold text-gray-500 uppercase">Time:</span>
-                                                    <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm">{problem.timeComplexity}</span>
+                                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Time:</span>
+                                                    <span className="text-sm font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded shadow-sm">{problem.timeComplexity}</span>
                                                 </div>
                                             )}
                                             {problem.spaceComplexity && (
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold text-gray-500 uppercase">Space:</span>
-                                                    <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm">{problem.spaceComplexity}</span>
+                                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Space:</span>
+                                                    <span className="text-sm font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded shadow-sm">{problem.spaceComplexity}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -1387,7 +1409,10 @@ const CodeEditor = () => {
                 <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />
 
                 {/* ─ Col 3: Editor + Test Cases (vertical split) ─ */}
-                <div style={{ width: showSidebar ? `calc(${100 - sidebarW - descW}%)` : `calc(100% - ${COLLAPSED_SIDEBAR_WIDTH}px - ${descW}%)` }} className="flex flex-col overflow-hidden bg-white">
+                <div style={{
+                    width: showSidebar ? `calc(${100 - sidebarW - descW}%)` : `calc(100% - ${COLLAPSED_SIDEBAR_WIDTH}px - ${descW}%)`,
+                    transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
+                }} className="flex flex-col overflow-hidden bg-white dark:bg-[#0a0f1a] transition-colors">
 
                     {/* ── Code Editor ── */}
                     <div
@@ -1409,7 +1434,7 @@ const CodeEditor = () => {
                             />
                         )}
                         {/* editor toolbar (Language + Timer + Actions) */}
-                        <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-3 shrink-0">
+                        <div className="h-12 bg-white dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3 shrink-0 transition-colors">
                             {/* Left: Language & Timer */}
                             <div className="flex items-center gap-3">
                                 <div className="w-44">
@@ -1420,7 +1445,7 @@ const CodeEditor = () => {
                                         size="small"
                                     />
                                 </div>
-                                <div className="h-5 w-px bg-gray-200" />
+                                <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 transition-colors" />
                                 <ProblemTimer />
                             </div>
 
@@ -1430,18 +1455,18 @@ const CodeEditor = () => {
 
                                 <button
                                     onClick={() => setShowSettings(true)}
-                                    className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-md transition-colors"
                                     title="Editor Settings"
                                 >
                                     <Settings size={16} />
                                 </button>
 
 
-                                <div className="flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
+                                <div className="flex items-center bg-gray-100 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 transition-colors">
                                     <button
                                         onClick={handleRun}
                                         disabled={isExecuting}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 rounded-md hover:bg-white hover:shadow-sm transition-all disabled:opacity-50"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 rounded-md hover:bg-white dark:hover:bg-[#141b2b] hover:shadow-sm transition-all disabled:opacity-50"
                                         title="Run Sample Cases"
                                     >
                                         {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} className="fill-current" />}
@@ -1450,7 +1475,7 @@ const CodeEditor = () => {
                                     <button
                                         onClick={handleSubmit}
                                         disabled={isExecuting}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 ml-0.5 text-xs font-bold text-white bg-primary-600 hover:bg-primary-700 rounded-md shadow-sm transition-all disabled:opacity-50"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 ml-0.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-sm transition-all disabled:opacity-50"
                                         title="Submit Code"
                                     >
                                         {submitting ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
@@ -1526,7 +1551,7 @@ const CodeEditor = () => {
                                         }, true);
                                     }
                                 }}
-                                theme={editorSettings.theme}
+                                theme={isDark ? 'vs-dark' : editorSettings.theme}
                                 options={{
                                     minimap: { enabled: false },
                                     fontSize: editorSettings.fontSize,
@@ -1545,19 +1570,18 @@ const CodeEditor = () => {
                     <DragHandleV onMouseDown={(e) => startDrag('editorH', e)} />
 
                     {/* ── Bottom: Test Cases / Results ── */}
-                    {/* ── Bottom: Test Cases / Results ── */}
                     <div
                         key={resultsAnimKey}
                         style={{ height: `${100 - editorTopH}%`, transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
-                        className="flex flex-col overflow-hidden border-t border-gray-100"
+                        className="flex flex-col overflow-hidden border-t border-gray-100 dark:border-gray-700 transition-colors"
                         data-results-panel
                     >
                         {/* bottom tabs */}
-                        <div className="flex items-center h-9 border-b border-gray-200 bg-gray-50 shrink-0 px-1">
+                        <div className="flex items-center h-9 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] shrink-0 px-1 transition-colors">
                             <button
                                 onClick={() => setBottomTab('testcases')}
                                 className={`flex items-center gap-1.5 px-4 h-full text-xs font-medium transition-colors border-b-2
-                                    ${bottomTab === 'testcases' ? 'border-primary-600 text-primary-700 bg-white' : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100'}`}
+                                    ${bottomTab === 'testcases' ? 'border-purple-600 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:bg-[#0a0f1a]'}`}
                             >
                                 <List size={12} /> Test Cases
                             </button>
@@ -1565,14 +1589,14 @@ const CodeEditor = () => {
                             <button
                                 onClick={() => setBottomTab('results')}
                                 className={`flex items-center gap-1.5 px-4 h-full text-xs font-medium transition-colors border-b-2
-                                    ${bottomTab === 'results' ? 'border-primary-600 text-primary-700 bg-white' : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100'}`}
+                                    ${bottomTab === 'results' ? 'border-purple-600 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#141b2b]'}`}
                             >
                                 {isCompileErr ? (
-                                    <span className="flex items-center gap-1.5 text-orange-600">
+                                    <span className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
                                         <AlertTriangle size={12} /> Compilation Error
                                     </span>
                                 ) : displayResult && !isExecuting ? (
-                                    <span className={`flex items-center gap-1.5 ${displayResult.verdict === 'Accepted' ? 'text-green-600' : 'text-red-600'}`}>
+                                    <span className={`flex items-center gap-1.5 ${displayResult.verdict === 'Accepted' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                         {displayResult.verdict === 'Accepted'
                                             ? <CheckCircle size={12} />
                                             : <XCircle size={12} />
@@ -1588,22 +1612,22 @@ const CodeEditor = () => {
                         </div>
 
                         {/* bottom content */}
-                        <div className="flex-1 overflow-hidden bg-white">
+                        <div className="flex-1 overflow-hidden bg-white dark:bg-[#0a0f1a] transition-colors">
 
                             {/* ── Test Cases tab ── */}
                             {bottomTab === 'testcases' && (
-                                <div className="flex flex-col h-full font-problem">
+                                <div className="flex flex-col h-full font-problem bg-white dark:bg-[#0a0f1a] transition-colors">
                                     {/* Tabs */}
-                                    <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0">
+                                    <div className="flex items-center gap-0.5 px-2 py-2 border-b border-gray-100 dark:border-gray-700 overflow-x-auto scrollbar-hide shrink-0 bg-white dark:bg-[#0a0f1a]">
                                         {/* Standard Cases */}
                                         {testCases.map((_, i) => (
                                             <button
                                                 key={`case-${i}`}
                                                 onClick={() => setActiveTestCaseId(`case-${i}`)}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
+                                                className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
                                                     ${activeTestCaseId === `case-${i}`
-                                                        ? 'bg-gray-100 border-gray-200 text-gray-900 font-semibold shadow-sm'
-                                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                                        ? 'bg-gray-100 dark:bg-[#0a0f1a] border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold shadow-sm'
+                                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
                                                     }`}
                                             >
                                                 Case {i + 1}
@@ -1617,8 +1641,8 @@ const CodeEditor = () => {
                                                     onClick={() => setActiveTestCaseId(`custom-${c.id}`)}
                                                     className={`pl-3 pr-7 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border flex items-center gap-1
                                                         ${activeTestCaseId === `custom-${c.id}`
-                                                            ? 'bg-blue-50 border-blue-200 text-blue-700 font-semibold shadow-sm'
-                                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                                            ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400 font-semibold shadow-sm'
+                                                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
                                                         }`}
                                                 >
                                                     Case {testCases.length + customTestCases.indexOf(c) + 1}
@@ -1635,7 +1659,7 @@ const CodeEditor = () => {
                                         {/* Add Button */}
                                         <button
                                             onClick={handleAddCustomCase}
-                                            className="ml-1 p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="ml-1 p-1.5 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
                                             title="Add Custom Test Case"
                                         >
                                             <Plus size={14} strokeWidth={3} />
@@ -1643,7 +1667,7 @@ const CodeEditor = () => {
                                     </div>
 
                                     {/* Inputs Area */}
-                                    <div className="flex-1 p-4 overflow-y-auto">
+                                    <div className="flex-1 p-4 overflow-y-auto bg-white dark:bg-[#0a0f1a]">
                                         {activeTestCaseId.startsWith('case-') ? (
                                             // Standard Case View
                                             (() => {
@@ -1653,14 +1677,14 @@ const CodeEditor = () => {
                                                 return (
                                                     <div className="space-y-4 max-w-2xl">
                                                         <div>
-                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 whitespace-pre-wrap select-text">
+                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Input</p>
+                                                            <div className="w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap select-text transition-colors">
                                                                 {tc.input}
                                                             </div>
                                                         </div>
                                                         <div>
-                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-600 whitespace-pre-wrap opacity-80 select-text">
+                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
+                                                            <div className="w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-600 dark:text-gray-200 whitespace-pre-wrap opacity-80 select-text transition-colors">
                                                                 {tc.output}
                                                             </div>
                                                         </div>
@@ -1674,9 +1698,9 @@ const CodeEditor = () => {
                                                 if (!cCase) return <div className="text-gray-400 text-sm">Case not found.</div>;
                                                 return (
                                                     <div className="space-y-2 h-full flex flex-col">
-                                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Input</p>
+                                                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Input</p>
                                                         <textarea
-                                                            className="flex-1 w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none"
+                                                            className="flex-1 w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none transition-colors"
                                                             value={cCase.input}
                                                             onChange={(e) => updateCustomCase(e.target.value)}
                                                             placeholder="Enter input here..."
@@ -1691,31 +1715,31 @@ const CodeEditor = () => {
 
                             {/* ── Results tab ── */}
                             {bottomTab === 'results' && (
-                                <div className="h-full overflow-y-auto flex flex-col" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
+                                <div className="h-full overflow-y-auto flex flex-col bg-white dark:bg-[#0a0f1a] transition-colors" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
 
                                     {/* ── Network Error (Priority check) ── */}
                                     {!isExecuting && isOffline && (
-                                        <div className="flex flex-col bg-red-50/30">
-                                            <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2 shrink-0">
-                                                <div className="bg-red-100 p-1.5 rounded-full">
-                                                    <XCircle size={16} className="text-red-600" />
+                                        <div className="flex flex-col bg-red-50/30 dark:bg-red-900/10 transition-colors">
+                                            <div className="bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/30 px-4 py-3 flex items-center gap-2 shrink-0 transition-colors">
+                                                <div className="bg-red-100 dark:bg-red-900/40 p-1.5 rounded-full">
+                                                    <XCircle size={16} className="text-red-600 dark:text-red-400" />
                                                 </div>
                                                 <div className="flex-1">
-                                                    <h3 className="text-red-800 font-bold text-sm">Network Error</h3>
-                                                    <p className="text-xs text-red-600">No internet connection. Please check your network and try again.</p>
+                                                    <h3 className="text-red-800 dark:text-red-200 font-bold text-sm">Network Error</h3>
+                                                    <p className="text-xs text-red-600 dark:text-red-400">No internet connection. Please check your network and try again.</p>
                                                 </div>
                                                 <button
                                                     onClick={() => bottomTab === 'testcases' ? handleRun() : handleSubmit()}
-                                                    className="px-3 py-1 bg-white border border-red-200 text-red-600 rounded-md text-[10px] font-bold hover:bg-red-50 transition-colors"
+                                                    className="px-3 py-1 bg-white dark:bg-[#0a0f1a] border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 rounded-md text-[10px] font-bold hover:bg-red-50 dark:hover:bg-gray-700 transition-colors"
                                                 >
                                                     Retry
                                                 </button>
                                             </div>
                                             <div className="p-8 text-center animate-in fade-in duration-500">
-                                                <div className="w-16 h-16 rounded-full bg-red-100/50 flex items-center justify-center mb-4 mx-auto">
-                                                    <XCircle size={32} className="text-red-500" />
+                                                <div className="w-16 h-16 rounded-full bg-red-100/50 dark:bg-red-900/30 flex items-center justify-center mb-4 mx-auto transition-colors">
+                                                    <XCircle size={32} className="text-red-500 dark:text-red-400" />
                                                 </div>
-                                                <p className="text-sm text-gray-500 max-w-xs mx-auto mb-4">
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto mb-4">
                                                     We couldn't reach the execution server. Please check your internet connection and try again.
                                                 </p>
                                             </div>
@@ -1733,18 +1757,18 @@ const CodeEditor = () => {
 
                                     {/* ── Compilation Error ── */}
                                     {!isExecuting && !isOffline && isCompileErr && (
-                                        <div className="flex flex-col bg-orange-50/30">
-                                            <div className="bg-orange-50 border-b border-orange-100 px-4 py-3 flex items-center gap-2 shrink-0">
-                                                <div className="bg-orange-100 p-1.5 rounded-full">
-                                                    <AlertTriangle className="text-orange-600" size={16} />
+                                        <div className="flex flex-col bg-orange-50/30 dark:bg-orange-900/10 transition-colors">
+                                            <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-900/30 px-4 py-3 flex items-center gap-2 shrink-0 transition-colors">
+                                                <div className="bg-orange-100 dark:bg-orange-900/40 p-1.5 rounded-full">
+                                                    <AlertTriangle className="text-orange-600 dark:text-orange-400" size={16} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-orange-800 font-bold text-sm">Compilation Error</h3>
-                                                    <p className="text-xs text-orange-600">Check your code for syntax errors</p>
+                                                    <h3 className="text-orange-800 dark:text-orange-200 font-bold text-sm">Compilation Error</h3>
+                                                    <p className="text-xs text-orange-600 dark:text-orange-400">Check your code for syntax errors</p>
                                                 </div>
                                             </div>
                                             <div className="p-4">
-                                                <pre className="font-mono text-xs text-orange-700 bg-orange-50/50 border border-orange-100 rounded-lg p-3 whitespace-pre-wrap leading-relaxed shadow-sm">
+                                                <pre className="font-mono text-xs text-orange-700 dark:text-orange-300 bg-orange-50/50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30 rounded-lg p-3 whitespace-pre-wrap leading-relaxed shadow-sm transition-colors">
                                                     {compileErrMsg || 'Unknown error'}
                                                 </pre>
                                             </div>
@@ -1761,10 +1785,10 @@ const CodeEditor = () => {
                                                 const isTLE = displayResult.verdict === 'TLE';
                                                 const isSubmit = displayResult.isSubmitMode;
                                                 return (
-                                                    <div className={`px-5 py-4 border-b shrink-0 ${vc.bg} ${vc.border}`}>
+                                                    <div className={`px-5 py-4 border-b shrink-0 ${vc.bg} ${vc.border} transition-colors`}>
                                                         <div className="flex items-start justify-between gap-3">
                                                             <div className="flex items-center gap-3">
-                                                                <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 text-green-600' : isTLE ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
+                                                                <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : isTLE ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'} transition-colors`}>
                                                                     {isAccepted ? <CheckCircle size={20} /> : isTLE ? <Clock size={20} /> : <XCircle size={20} />}
                                                                 </div>
                                                                 <div>
@@ -1776,11 +1800,11 @@ const CodeEditor = () => {
                                                                             {displayResult.testCasesPassed} / {displayResult.totalTestCases} testcases passed
                                                                         </span>
                                                                         {isSubmit && (
-                                                                            <span className="text-xs text-gray-500">All Test Cases</span>
+                                                                            <span className="text-xs text-gray-500 dark:text-gray-400">All Test Cases</span>
                                                                         )}
                                                                         {/* Show custom case count badge if custom cases were run */}
                                                                         {!isSubmit && displayResult.results?.some(r => r.isCustom) && (
-                                                                            <span className="text-xs bg-blue-50 border border-blue-200 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                                                                            <span className="text-xs bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium transition-colors">
                                                                                 {displayResult.results.filter(r => r.isCustom).length} custom
                                                                             </span>
                                                                         )}
@@ -1791,12 +1815,12 @@ const CodeEditor = () => {
                                                             {/* Coins earned badge (submit only) */}
                                                             {isSubmit && displayResult.coinsEarned > 0 && (
                                                                 <div className="flex flex-col items-end gap-1">
-                                                                    <span className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-sm font-bold">
+                                                                    <span className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-500 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">
                                                                         <Coins size={14} />
                                                                         +{displayResult.coinsEarned} Alpha Coins
                                                                     </span>
                                                                     {displayResult.totalCoins > 0 && (
-                                                                        <span className="text-[10px] text-amber-500 font-medium">
+                                                                        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">
                                                                             Total: {displayResult.totalCoins} coins
                                                                         </span>
                                                                     )}
@@ -1830,7 +1854,7 @@ const CodeEditor = () => {
                                                                 {/* Circular progress */}
                                                                 <div style={{ position: 'relative', width: 140, height: 140 }}>
                                                                     <svg width="140" height="140" style={{ transform: 'rotate(-90deg)' }}>
-                                                                        <circle cx="70" cy="70" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="10" />
+                                                                        <circle cx="70" cy="70" r={radius} fill="none" stroke={useTheme().isDark ? '#374151' : '#e5e7eb'} strokeWidth="10" />
                                                                         <circle
                                                                             cx="70" cy="70" r={radius}
                                                                             fill="none"
@@ -1849,7 +1873,7 @@ const CodeEditor = () => {
                                                                         <span style={{ fontSize: 22, fontWeight: 800, color: circleColor, lineHeight: 1 }}>
                                                                             {displayResult.testCasesPassed}
                                                                         </span>
-                                                                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
+                                                                        <span style={{ fontSize: 11, color: useTheme().isDark ? '#9ca3af' : '#9ca3af', fontWeight: 600 }}>
                                                                             / {displayResult.totalTestCases}
                                                                         </span>
                                                                     </div>
@@ -1858,14 +1882,14 @@ const CodeEditor = () => {
                                                                 {/* Verdict chips */}
                                                                 <div className="flex flex-col items-center gap-2">
                                                                     <span style={{
-                                                                        background: bgColor, color: circleColor,
+                                                                        background: useTheme().isDark ? `${circleColor}20` : bgColor, color: circleColor,
                                                                         border: `1.5px solid ${circleColor}30`,
                                                                         borderRadius: 99, padding: '4px 18px',
                                                                         fontWeight: 700, fontSize: 13, letterSpacing: '0.02em'
                                                                     }}>
                                                                         {v}
                                                                     </span>
-                                                                    <p className="text-xs text-gray-400 font-medium">
+                                                                    <p className="text-xs text-gray-400 dark:text-gray-500 font-medium text-center">
                                                                         {isAC && 'Great job! All test cases passed.'}
                                                                         {isTLE && `${displayResult.testCasesPassed} cases passed before time limit was exceeded.`}
                                                                         {isWA && `${displayResult.testCasesPassed} / ${displayResult.totalTestCases} cases correct.`}
@@ -1877,8 +1901,8 @@ const CodeEditor = () => {
                                                                 {/* Runtime error message */}
                                                                 {displayResult.error && !isAC && (
                                                                     <div className="w-full max-w-sm">
-                                                                        <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Error</p>
-                                                                        <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap">
+                                                                        <p className="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase mb-1">Error</p>
+                                                                        <pre className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap transition-colors text-center">
                                                                             {displayResult.error}
                                                                         </pre>
                                                                     </div>
@@ -1892,7 +1916,7 @@ const CodeEditor = () => {
 
                                             {/* ── Test Case Tabs (LeetCode style) ── */}
                                             {visibleResults.length > 0 && (
-                                                <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0 bg-white">
+                                                <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 dark:border-gray-700 overflow-x-auto scrollbar-hide shrink-0 bg-white dark:bg-[#0a0f1a] transition-colors">
                                                     {visibleResults.map((r, i) => {
                                                         const label = `Case ${i + 1}`;
                                                         return (
@@ -1902,10 +1926,10 @@ const CodeEditor = () => {
                                                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
                                                                         ${activeResultCase === i
                                                                         ? `${r.passed
-                                                                            ? 'bg-green-50 border-green-300 text-green-700'
-                                                                            : 'bg-red-50 border-red-300 text-red-700'
+                                                                            ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-900/50 text-green-700 dark:text-green-400'
+                                                                            : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-900/50 text-red-700 dark:text-red-400'
                                                                         } font-semibold`
-                                                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
                                                                     }`}
                                                             >
                                                                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -1917,23 +1941,23 @@ const CodeEditor = () => {
                                             )}
 
                                             {/* ── Result Details ── */}
-                                            <div className="flex-1 p-4 overflow-y-auto">
+                                            <div className="flex-1 p-4 overflow-y-auto bg-white dark:bg-[#0a0f1a]">
                                                 {visibleResults[activeResultCase] ? (
                                                     <div className="space-y-4 max-w-3xl">
                                                         {/* Hidden test case placeholder */}
                                                         {visibleResults[activeResultCase].isHidden ? (
-                                                            <div className={`p-10 text-center border-2 border-dashed rounded-xl ${visibleResults[activeResultCase].passed ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'}`}>
+                                                            <div className={`p-10 text-center border-2 border-dashed rounded-xl transition-colors ${visibleResults[activeResultCase].passed ? 'border-green-200 dark:border-green-900/30 bg-green-50/50 dark:bg-green-900/10' : 'border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10'}`}>
                                                                 <Lock size={24} className={`mx-auto mb-3 ${visibleResults[activeResultCase].passed ? 'text-green-400' : 'text-red-400'}`} />
-                                                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Hidden Test Case</p>
-                                                                <p className={`text-sm font-semibold mt-2 ${visibleResults[activeResultCase].passed ? 'text-green-600' : 'text-red-600'}`}>
+                                                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Hidden Test Case</p>
+                                                                <p className={`text-sm font-semibold mt-2 ${visibleResults[activeResultCase].passed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                                     {visibleResults[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}
                                                                 </p>
-                                                                <p className="text-[10px] text-gray-400 mt-1">Input and expected output are hidden</p>
+                                                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Input and expected output are hidden</p>
                                                             </div>
                                                         ) : (
                                                             <>
                                                                 {/* Pass / Fail badge */}
-                                                                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${visibleResults[activeResultCase].passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors ${visibleResults[activeResultCase].passed ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
                                                                     {visibleResults[activeResultCase].passed
                                                                         ? <><CheckCircle size={12} /> Passed</>
                                                                         : <><XCircle size={12} /> {visibleResults[activeResultCase].verdict || 'Failed'}</>
@@ -1942,9 +1966,9 @@ const CodeEditor = () => {
 
                                                                 {/* Input */}
                                                                 <div>
-                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
-                                                                        {visibleResults[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
+                                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Input</p>
+                                                                    <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap min-h-[48px] transition-colors">
+                                                                        {visibleResults[activeResultCase].input ?? <span className="text-gray-400 dark:text-gray-500 italic">N/A</span>}
                                                                     </div>
                                                                 </div>
 
@@ -1952,14 +1976,14 @@ const CodeEditor = () => {
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                     {/* Your Output */}
                                                                     <div>
-                                                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Your Output</p>
-                                                                        <div className={`rounded-lg p-3 text-sm font-mono whitespace-pre-wrap border min-h-[48px]
+                                                                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Your Output</p>
+                                                                        <div className={`rounded-lg p-3 text-sm font-mono whitespace-pre-wrap border min-h-[48px] transition-colors
                                                                             ${visibleResults[activeResultCase].passed
-                                                                                ? 'bg-green-50/40 border-green-200 text-gray-900'
-                                                                                : 'bg-red-50/40 border-red-200 text-gray-900'
+                                                                                ? 'bg-green-50/40 dark:bg-green-900/10 border-green-200 dark:border-green-900/30 text-gray-900 dark:text-gray-200'
+                                                                                : 'bg-red-50/40 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 text-gray-900 dark:text-gray-200'
                                                                             }`}
                                                                         >
-                                                                            {visibleResults[activeResultCase].actualOutput || <span className="text-gray-400 italic">No output</span>}
+                                                                            {visibleResults[activeResultCase].actualOutput || <span className="text-gray-400 dark:text-gray-500 italic">No output</span>}
                                                                         </div>
                                                                     </div>
                                                                     {/* Expected Output */}
@@ -1967,15 +1991,15 @@ const CodeEditor = () => {
                                                                     {visibleResults[activeResultCase].expectedOutput &&
                                                                         visibleResults[activeResultCase].expectedOutput !== '(No reference solution available)' ? (
                                                                         <div>
-                                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
+                                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
+                                                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-600 dark:text-white whitespace-pre-wrap min-h-[48px] transition-colors">
                                                                                 {visibleResults[activeResultCase].expectedOutput}
                                                                             </div>
                                                                         </div>
                                                                     ) : visibleResults[activeResultCase].isCustom ? (
                                                                         <div>
-                                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-400 whitespace-pre-wrap min-h-[48px] italic">
+                                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
+                                                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-400 dark:text-gray-500 whitespace-pre-wrap min-h-[48px] italic transition-colors">
                                                                                 No reference solution available for custom input
                                                                             </div>
                                                                         </div>
@@ -1985,8 +2009,8 @@ const CodeEditor = () => {
                                                                 {/* Runtime error / stderr */}
                                                                 {visibleResults[activeResultCase].error && (
                                                                     <div>
-                                                                        <p className="text-[10px] font-bold text-red-500 uppercase mb-1.5">Error / Traceback</p>
-                                                                        <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap">
+                                                                        <p className="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase mb-1.5">Error / Traceback</p>
+                                                                        <pre className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap transition-colors">
                                                                             {visibleResults[activeResultCase].error}
                                                                         </pre>
                                                                     </div>
@@ -1995,7 +2019,7 @@ const CodeEditor = () => {
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <div className="flex items-center justify-center h-full text-gray-400 text-xs">
+                                                    <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500 text-xs">
                                                         {/* No result data for this case. */}
                                                     </div>
                                                 )}
@@ -2005,9 +2029,9 @@ const CodeEditor = () => {
 
                                     {/* ── No results yet ── */}
                                     {!isExecuting && !displayResult && !execError && (
-                                        <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
-                                            <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
-                                                <Play size={20} className="ml-1 text-gray-300" />
+                                        <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 gap-3 transition-colors">
+                                            <div className="w-12 h-12 rounded-full bg-gray-50 dark:bg-[#0a0f1a] flex items-center justify-center transition-colors">
+                                                <Play size={20} className="ml-1 text-gray-300 dark:text-gray-600" />
                                             </div>
                                             <p className="text-sm font-medium">Run code to view results</p>
                                         </div>
@@ -2015,10 +2039,10 @@ const CodeEditor = () => {
 
                                     {/* ── Generic error (no results) ── */}
                                     {!isExecuting && !isOffline && execError && !displayResult && !isCompileErr && (
-                                        <div className="p-4">
-                                            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                                <p className="text-xs font-bold text-red-600 mb-2">Error</p>
-                                                <p className="text-xs text-red-700">{execError}</p>
+                                        <div className="p-4 transition-colors">
+                                            <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg p-4">
+                                                <p className="text-xs font-bold text-red-600 dark:text-red-400 mb-2">Error</p>
+                                                <p className="text-xs text-red-700 dark:text-red-300">{execError}</p>
                                             </div>
                                         </div>
                                     )}

@@ -110,6 +110,12 @@ const getContestsByBatch = async (req, res) => {
             if (req.user.role === 'student') {
                 return res.status(403).json({ success: false, message: 'Access denied' });
             }
+            if (req.user.role === 'instructor') {
+                query.$or = [
+                    { batchId: { $ne: null } },
+                    { batchId: null, createdBy: new ObjectId(req.user.userId) }
+                ];
+            }
         } else {
             query.batchId = new ObjectId(batchId);
         }
@@ -197,6 +203,10 @@ const getContestById = async (req, res) => {
             });
         }
 
+        if (req.user.role === 'instructor' && contest.batchId === null && contest.createdBy?.toString() !== req.user.userId) {
+            return res.status(403).json({ success: false, message: 'Access denied: You can only access your own global contests' });
+        }
+
         // Check if contest submitted
         const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
 
@@ -261,6 +271,15 @@ const updateContest = async (req, res) => {
         const { contestId } = req.params;
         const updateData = req.body;
 
+        const contest = await Contest.findById(contestId);
+        if (!contest) {
+            return res.status(404).json({ success: false, message: 'Contest not found' });
+        }
+
+        if (req.user.role === 'instructor' && contest.batchId === null && contest.createdBy?.toString() !== req.user.userId) {
+            return res.status(403).json({ success: false, message: 'Access denied: You can only modify your own global contests' });
+        }
+
         // Check if contest has started
         const hasStarted = await Contest.hasStarted(contestId);
         if (hasStarted) {
@@ -298,6 +317,10 @@ const deleteContest = async (req, res) => {
         const contest = await Contest.findById(contestId);
         if (!contest) {
             return res.status(404).json({ success: false, message: 'Contest not found' });
+        }
+
+        if (req.user.role === 'instructor' && contest.batchId === null && contest.createdBy?.toString() !== req.user.userId) {
+            return res.status(403).json({ success: false, message: 'Access denied: You can only delete your own global contests' });
         }
 
         // If it's a global contest (batchId === null), clean up spot users
@@ -850,6 +873,14 @@ const getContestLeaderboard = async (req, res) => {
             Contest.findById(contestId)
         ]);
 
+        if (!contest) {
+            return res.status(404).json({ success: false, message: 'Contest not found' });
+        }
+
+        if (req.user?.role === 'instructor' && contest.batchId === null && contest.createdBy?.toString() !== currentUserId?.toString()) {
+            return res.status(403).json({ success: false, message: 'Access denied: You can only view the leaderboard of your own global contests' });
+        }
+
         // Populate problem titles manually keeping original order
         if (contest && contest.problems) {
             const problems = await Problem.findByIds(contest.problems);
@@ -926,6 +957,15 @@ const getStudentContestSubmissions = async (req, res) => {
 const getContestStatistics = async (req, res) => {
     try {
         const { contestId } = req.params;
+
+        const contest = await Contest.findById(contestId);
+        if (!contest) {
+            return res.status(404).json({ success: false, message: 'Contest not found' });
+        }
+
+        if (req.user.role === 'instructor' && contest.batchId === null && contest.createdBy?.toString() !== req.user.userId) {
+            return res.status(403).json({ success: false, message: 'Access denied: You can only view statistics of your own global contests' });
+        }
 
         const stats = await Contest.getStatistics(contestId);
 
@@ -1215,6 +1255,86 @@ const registerSpotUser = async (req, res) => {
     }
 };
 
+// Unlock a student's contest so they can continue (Admin or contest creator only)
+const unlockContestForUser = async (req, res) => {
+    try {
+        const { contestId } = req.params;
+        const { studentId } = req.body;
+        const callerId = req.user.userId;
+        const callerRole = req.user.role;
+
+        if (!studentId) {
+            return res.status(400).json({ success: false, message: 'studentId is required' });
+        }
+
+        // Fetch contest once — used for both auth check and time-window check
+        const contest = await Contest.findById(contestId);
+        if (!contest) {
+            return res.status(404).json({ success: false, message: 'Contest not found' });
+        }
+
+        // Authorization: admin always allowed; instructor only if they created the contest
+        if (callerRole === 'instructor' && contest.createdBy?.toString() !== callerId) {
+            return res.status(403).json({ success: false, message: 'Only the contest creator or an admin can unlock users' });
+        }
+
+        // Time-window check: contest must still be active (not ended)
+        const now = new Date();
+        if (now > contest.endTime) {
+            return res.status(400).json({ success: false, message: 'Contest has already ended. Cannot unlock.' });
+        }
+        if (now < contest.startTime) {
+            return res.status(400).json({ success: false, message: 'Contest has not started yet.' });
+        }
+
+        // Verify the student actually has a final submission
+        const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
+        if (!hasSubmitted) {
+            return res.status(400).json({ success: false, message: 'This student has not submitted the contest yet.' });
+        }
+
+        // Prevent concurrent unlock ops for the same student+contest
+        const redis = getRedis();
+        const unlockLockKey = `lock:unlock:${studentId}:${contestId}`;
+        const lockAcquired = await redis.set(unlockLockKey, 'LOCKED', 'NX', 'EX', 10);
+        if (!lockAcquired) {
+            return res.status(429).json({ success: false, message: 'Unlock already in progress for this student.' });
+        }
+
+        try {
+            // Remove the final-submission marker so the student can continue
+            await ContestSubmission.removeContestCompletion(studentId, contestId);
+
+            // Clear all violation records so the student starts fresh
+            // (otherwise the proctoring system sees old counts and auto-submits immediately)
+            await ContestSubmission.clearViolationLogs(studentId, contestId);
+
+            // Clear any buffered violations in Redis
+            const violBufferKey = `viol:buffer:${studentId}:${contestId}`;
+            const violLockKey = `viol:lock:${studentId}:${contestId}`;
+            await redis.del(violBufferKey, violLockKey).catch(() => { });
+
+            // Invalidate leaderboard cache so the status updates immediately
+            await ContestSubmission.invalidateCache(contestId);
+            notifyLeaderboardUpdate(contestId);
+
+            res.json({
+                success: true,
+                message: 'Student has been unlocked and can now continue the contest.'
+            });
+        } finally {
+            await redis.del(unlockLockKey).catch(() => { });
+        }
+    } catch (error) {
+        console.error('Unlock contest for user error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to unlock contest for user',
+            error: error.message
+        });
+    }
+};
+
 
 module.exports = {
     createContest,
@@ -1231,5 +1351,6 @@ module.exports = {
     getProctoringViolations,
     logViolation, // Export it
     getPublicContestInfo,
-    registerSpotUser
+    registerSpotUser,
+    unlockContestForUser
 };

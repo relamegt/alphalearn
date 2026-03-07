@@ -9,8 +9,8 @@ const apiClient = axios.create({
         'Content-Type': 'application/json',
     },
     withCredentials: true,
-    // Abort requests after 12 seconds — catches hanging requests when internet drops mid-flight
-    timeout: 12000,
+    // Abort requests after 30 seconds — gives BullMQ worker queue enough time to accept jobs
+    timeout: 30000,
 });
 
 // Request Interceptor: Attach Token to every request automatically

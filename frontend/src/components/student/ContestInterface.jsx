@@ -5,6 +5,8 @@ import contestService from '../../services/contestService';
 import useProctoring from '../../hooks/useProctoring';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import ThemeToggle from '../shared/ThemeToggle';
 import Cookies from 'js-cookie';
 import { CiLock } from 'react-icons/ci';
 import { IoCloseCircleOutline } from 'react-icons/io5';
@@ -45,36 +47,36 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 
 const MarkdownComponents = {
-    h1: ({ children }) => <h1 className="text-xl font-bold text-gray-900 mt-5 mb-3">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-lg font-bold text-gray-900 mt-5 mb-2">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-md font-semibold text-gray-800 mt-4 mb-1.5">{children}</h3>,
-    p: ({ children }) => <p className="text-gray-700 text-[14px] leading-6 mb-3 whitespace-pre-wrap break-words">{children}</p>,
-    ul: ({ children }) => <ul className="text-gray-700 text-[14px] list-disc list-outside ml-4 mb-3 space-y-1">{children}</ul>,
-    ol: ({ children }) => <ol className="text-gray-700 text-[14px] list-decimal list-outside ml-4 mb-3 space-y-1">{children}</ol>,
-    li: ({ children }) => <li className="pl-1 leading-6 break-words">{children}</li>,
-    blockquote: ({ children }) => <blockquote className="border-l-4 border-primary-400 pl-4 py-1 italic text-gray-500 my-3 bg-primary-50 rounded-r">{children}</blockquote>,
-    a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline break-all">{children}</a>,
-    img: ({ src, alt }) => <img src={src} alt={alt} className="max-w-full rounded-xl border border-gray-200 my-4 shadow-sm" />,
+    h1: ({ children }) => <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-5 mb-3">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mt-5 mb-2">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-md font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-1.5">{children}</h3>,
+    p: ({ children }) => <p className="text-gray-700 dark:text-gray-300 text-[14px] leading-6 mb-3 whitespace-pre-wrap break-words">{children}</p>,
+    ul: ({ children }) => <ul className="text-gray-700 dark:text-gray-300 text-[14px] list-disc list-outside ml-4 mb-3 space-y-1">{children}</ul>,
+    ol: ({ children }) => <ol className="text-gray-700 dark:text-gray-300 text-[14px] list-decimal list-outside ml-4 mb-3 space-y-1">{children}</ol>,
+    li: ({ children }) => <li className="pl-1 leading-6 break-words dark:text-gray-300">{children}</li>,
+    blockquote: ({ children }) => <blockquote className="border-l-4 border-primary-400 pl-4 py-1 italic text-gray-500 dark:text-gray-400 my-3 bg-primary-50 dark:bg-primary-900/10 rounded-r">{children}</blockquote>,
+    a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline break-all">{children}</a>,
+    img: ({ src, alt }) => <img src={src} alt={alt} className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700 my-4 shadow-sm" />,
     code: ({ inline, className, children }) => {
         const content = String(children).replace(/\n$/, '');
         const match = /language-(\w+)/.exec(className || '');
         if (inline || (!match && !content.includes('\n'))) {
-            return <code className="bg-primary-50 text-primary-700 px-1 py-0.5 rounded text-sm font-mono break-all">{children}</code>;
+            return <code className="bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 px-1 py-0.5 rounded text-sm font-mono break-all">{children}</code>;
         }
-        return <pre className="my-3 p-3 overflow-x-auto text-sm font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded-lg">{children}</pre>;
+        return <pre className="my-3 p-3 overflow-x-auto text-sm font-mono text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg">{children}</pre>;
     }
 };
 
 /* —"—"—" Helpers —"—"—" */
 const DragHandleH = ({ onMouseDown }) => (
-    <div onMouseDown={onMouseDown} className="w-1.5 bg-gray-50 hover:bg-blue-100 border-l border-r border-gray-100 cursor-col-resize shrink-0 transition-colors z-10 relative group flex flex-col justify-center items-center">
-        <div className="h-4 w-0.5 bg-gray-300 rounded-full group-hover:bg-blue-400" />
+    <div onMouseDown={onMouseDown} className="w-1.5 bg-gray-50 dark:bg-[#0a0f1a] hover:bg-purple-100 dark:hover:bg-purple-900/30 border-l border-r border-gray-100 dark:border-gray-700 cursor-col-resize shrink-0 transition-colors z-10 relative group flex flex-col justify-center items-center">
+        <div className="h-4 w-0.5 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-purple-400" />
     </div>
 );
 
 const DragHandleV = ({ onMouseDown }) => (
-    <div onMouseDown={onMouseDown} className="h-1.5 bg-gray-50 hover:bg-blue-100 border-t border-b border-gray-100 cursor-row-resize shrink-0 transition-colors z-10 relative flex justify-center items-center group">
-        <div className="w-4 h-0.5 bg-gray-300 rounded-full group-hover:bg-blue-400" />
+    <div onMouseDown={onMouseDown} className="h-1.5 bg-gray-50 dark:bg-[#0a0f1a] hover:bg-purple-100 dark:hover:bg-purple-900/30 border-t border-b border-gray-100 dark:border-gray-700 cursor-row-resize shrink-0 transition-colors z-10 relative flex justify-center items-center group">
+        <div className="w-4 h-0.5 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-purple-400" />
     </div>
 );
 
@@ -164,18 +166,18 @@ const ExecutionProgress = ({ isRunning, isSubmitting, total }) => {
     const label = isSubmitting ? 'Submitting' : 'Running';
 
     return (
-        <div className="flex flex-col h-full items-center justify-center gap-4 px-8">
+        <div className="flex flex-col h-full items-center justify-center gap-4 px-8 bg-white dark:bg-[#0a0f1a] transition-colors">
             <div className="text-center">
                 <p className="text-sm font-semibold text-gray-700 mb-1">
                     {label} test cases...
                 </p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-2xl font-bold text-primary-600">
                     {count} <span className="text-gray-400 text-lg font-normal">/ {total}</span>
                 </p>
             </div>
             <div className="w-full max-w-xs bg-gray-100 rounded-full h-2 overflow-hidden">
                 <div
-                    className="h-2 bg-blue-500 rounded-full transition-all duration-500"
+                    className="h-2 bg-purple-500 rounded-full transition-all duration-500"
                     style={{ width: `${progress}%` }}
                 />
             </div>
@@ -210,6 +212,7 @@ const ContestInterface = ({ isPractice = false }) => {
     const { contestId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { isDark } = useTheme();
     const basePath = user?.role === 'admin' ? '/admin' : user?.role === 'instructor' ? '/instructor' : '/student';
 
     // Data State
@@ -283,6 +286,7 @@ const ContestInterface = ({ isPractice = false }) => {
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [isExecutionOffline, setIsExecutionOffline] = useState(false);
+    const [showFinishModal, setShowFinishModal] = useState(false);
 
     useEffect(() => {
         const handleOnline = () => { setIsOnline(true); setIsExecutionOffline(false); };
@@ -788,7 +792,7 @@ const ContestInterface = ({ isPractice = false }) => {
         // Load new problem state
         const savedMap = JSON.parse(localStorage.getItem(`contest_${contestId}_codeMap`) || '{}');
         const savedProblemData = savedMap[problem._id];
-        
+
         let savedLang = 'cpp';
         let savedCode = DEFAULT_CODE['cpp'];
 
@@ -853,18 +857,18 @@ const ContestInterface = ({ isPractice = false }) => {
         if (selectedProblem) {
             let savedMap = {};
             try { savedMap = JSON.parse(localStorage.getItem(`contest_${contestId}_codeMap`) || '{}'); } catch { }
-            
+
             const problemData = savedMap[selectedProblem._id] || {};
-            
+
             // Handle legacy format upgrade if needed
             const codes = problemData.codes || {};
             if (!problemData.codes && problemData.code && problemData.lang) {
                 codes[problemData.lang] = problemData.code;
             }
-            
+
             // Save current code for the OLD language
             codes[oldLang] = oldCode;
-            
+
             // Determine the code for the NEW language
             const newCode = codes[newLang] || DEFAULT_CODE[newLang];
             setCurrentCode(newCode);
@@ -874,12 +878,12 @@ const ContestInterface = ({ isPractice = false }) => {
                 codes: codes,
                 lastLang: newLang
             };
-            
+
             const updatedMap = {
                 ...savedMap,
                 [selectedProblem._id]: updatedProblemData
             };
-            
+
             setUserCodeMap(updatedMap);
             localStorage.setItem(`contest_${contestId}_codeMap`, JSON.stringify(updatedMap));
         } else {
@@ -1049,9 +1053,10 @@ const ContestInterface = ({ isPractice = false }) => {
                 toast.error('No internet connection!', { duration: 5000, icon: '📶' });
             } else {
                 setIsExecutionOffline(false);
-                setConsoleOutput({ type: 'error', message: 'No response. Please check your connection or try again.' });
+                setConsoleOutput({ type: 'error', message: 'Execution is taking longer than expected. Please try again.' });
+                toast.error('Execution timed out. Please try again.');
             }
-        }, 14000); // 14s = just past the 12s axios timeout
+        }, 60000); // 60s — results arrive via WebSocket, give the worker queue ample time
 
         try {
             // Build combined list: sample cases + all custom cases (same pattern as CodeEditor)
@@ -1088,14 +1093,16 @@ const ContestInterface = ({ isPractice = false }) => {
             // Detect network failure by error code OR by browser online status
             const isNetErr = !navigator.onLine ||
                 error?.code === 'ERR_NETWORK' ||
-                error?.code === 'ECONNABORTED' ||
-                error?.message === 'Network Error' ||
-                error?.message?.toLowerCase().includes('timeout');
-            if (isNetErr) {
-                if (!navigator.onLine) setIsOnline(false);
+                error?.message === 'Network Error';
+            if (isNetErr && !navigator.onLine) {
+                setIsOnline(false);
                 setIsExecutionOffline(true);
                 setConsoleOutput({ type: 'offline', message: 'No internet connection. Please check your network and try again.' });
                 toast.error('No internet connection!', { duration: 5000, icon: '📶' });
+            } else if (isNetErr || error?.code === 'ECONNABORTED' || error?.message?.toLowerCase().includes('timeout')) {
+                setIsExecutionOffline(false);
+                setConsoleOutput({ type: 'error', message: 'Server is processing your request. Please wait and try again.' });
+                toast.error('Request timed out. Please try again.');
             } else {
                 setIsExecutionOffline(false);
                 setConsoleOutput({ type: 'error', message: error.message || 'Execution failed. Please try again.' });
@@ -1131,9 +1138,10 @@ const ContestInterface = ({ isPractice = false }) => {
                 toast.error('No internet connection!', { duration: 5000, icon: '📶' });
             } else {
                 setIsExecutionOffline(false);
-                setConsoleOutput({ type: 'error', message: 'No response from server. Please check your connection or try again.' });
+                setConsoleOutput({ type: 'error', message: 'Submission is taking longer than expected. Please wait — your code is still being evaluated.' });
+                toast.error('Submission timed out. Please try again.');
             }
-        }, 14000); // 14s = just past the 12s axios timeout
+        }, 60000); // 60s — results arrive via WebSocket, give the worker queue ample time
 
         try {
             const result = await contestService.submitContestCode(contestId, {
@@ -1156,15 +1164,17 @@ const ContestInterface = ({ isPractice = false }) => {
             else {
                 const isNetErr = !navigator.onLine ||
                     error?.code === 'ERR_NETWORK' ||
-                    error?.code === 'ECONNABORTED' ||
-                    error?.message === 'Network Error' ||
-                    error?.message?.toLowerCase().includes('timeout');
+                    error?.message === 'Network Error';
 
-                if (isNetErr) {
-                    if (!navigator.onLine) setIsOnline(false);
+                if (isNetErr && !navigator.onLine) {
+                    setIsOnline(false);
                     setIsExecutionOffline(true);
                     setConsoleOutput({ type: 'offline', message: 'No internet connection. Please check your network and try again.' });
                     toast.error('No internet connection!', { duration: 5000, icon: '📶' });
+                } else if (isNetErr || error?.code === 'ECONNABORTED' || error?.message?.toLowerCase().includes('timeout')) {
+                    setIsExecutionOffline(false);
+                    setConsoleOutput({ type: 'error', message: 'Server is processing your submission. Please wait and try again.' });
+                    toast.error('Request timed out. Please try again.');
                 } else {
                     setIsExecutionOffline(false);
                     const msg = error.message || 'Submission failed';
@@ -1469,7 +1479,7 @@ const ContestInterface = ({ isPractice = false }) => {
                         </p>
                         <button
                             onClick={() => navigate(`${basePath}/contests`)}
-                            className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium text-sm"
+                            className="px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition font-medium text-sm"
                         >
                             Back to Contests
                         </button>
@@ -1479,7 +1489,7 @@ const ContestInterface = ({ isPractice = false }) => {
         }
         return (
             <div className="flex flex-col h-screen items-center justify-center bg-gray-50 text-gray-600 gap-3">
-                <Loader2 className="animate-spin text-blue-600" size={32} />
+                <Loader2 className="animate-spin text-primary-600" size={32} />
                 <p className="font-medium">Loading Contest...</p>
             </div>
         );
@@ -1514,7 +1524,7 @@ const ContestInterface = ({ isPractice = false }) => {
     const solvedCount = contest?.problems?.filter(p => userSubmissions[p._id] === 'Accepted').length || 0;
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50 font-sans text-gray-800 overflow-hidden relative" ref={containerRef}>
+        <div className="flex flex-col h-screen bg-gray-50 dark:bg-[#0a0f1a] font-sans text-gray-800 dark:text-gray-200 overflow-hidden relative transition-colors" ref={containerRef}>
             {/* Resizing Overlay - Captures events over iframes/editor */}
             {isResizing && (
                 <div
@@ -1526,26 +1536,27 @@ const ContestInterface = ({ isPractice = false }) => {
             )}
 
             {/* —"—"—" Minimal Header —"—"—" */}
-            <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-20 shrink-0 shadow-sm relative">
+            <header className="h-14 bg-white dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 z-20 shrink-0 shadow-sm dark:shadow-black/20 relative transition-colors">
                 <div className="flex items-center gap-4 min-w-0">
 
                     <div className="flex flex-col min-w-0">
-                        <h1 className="text-sm font-bold text-gray-900 truncate flex items-center gap-2">
+                        <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate flex items-center gap-2">
                             {contest.title}
-                            {contestSubmitted && <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full border border-green-200 uppercase tracking-wide">Submitted</span>}
+                            {contestSubmitted && <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800 uppercase tracking-wide transition-colors">Submitted</span>}
                         </h1>
                     </div>
                 </div>
 
                 {/* Center Timer - Hide in Practice */}
                 {(!contestSubmitted && !isPractice && timeRemaining !== null) && (
-                    <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 px-4 py-1.5 rounded-full border ${timeRemaining < 300 ? 'bg-red-50 border-red-200 text-red-600 animate-pulse' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+                    <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 px-4 py-1.5 rounded-full border transition-colors ${timeRemaining < 300 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 animate-pulse' : 'bg-gray-50 dark:bg-[#0a0f1a] border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'}`}>
                         <Clock size={14} />
                         <span className="font-mono font-bold text-sm tracking-widest">{formatTime(timeRemaining)}</span>
                     </div>
                 )}
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                    <ThemeToggle size="sm" />
                     {/* Live participant count removed — distributed count not reliable across instances
                     {!isPractice && (
                         <div className="flex items-center gap-3 text-xs text-gray-500 border-r border-gray-200 pr-4 mr-1">
@@ -1576,12 +1587,12 @@ const ContestInterface = ({ isPractice = false }) => {
                     */}
                     {/* Violations counter (kept) */}
                     {!isPractice && contest?.proctoringEnabled && (
-                        <div className="flex items-center gap-3 text-xs text-gray-500 border-r border-gray-200 pr-4 mr-1">
+                        <div className="flex items-center gap-3 text-xs text-gray-500 border-r border-gray-200 dark:border-gray-700 pr-4 mr-1">
                             <span className={`flex items-center gap-1 font-bold text-xs px-2 py-0.5 rounded-full border ${violationSummary.totalViolations === 0
-                                ? 'text-green-600 bg-green-50 border-green-100'
+                                ? 'text-green-600 bg-green-50 border-green-100 dark:border-green-900/30 dark:bg-green-900/20'
                                 : violationSummary.isNearLimit
-                                    ? 'text-red-600 bg-red-50 border-red-200 animate-pulse'
-                                    : 'text-amber-600 bg-amber-50 border-amber-200'
+                                    ? 'text-red-600 bg-red-50 border-red-200 dark:border-red-900/30'
+                                    : 'text-amber-600 bg-amber-50 border-amber-200 dark:border-amber-900/30'
                                 }`}>
                                 <AlertTriangle size={10} />
                                 {violationSummary.totalViolations}/{contest?.maxViolations || 5}
@@ -1589,16 +1600,25 @@ const ContestInterface = ({ isPractice = false }) => {
                         </div>
                     )}
 
+                    {!isPractice && contest?.proctoringEnabled && !isFullscreen && !contestSubmitted && (
+                        <button
+                            onClick={enterFullscreen}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-lg text-xs font-bold animate-pulse hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all shadow-sm"
+                        >
+                            <Maximize2 size={13} /> Full Screen
+                        </button>
+                    )}
+
                     {!isPractice && (
-                        <button onClick={() => setShowLeaderboard(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                        <button onClick={() => setShowLeaderboard(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors">
                             <Layout size={14} /> Leaderboard
                         </button>
                     )}
                     {(!contestSubmitted && !isPractice && timeRemaining !== null) && (
                         <button
-                            onClick={() => handleFinishContest(false)}
+                            onClick={() => setShowFinishModal(true)}
                             disabled={finishing || timeRemaining <= 0}
-                            className="flex items-center gap-2 px-4 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-all text-xs font-bold shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all text-xs font-bold shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {(finishing || timeRemaining <= 0) ? (
                                 <>
@@ -1610,8 +1630,8 @@ const ContestInterface = ({ isPractice = false }) => {
                     )}
                     {isPractice && (
                         <div className="flex items-center gap-3">
-                            <span className="bg-indigo-50 text-indigo-600 text-[10px] px-2.5 py-1 rounded-full font-bold border border-indigo-100 uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                            <span className="bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-[10px] px-2.5 py-1 rounded-full font-bold border border-primary-100 dark:border-primary-800 uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-colors">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
                                 Practice Mode
                             </span>
                             <button
@@ -1635,25 +1655,25 @@ const ContestInterface = ({ isPractice = false }) => {
                         width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px`,
                         transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
                     }}
-                    className="relative flex flex-col shrink-0 border-r border-gray-200 bg-white z-20"
+                    className="relative flex flex-col shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] z-20 transition-colors"
                 >
                     <div className="flex-1 overflow-hidden flex flex-col relative h-full">
                         <div className={`flex-1 flex flex-col overflow-hidden h-full transition-opacity duration-300 ${showSidebar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none hidden'}`}>
                             {/* Header (Problems/Status) */}
-                            <div className="px-5 py-4 border-b border-gray-200 bg-gray-50/40 shrink-0 flex items-center justify-between">
-                                <h2 className="text-gray-900 font-bold flex items-center gap-2 text-[15px]">
-                                    <List size={16} className="text-gray-400" />
+                            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] shrink-0 flex items-center justify-between transition-colors">
+                                <h2 className="text-gray-900 dark:text-gray-100 font-bold flex items-center gap-2 text-[15px]">
+                                    <List size={16} className="text-gray-400 dark:text-gray-500" />
                                     Problems ({solvedCount}/{contest?.problems?.length || 0})
                                 </h2>
                                 {isPractice && (
-                                    <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded border border-blue-200 uppercase font-bold tracking-wide flex items-center gap-1">
+                                    <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-[10px] px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800 uppercase font-bold tracking-wide flex items-center gap-1">
                                         Practice
                                     </span>
                                 )}
                             </div>
 
                             {/* Problem List */}
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1 bg-gray-50">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1 bg-gray-50 dark:bg-[#0a0f1a] transition-colors">
                                 {contest?.problems?.map((p, i) => {
                                     const status = userSubmissions[p._id];
                                     const isActive = selectedProblem?._id === p._id;
@@ -1666,28 +1686,28 @@ const ContestInterface = ({ isPractice = false }) => {
                                             onClick={() => !isLocked && handleProblemChange(p)}
                                             disabled={isLocked}
                                             className={`w-full text-left p-3 rounded-xl transition-all border flex gap-3 ${isLocked
-                                                ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed pointer-events-none'
+                                                ? 'bg-gray-50 dark:bg-[#0a0f1a] border-gray-200 dark:border-gray-700 opacity-60 cursor-not-allowed pointer-events-none'
                                                 : isActive
-                                                    ? (isSolved ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-white border-blue-200 shadow-sm ring-1 ring-blue-500/20')
+                                                    ? (isSolved ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 shadow-sm' : 'bg-white dark:bg-[#0a0f1a] border-purple-200 dark:border-purple-800 shadow-sm ring-1 ring-purple-500/20')
                                                     : isSolved
-                                                        ? 'bg-white border-gray-200 hover:border-emerald-300'
-                                                        : 'bg-white border-transparent hover:bg-gray-100'
+                                                        ? 'bg-white dark:bg-[#0a0f1a] border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700'
+                                                        : 'bg-white dark:bg-[#0a0f1a] border-transparent dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#141b2b]'
                                                 }`}
                                         >
                                             <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center font-bold text-sm shadow-sm border ${isActive
-                                                ? (isSolved ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-blue-100 text-blue-700 border-blue-200')
+                                                ? (isSolved ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800')
                                                 : isSolved
-                                                    ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
-                                                    : 'bg-gray-100 border-gray-200 text-gray-500'
+                                                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                                                    : 'bg-gray-100 dark:bg-[#0a0f1a] border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
                                                 }`}>
                                                 {String.fromCharCode(65 + i)}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className={`text-sm font-medium truncate flex items-center gap-1.5 ${isActive
-                                                    ? (isSolved ? 'text-emerald-800' : 'text-gray-900')
+                                                    ? (isSolved ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-900 dark:text-gray-100')
                                                     : isSolved
-                                                        ? 'text-emerald-700'
-                                                        : 'text-gray-600'
+                                                        ? 'text-emerald-700 dark:text-emerald-400'
+                                                        : 'text-gray-600 dark:text-gray-300'
                                                     }`}>
                                                     <span className="truncate">{p.title}</span>
                                                     {isLocked && (
@@ -1708,8 +1728,8 @@ const ContestInterface = ({ isPractice = false }) => {
                                                         p.difficulty === 'Medium' ? 'text-amber-600' : 'text-rose-600'}`}>
                                                         {p.difficulty}
                                                     </span>
-                                                    <span className="text-[10px] text-gray-400">•</span>
-                                                    <span className="text-[10px] text-gray-400">{p.points} pts</span>
+                                                    <span className="text-[10px] text-gray-400 dark:text-gray-500">•</span>
+                                                    <span className="text-[10px] text-gray-400 dark:text-gray-500">{p.points} pts</span>
                                                     {isSolved && (
                                                         <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5">
                                                             ✓ Solved
@@ -1725,7 +1745,7 @@ const ContestInterface = ({ isPractice = false }) => {
 
                         {!showSidebar && (
                             <div
-                                className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors"
+                                className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-[#0a0f1a] cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] transition-colors"
                                 onClick={() => setShowSidebar(true)}
                             >
                                 <div style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-bold text-gray-400 tracking-widest uppercase select-none">
@@ -1738,7 +1758,7 @@ const ContestInterface = ({ isPractice = false }) => {
                     {/* Toggle tab — vertically centered on right edge */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
-                        className="absolute -right-[14px] top-1/2 -translate-y-1/2 z-50 w-[14px] h-14 bg-white border border-l-0 border-gray-200 rounded-r-lg shadow-md flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-gray-50 transition-colors"
+                        className="absolute -right-[14px] top-1/2 -translate-y-1/2 z-50 w-[14px] h-14 bg-white dark:bg-[#0a0f1a] border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg shadow-md flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-50 dark:hover:bg-[#141b2b] transition-colors"
                         title={showSidebar ? 'Close Problem List' : 'Open Problem List'}
                     >
                         {showSidebar ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
@@ -1748,27 +1768,30 @@ const ContestInterface = ({ isPractice = false }) => {
                 {showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
 
                 {/* —" Col 2: Description / Editorial —" */}
-                <div style={{ width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 bg-white">
+                <div style={{
+                    width: `${descW}%`,
+                    transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
+                }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] transition-colors">
 
-                    <div className="flex items-center h-12 border-b border-gray-200 bg-white shrink-0 pl-0 pr-4 overflow-x-auto no-scrollbar">
+                    <div className="flex items-center h-12 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] shrink-0 pl-0 pr-4 overflow-x-auto no-scrollbar transition-colors">
                         <div className="flex items-center gap-1 h-full">
                             <button
                                 onClick={() => setShowEditorial(false)}
-                                className={`h-full flex items-center gap-2 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${!showEditorial ? 'border-blue-500 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                                className={`h-full flex items-center gap-2 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${!showEditorial ? 'border-purple-500 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'}`}
                             >
                                 <FileText size={14} /> Description
                             </button>
                             {isPractice && selectedProblem?.editorial && (
                                 <button
                                     onClick={() => setShowEditorial(true)}
-                                    className={`h-full flex items-center gap-2 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${showEditorial ? 'border-blue-500 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                                    className={`h-full flex items-center gap-2 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${showEditorial ? 'border-purple-500 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'}`}
                                 >
                                     <BookOpen size={14} /> Editorial
                                 </button>
                             )}
                         </div>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+                    <div className="flex-1 overflow-y-auto p-6 scrollbar-thin dark:bg-[#0a0f1a] transition-colors">
 
                         {selectedProblem ? (
                             showEditorial ? (
@@ -1778,7 +1801,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                     {selectedProblem.editorial.approach && (
                                         <div className="mb-8">
                                             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <span className="w-1.5 h-6 bg-blue-500 rounded-full" />
+                                                <span className="w-1.5 h-6 bg-purple-500 rounded-full" />
                                                 Approach
                                             </h3>
                                             <div className="text-gray-700 leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: selectedProblem.editorial.approach }} />
@@ -1787,11 +1810,11 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                     {selectedProblem.editorial.complexity && (
                                         <div className="mb-8">
-                                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-3 flex items-center gap-2">
                                                 <span className="w-1.5 h-6 bg-purple-500 rounded-full" />
                                                 Complexity
                                             </h3>
-                                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700">
+                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-sm text-gray-700 dark:text-gray-300 transition-colors">
                                                 <div dangerouslySetInnerHTML={{ __html: selectedProblem.editorial.complexity }} />
                                             </div>
                                         </div>
@@ -1799,7 +1822,7 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                     {selectedProblem.editorial.solution && (
                                         <div>
-                                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-3 flex items-center gap-2">
                                                 <span className="w-1.5 h-6 bg-emerald-500 rounded-full" />
                                                 Solution
                                             </h3>
@@ -1810,13 +1833,13 @@ const ContestInterface = ({ isPractice = false }) => {
                                                             navigator.clipboard.writeText(selectedProblem.editorial.solution);
                                                             toast.success('Solution copied!');
                                                         }}
-                                                        className="p-1.5 bg-white shadow-sm border border-gray-200 rounded-md text-gray-500 hover:text-blue-600"
+                                                        className="p-1.5 bg-white dark:bg-[#0a0f1a] shadow-sm border border-gray-200 dark:border-gray-700 rounded-md text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
                                                         title="Copy Code"
                                                     >
                                                         <Code2 size={14} />
                                                     </button>
                                                 </div>
-                                                <pre className="bg-gray-900 text-gray-100 rounded-xl p-4 overflow-x-auto text-xs font-mono border border-gray-800">
+                                                <pre className="bg-[#0a0f1a] text-gray-100 rounded-xl p-4 overflow-x-auto text-xs font-mono border border-gray-800">
                                                     <code>{selectedProblem.editorial.solution}</code>
                                                 </pre>
                                             </div>
@@ -1826,7 +1849,7 @@ const ContestInterface = ({ isPractice = false }) => {
                             ) : (
                                 <div className="space-y-6">
                                     <div>
-                                        <h2 className="text-xl font-bold text-gray-900 mb-2 font-sans">{selectedProblem.title}</h2>
+                                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 font-sans">{selectedProblem.title}</h2>
                                         <div className="flex flex-wrap gap-2 font-sans">
                                             <DiffBadge d={selectedProblem.difficulty} />
                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: '#92400e', background: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '1px solid #fcd34d', padding: '2px 7px', borderRadius: 20 }}>
@@ -1835,7 +1858,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                         </div>
                                     </div>
 
-                                    <div className="prose max-w-none text-gray-700 font-problem prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed prose-code:text-blue-700 prose-code:bg-blue-50 prose-code:px-1 prose-code:rounded">
+                                    <div className="prose max-w-none text-gray-700 dark:text-gray-300 font-problem prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed prose-code:text-purple-700 dark:prose-code:text-purple-400 prose-code:bg-purple-50 dark:prose-code:bg-purple-900/20 prose-code:px-1 prose-code:rounded">
                                         <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
                                             {cleanDescription(selectedProblem.description)}
                                         </ReactMarkdown>
@@ -1843,10 +1866,10 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                     {selectedProblem.constraints?.length > 0 && (
                                         <div>
-                                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Constraints</h3>
-                                            <ul className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-1">
+                                            <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">Constraints</h3>
+                                            <ul className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-1">
                                                 {selectedProblem.constraints.map((c, i) => (
-                                                    <li key={i} className="text-xs font-mono text-gray-700 list-disc list-inside">{c}</li>
+                                                    <li key={i} className="text-xs font-mono text-gray-700 dark:text-gray-300 list-disc list-inside">{c}</li>
                                                 ))}
                                             </ul>
                                         </div>
@@ -1854,8 +1877,8 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                     {selectedProblem.inputFormat && (
                                         <div>
-                                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Input Format</h3>
-                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 prose prose-sm max-w-none">
+                                            <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">Input Format</h3>
+                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300 prose prose-sm max-w-none">
                                                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
                                                     {selectedProblem.inputFormat}
                                                 </ReactMarkdown>
@@ -1865,8 +1888,8 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                     {selectedProblem.outputFormat && (
                                         <div>
-                                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Output Format</h3>
-                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 prose prose-sm max-w-none">
+                                            <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">Output Format</h3>
+                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300 prose prose-sm max-w-none">
                                                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
                                                     {selectedProblem.outputFormat}
                                                 </ReactMarkdown>
@@ -1875,23 +1898,23 @@ const ContestInterface = ({ isPractice = false }) => {
                                     )}
 
                                     {selectedProblem.examples?.map((ex, i) => (
-                                        <div key={i} className="rounded-lg border border-gray-200 overflow-hidden">
-                                            <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 text-xs font-bold text-gray-600 uppercase tracking-wide">
+                                        <div key={i} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
                                                 Example {i + 1}
                                             </div>
-                                            <div className="p-4 space-y-3 bg-white">
+                                            <div className="p-4 space-y-3 bg-white dark:bg-[#0a0f1a]">
                                                 <div>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Input</p>
-                                                    <pre className="bg-gray-50 border border-gray-200 rounded p-2 text-xs font-mono text-gray-800 whitespace-pre-wrap">{ex.input}</pre>
+                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Input</p>
+                                                    <pre className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded p-2 text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{ex.input}</pre>
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Output</p>
-                                                    <pre className="bg-gray-50 border border-gray-200 rounded p-2 text-xs font-mono text-gray-800 whitespace-pre-wrap">{ex.output}</pre>
+                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Output</p>
+                                                    <pre className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded p-2 text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{ex.output}</pre>
                                                 </div>
                                                 {ex.explanation && (
                                                     <div>
-                                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Explanation</p>
-                                                        <p className="text-xs text-gray-600 bg-blue-50 rounded p-2 border border-blue-100">{ex.explanation}</p>
+                                                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Explanation</p>
+                                                        <p className="text-xs text-gray-600 dark:text-gray-300 bg-purple-50 dark:bg-purple-900/20 rounded p-2 border border-purple-100 dark:border-purple-900/50">{ex.explanation}</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -1900,10 +1923,10 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                     {selectedProblem.edgeCases?.length > 0 && (
                                         <div>
-                                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Edge Cases</h3>
-                                            <ul className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-1">
+                                            <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">Edge Cases</h3>
+                                            <ul className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-1">
                                                 {selectedProblem.edgeCases.map((c, i) => (
-                                                    <li key={i} className="text-xs font-mono text-gray-700 list-disc list-inside">{c}</li>
+                                                    <li key={i} className="text-xs font-mono text-gray-700 dark:text-gray-300 list-disc list-inside">{c}</li>
                                                 ))}
                                             </ul>
                                         </div>
@@ -1911,18 +1934,18 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                     {(selectedProblem.timeComplexity || selectedProblem.spaceComplexity) && (
                                         <div>
-                                            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Complexity</h3>
-                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
+                                            <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">Complexity</h3>
+                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2">
                                                 {selectedProblem.timeComplexity && (
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-bold text-gray-500 uppercase">Time:</span>
-                                                        <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm">{selectedProblem.timeComplexity}</span>
+                                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Time:</span>
+                                                        <span className="text-sm font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded shadow-sm">{selectedProblem.timeComplexity}</span>
                                                     </div>
                                                 )}
                                                 {selectedProblem.spaceComplexity && (
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-bold text-gray-500 uppercase">Space:</span>
-                                                        <span className="text-sm font-mono text-gray-800 bg-white border border-gray-200 px-2 py-0.5 rounded shadow-sm">{selectedProblem.spaceComplexity}</span>
+                                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Space:</span>
+                                                        <span className="text-sm font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded shadow-sm">{selectedProblem.spaceComplexity}</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -1937,11 +1960,14 @@ const ContestInterface = ({ isPractice = false }) => {
                 <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />
 
                 {/* Editor & Results */}
-                <div style={{ width: showSidebar ? `calc(${100 - sidebarW - descW}%)` : `calc(100% - ${COLLAPSED_SIDEBAR_WIDTH}px - ${descW}%)` }} className="flex flex-col overflow-hidden bg-white">
+                <div style={{
+                    width: showSidebar ? `calc(${100 - sidebarW - descW}%)` : `calc(100% - ${COLLAPSED_SIDEBAR_WIDTH}px - ${descW}%)`,
+                    transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
+                }} className="flex flex-col overflow-hidden bg-white dark:bg-[#0a0f1a] transition-colors">
                     {/* Editor Split */}
                     <div style={{ height: `${editorTopH}%`, transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }} className="flex flex-col relative overflow-hidden">
                         {/* Toolbar */}
-                        <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-3 shrink-0">
+                        <div className="h-12 bg-white dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3 shrink-0 transition-colors">
                             <div className="flex items-center gap-3">
                                 <div className="w-44">
                                     <CustomDropdown
@@ -1954,14 +1980,14 @@ const ContestInterface = ({ isPractice = false }) => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div className="flex items-center bg-gray-100 border border-gray-200 rounded-lg p-0.5">
+                                <div className="flex items-center bg-gray-100 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 transition-colors">
                                     <button onClick={handleRun} disabled={running || isProblemLocked || (contestSubmitted && !isPractice)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 rounded-md hover:bg-white hover:shadow-sm transition-all disabled:opacity-50" title="Run Code">
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 rounded-md hover:bg-white dark:hover:bg-[#141b2b] hover:shadow-sm transition-all disabled:opacity-50" title="Run Code">
                                         {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} className="fill-current" />}
                                         <span className="hidden sm:inline">Run</span>
                                     </button>
                                     <button onClick={handleSubmit} disabled={submitting || isProblemLocked || (contestSubmitted && !isPractice)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 ml-0.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-all disabled:opacity-50" title={isPractice ? 'Verify Code' : 'Submit Code'}>
+                                        className="flex items-center gap-1.5 px-3 py-1.5 ml-0.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-sm transition-all disabled:opacity-50" title={isPractice ? 'Verify Code' : 'Submit Code'}>
                                         {submitting ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
                                         <span className="hidden sm:inline">{isPractice ? 'Verify' : 'Submit'}</span>
                                     </button>
@@ -1984,7 +2010,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                         localStorage.setItem(`contest_${contestId}_codeMap`, JSON.stringify(savedMap));
                                     }
                                 }}
-                                theme="vs-light"
+                                theme={isDark ? 'vs-dark' : 'vs-light'}
                                 options={{
                                     minimap: { enabled: false },
                                     fontSize: 14,
@@ -2044,13 +2070,13 @@ const ContestInterface = ({ isPractice = false }) => {
                                 }}
                             />
                             {(isProblemLocked || contestSubmitted) && (
-                                <div className="absolute inset-0 bg-gray-50/50 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none">
-                                    <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 text-center transform scale-100">
-                                        <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <div className="absolute inset-0 bg-gray-50/50 dark:bg-[#0a0f1a] backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none">
+                                    <div className="bg-white dark:bg-[#0a0f1a] p-6 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 text-center transform scale-100">
+                                        <div className="w-12 h-12 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
                                             <CheckCircle className="text-green-500" size={24} />
                                         </div>
-                                        <h3 className="text-gray-900 font-bold mb-1">Problem Submitted</h3>
-                                        <p className="text-xs text-gray-500">This problem is locked for further editing.</p>
+                                        <h3 className="text-gray-900 dark:text-gray-100 font-bold mb-1">Problem Submitted</h3>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">This problem is locked for further editing.</p>
                                     </div>
                                 </div>
                             )}
@@ -2063,16 +2089,16 @@ const ContestInterface = ({ isPractice = false }) => {
                     <div
                         key={resultsAnimKey}
                         style={{ height: `${100 - editorTopH}%`, transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
-                        className="flex flex-col bg-white overflow-hidden relative"
+                        className="flex flex-col bg-white dark:bg-[#0a0f1a] overflow-hidden relative"
                         data-results-panel
                     >
-                        <div className="flex items-center h-10 border-b border-gray-200 bg-gray-50 px-2 gap-1 shrink-0">
+                        <div className="flex items-center h-10 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] px-2 gap-1 shrink-0">
                             <button onClick={() => setBottomTab('testcases')}
-                                className={`px-4 h-full text-xs font-medium border-b-2 transition-colors flex items-center gap-2 ${bottomTab === 'testcases' ? 'border-blue-500 text-blue-700 bg-white' : 'border-transparent text-gray-500 hover:bg-gray-100'}`}>
+                                className={`px-4 h-full text-xs font-medium border-b-2 transition-colors flex items-center gap-2 ${bottomTab === 'testcases' ? 'border-purple-500 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#141b2b] hover:text-gray-700 dark:hover:text-gray-200'}`}>
                                 <List size={14} /> Test Cases
                             </button>
                             <button onClick={() => setBottomTab('results')}
-                                className={`px-4 h-full text-xs font-medium border-b-2 transition-colors flex items-center gap-2 ${bottomTab === 'results' ? 'border-blue-500 text-blue-700 bg-white' : 'border-transparent text-gray-500 hover:bg-gray-100'}`}>
+                                className={`px-4 h-full text-xs font-medium border-b-2 transition-colors flex items-center gap-2 ${bottomTab === 'results' ? 'border-purple-500 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#141b2b] hover:text-gray-700 dark:hover:text-gray-200'}`}>
                                 {isCompileErr ? (
                                     <span className="flex items-center gap-1.5 text-orange-600"><AlertTriangle size={14} /> Compilation Error</span>
                                 ) : displayResult && !running && !submitting ? (
@@ -2086,7 +2112,7 @@ const ContestInterface = ({ isPractice = false }) => {
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-hidden bg-white relative">
+                        <div className="flex-1 overflow-hidden bg-white dark:bg-[#0a0f1a] relative group/results transition-colors">
                             {/* Running State - check per-problem running flag too */}
                             {(running || submitting || runningMap[selectedProblem?._id] || submittingMap[selectedProblem?._id]) ? (
                                 <ExecutionProgress isRunning={running || !!runningMap[selectedProblem?._id]} isSubmitting={submitting || !!submittingMap[selectedProblem?._id]} total={submitting || submittingMap[selectedProblem?._id] ? (selectedProblem?.testCases?.length || 5) : sampleTestCases.length} />
@@ -2094,18 +2120,18 @@ const ContestInterface = ({ isPractice = false }) => {
                                 <>
                                     {/* Test Cases Tab */}
                                     {bottomTab === 'testcases' && (
-                                        <div className="flex flex-col h-full font-problem">
+                                        <div className="flex flex-col h-full font-problem bg-white dark:bg-[#0a0f1a] transition-colors">
                                             {/* Case tabs row — same as problem workspace */}
-                                            <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0">
+                                            <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 dark:border-gray-700 overflow-x-auto scrollbar-hide shrink-0 bg-white dark:bg-[#0a0f1a]">
                                                 {/* Standard sample cases */}
                                                 {sampleTestCases.map((_, i) => (
                                                     <button
                                                         key={`case-${i}`}
                                                         onClick={() => setActiveTestCaseId(`case-${i}`)}
-                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
+                                                        className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
                                                             ${activeTestCaseId === `case-${i}`
-                                                                ? 'bg-gray-100 border-gray-200 text-gray-900 font-semibold shadow-sm'
-                                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                                                ? 'bg-gray-100 dark:bg-[#0a0f1a] border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 font-semibold shadow-sm'
+                                                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
                                                             }`}
                                                     >
                                                         Case {i + 1}
@@ -2119,8 +2145,8 @@ const ContestInterface = ({ isPractice = false }) => {
                                                             onClick={() => setActiveTestCaseId(`custom-${c.id}`)}
                                                             className={`pl-3 pr-7 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border flex items-center gap-1
                                                                 ${activeTestCaseId === `custom-${c.id}`
-                                                                    ? 'bg-blue-50 border-blue-200 text-blue-700 font-semibold shadow-sm'
-                                                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                                                    ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400 font-semibold shadow-sm'
+                                                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
                                                                 }`}
                                                         >
                                                             Case {sampleTestCases.length + customTestCases.indexOf(c) + 1}
@@ -2137,7 +2163,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                 {/* Add button */}
                                                 <button
                                                     onClick={handleAddCustomCase}
-                                                    className="ml-1 p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    className="ml-1 p-1.5 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
                                                     title="Add Custom Test Case"
                                                 >
                                                     <Plus size={14} strokeWidth={3} />
@@ -2145,7 +2171,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                             </div>
 
                                             {/* Content area */}
-                                            <div className="flex-1 p-4 overflow-y-auto">
+                                            <div className="flex-1 p-4 overflow-y-auto bg-white dark:bg-[#0a0f1a]">
                                                 {activeTestCaseId.startsWith('case-') ? (
                                                     // Standard case view
                                                     (() => {
@@ -2153,16 +2179,16 @@ const ContestInterface = ({ isPractice = false }) => {
                                                         const tc = sampleTestCases[idx];
                                                         if (!tc) return null;
                                                         return (
-                                                            <div className="space-y-4 max-w-2xl">
+                                                            <div className="space-y-4 w-full px-1">
                                                                 <div>
-                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                                    <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 whitespace-pre-wrap select-text">
+                                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Input</p>
+                                                                    <div className="w-full bg-gray-50/50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap select-text transition-colors">
                                                                         {tc.input}
                                                                     </div>
                                                                 </div>
                                                                 <div>
-                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                    <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-600 whitespace-pre-wrap opacity-80 select-text">
+                                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
+                                                                    <div className="w-full bg-gray-50/50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-600 dark:text-white whitespace-pre-wrap select-text transition-colors">
                                                                         {tc.output}
                                                                     </div>
                                                                 </div>
@@ -2173,12 +2199,12 @@ const ContestInterface = ({ isPractice = false }) => {
                                                     // Custom case view — editable textarea
                                                     (() => {
                                                         const cCase = customTestCases.find(c => `custom-${c.id}` === activeTestCaseId);
-                                                        if (!cCase) return <div className="text-gray-400 text-sm">Case not found.</div>;
+                                                        if (!cCase) return <div className="p-4 text-gray-400 text-sm">Case not found.</div>;
                                                         return (
-                                                            <div className="space-y-2 h-full flex flex-col">
-                                                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Custom Input</p>
+                                                            <div className="space-y-2 h-full flex flex-col w-full px-1">
+                                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Custom Input</p>
                                                                 <textarea
-                                                                    className="flex-1 w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none min-h-[100px]"
+                                                                    className="flex-1 w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none min-h-[100px] transition-colors"
                                                                     value={cCase.input}
                                                                     onChange={(e) => updateCustomCase(e.target.value)}
                                                                     placeholder="Enter input here..."
@@ -2194,31 +2220,31 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                     {/* Results Tab */}
                                     {bottomTab === 'results' && (
-                                        <div className="h-full overflow-y-auto flex flex-col" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
+                                        <div className="h-full overflow-y-auto flex flex-col bg-white dark:bg-[#0a0f1a] transition-colors" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
 
                                             {/* ── Network Error (Priority) ── */}
                                             {(!running && !submitting) && (isExecutionOffline || consoleOutput?.type === 'offline') && (
-                                                <div className="flex flex-col bg-red-50/30">
-                                                    <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2 shrink-0">
-                                                        <div className="bg-red-100 p-1.5 rounded-full">
-                                                            <XCircle size={16} className="text-red-600" />
+                                                <div className="flex flex-col bg-red-50/30 dark:bg-red-900/10">
+                                                    <div className="bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/30 px-4 py-3 flex items-center gap-2 shrink-0">
+                                                        <div className="bg-red-100 dark:bg-red-900/30 p-1.5 rounded-full">
+                                                            <XCircle size={16} className="text-red-600 dark:text-red-400" />
                                                         </div>
                                                         <div className="flex-1">
-                                                            <h3 className="text-red-800 font-bold text-sm">Network Error</h3>
-                                                            <p className="text-xs text-red-600">No internet connection. Please check your network and try again.</p>
+                                                            <h3 className="text-red-800 dark:text-red-300 font-bold text-sm">Network Error</h3>
+                                                            <p className="text-xs text-red-600 dark:text-red-400">No internet connection. Please check your network and try again.</p>
                                                         </div>
                                                         <button
                                                             onClick={() => bottomTab === 'testcases' ? handleRun() : handleSubmit()}
-                                                            className="px-3 py-1 bg-white border border-red-200 text-red-600 rounded-md text-[10px] font-bold hover:bg-red-50 transition-colors"
+                                                            className="px-3 py-1 bg-white dark:bg-[#0a0f1a] border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-md text-[10px] font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                                         >
                                                             Retry
                                                         </button>
                                                     </div>
                                                     <div className="p-8 text-center animate-in fade-in duration-500">
-                                                        <div className="w-16 h-16 rounded-full bg-red-100/50 flex items-center justify-center mb-4 mx-auto">
-                                                            <XCircle size={32} className="text-red-500" />
+                                                        <div className="w-16 h-16 rounded-full bg-red-100/50 dark:bg-red-900/20 flex items-center justify-center mb-4 mx-auto">
+                                                            <XCircle size={32} className="text-red-500 dark:text-red-400" />
                                                         </div>
-                                                        <p className="text-sm text-gray-500 max-w-xs mx-auto mb-4">
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto mb-4">
                                                             We couldn't reach the execution server. Please check your internet connection and try again.
                                                         </p>
                                                     </div>
@@ -2227,18 +2253,18 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                             {/* —"—" Compilation Error —"—" */}
                                             {!running && !submitting && !(isExecutionOffline || consoleOutput?.type === 'offline') && isCompileErr && (
-                                                <div className="flex flex-col bg-orange-50/30">
-                                                    <div className="bg-orange-50 border-b border-orange-100 px-4 py-3 flex items-center gap-2 shrink-0">
-                                                        <div className="bg-orange-100 p-1.5 rounded-full">
-                                                            <AlertTriangle className="text-orange-600" size={16} />
+                                                <div className="flex flex-col bg-orange-50/30 dark:bg-orange-900/10">
+                                                    <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-900/30 px-4 py-3 flex items-center gap-2 shrink-0">
+                                                        <div className="bg-orange-100 dark:bg-orange-900/30 p-1.5 rounded-full">
+                                                            <AlertTriangle className="text-orange-600 dark:text-orange-400" size={16} />
                                                         </div>
                                                         <div>
-                                                            <h3 className="text-orange-800 font-bold text-sm">Compilation Error</h3>
-                                                            <p className="text-xs text-orange-600">Check your code for syntax errors</p>
+                                                            <h3 className="text-orange-800 dark:text-orange-300 font-bold text-sm">Compilation Error</h3>
+                                                            <p className="text-xs text-orange-600 dark:text-orange-400">Check your code for syntax errors</p>
                                                         </div>
                                                     </div>
                                                     <div className="p-4">
-                                                        <pre className="font-mono text-xs text-orange-700 bg-orange-50/50 border border-orange-100 rounded-lg p-3 whitespace-pre-wrap leading-relaxed shadow-sm">
+                                                        <pre className="font-mono text-xs text-orange-700 dark:text-orange-300 bg-orange-50/50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30 rounded-lg p-3 whitespace-pre-wrap leading-relaxed shadow-sm transition-colors">
                                                             {consoleOutput?.message || consoleOutput?.error || 'Unknown error'}
                                                         </pre>
                                                     </div>
@@ -2299,7 +2325,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                             <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 py-8">
                                                                 <div style={{ position: 'relative', width: 140, height: 140 }}>
                                                                     <svg width="140" height="140" style={{ transform: 'rotate(-90deg)' }}>
-                                                                        <circle cx="70" cy="70" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="10" />
+                                                                        <circle cx="70" cy="70" r={radius} fill="none" stroke={isDark ? '#374151' : '#e5e7eb'} strokeWidth="10" />
                                                                         <circle
                                                                             cx="70" cy="70" r={radius}
                                                                             fill="none"
@@ -2321,7 +2347,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                 </div>
                                                                 <div className="flex flex-col items-center gap-2">
                                                                     <span style={{
-                                                                        background: bgColor, color: circleColor,
+                                                                        background: isDark ? `${circleColor}20` : bgColor, color: circleColor,
                                                                         border: `1.5px solid ${circleColor}30`,
                                                                         borderRadius: 99, padding: '4px 18px',
                                                                         fontWeight: 700, fontSize: 13
@@ -2336,8 +2362,8 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                 </div>
                                                                 {displayResult.error && !isAC && (
                                                                     <div className="w-full max-w-sm">
-                                                                        <p className="text-[10px] font-bold text-red-500 uppercase mb-1">Error</p>
-                                                                        <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap">
+                                                                        <p className="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase mb-1">Error</p>
+                                                                        <pre className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap transition-colors">
                                                                             {displayResult.error}
                                                                         </pre>
                                                                     </div>
@@ -2349,15 +2375,15 @@ const ContestInterface = ({ isPractice = false }) => {
                                                     {/* ── RUN MODE: Per-case tabs + details (unchanged) ── */}
                                                     {displayResult.isRun && displayResult.results?.length > 0 && (
                                                         <>
-                                                            <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 overflow-x-auto scrollbar-hide shrink-0 bg-white">
+                                                            <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 dark:border-gray-700 overflow-x-auto scrollbar-hide shrink-0 bg-white dark:bg-[#0a0f1a]">
                                                                 {displayResult.results.map((r, i) => (
                                                                     <button
                                                                         key={i}
                                                                         onClick={() => setActiveResultCase(i)}
                                                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
                                                                                     ${activeResultCase === i
-                                                                                ? `${r.passed ? 'bg-green-50 border-green-300 text-green-700' : 'bg-red-50 border-red-300 text-red-700'} font-semibold`
-                                                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                                                                ? `${r.passed ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-800 text-green-700 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-800 text-red-700 dark:text-red-400'} font-semibold`
+                                                                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
                                                                             }`}
                                                                     >
                                                                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -2370,46 +2396,46 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                     </button>
                                                                 ))}
                                                             </div>
-                                                            <div className="flex-1 p-4 overflow-y-auto">
+                                                            <div className="flex-1 p-4 overflow-y-auto bg-white dark:bg-[#0a0f1a]">
                                                                 {displayResult.results[activeResultCase] ? (
-                                                                    <div className="space-y-4 max-w-3xl">
-                                                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${displayResult.results[activeResultCase].passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                                    <div className="space-y-4 w-full px-1">
+                                                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${displayResult.results[activeResultCase].passed ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
                                                                             {displayResult.results[activeResultCase].passed
                                                                                 ? <><CheckCircle size={12} /> Passed</>
                                                                                 : <><XCircle size={12} /> {displayResult.results[activeResultCase].verdict || 'Failed'}</>
                                                                             }
                                                                         </div>
                                                                         <div>
-                                                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Input</p>
-                                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-800 whitespace-pre-wrap min-h-[48px]">
-                                                                                {displayResult.results[activeResultCase].input ?? <span className="text-gray-400 italic">N/A</span>}
+                                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Input</p>
+                                                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap min-h-[48px] transition-colors">
+                                                                                {displayResult.results[activeResultCase].input ?? <span className="text-gray-400 dark:text-gray-500 italic">N/A</span>}
                                                                             </div>
                                                                         </div>
                                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                             <div>
-                                                                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Your Output</p>
-                                                                                <div className={`rounded-lg p-3 text-sm font-mono whitespace-pre-wrap border min-h-[48px] ${displayResult.results[activeResultCase].passed ? 'bg-green-50/40 border-green-200' : 'bg-red-50/40 border-red-200'} text-gray-900`}>
-                                                                                    {displayResult.results[activeResultCase].actualOutput || <span className="text-gray-400 italic">No output</span>}
+                                                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Your Output</p>
+                                                                                <div className={`rounded-lg p-3 text-sm font-mono whitespace-pre-wrap border min-h-[48px] transition-colors ${displayResult.results[activeResultCase].passed ? 'bg-green-50/40 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-red-50/40 dark:bg-red-900/20 border-red-200 dark:border-red-800'} text-gray-900 dark:text-gray-200`}>
+                                                                                    {displayResult.results[activeResultCase].actualOutput || <span className="text-gray-400 dark:text-gray-500 italic">No output</span>}
                                                                                 </div>
                                                                             </div>
                                                                             <div>
-                                                                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Expected Output</p>
-                                                                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm font-mono text-gray-600 whitespace-pre-wrap min-h-[48px]">
-                                                                                    {displayResult.results[activeResultCase].expectedOutput ?? <span className="text-gray-400 italic">N/A</span>}
+                                                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
+                                                                                <div className="bg-gray-50/50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-600 dark:text-white whitespace-pre-wrap min-h-[48px] transition-colors">
+                                                                                    {displayResult.results[activeResultCase].expectedOutput ?? <span className="text-gray-400 dark:text-gray-500 italic">N/A</span>}
                                                                                 </div>
                                                                             </div>
                                                                         </div>
                                                                         {displayResult.results[activeResultCase].error && (
                                                                             <div>
-                                                                                <p className="text-[10px] font-bold text-red-500 uppercase mb-1.5">Error / Traceback</p>
-                                                                                <pre className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap">
+                                                                                <p className="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase mb-1.5">Error / Traceback</p>
+                                                                                <pre className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap transition-colors">
                                                                                     {displayResult.results[activeResultCase].error}
                                                                                 </pre>
                                                                             </div>
                                                                         )}
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="flex items-center justify-center h-full text-gray-400 text-xs">No result data for this case.</div>
+                                                                    <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500 text-xs">No result data for this case.</div>
                                                                 )}
                                                             </div>
                                                         </>
@@ -2419,9 +2445,9 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                             {/* —"—" No results yet —"—" */}
                                             {!running && !submitting && !displayResult && !consoleOutput?.error && (
-                                                <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
-                                                    <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
-                                                        <Play size={20} className="ml-1 text-gray-300" />
+                                                <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 gap-3">
+                                                    <div className="w-12 h-12 rounded-full bg-gray-50 dark:bg-[#0a0f1a] flex items-center justify-center">
+                                                        <Play size={20} className="ml-1 text-gray-300 dark:text-gray-600" />
                                                     </div>
                                                     <p className="text-sm font-medium">Run code to view results</p>
                                                 </div>
@@ -2430,9 +2456,9 @@ const ContestInterface = ({ isPractice = false }) => {
                                             {/* —"—" Generic error (no results) —"—" */}
                                             {!running && !submitting && consoleOutput?.error && !displayResult && (
                                                 <div className="p-4">
-                                                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                                        <p className="text-xs font-bold text-red-600 mb-2">Error</p>
-                                                        <p className="text-xs text-red-700">{consoleOutput.error}</p>
+                                                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                                                        <p className="text-xs font-bold text-red-600 dark:text-red-400 mb-2">Error</p>
+                                                        <p className="text-xs text-red-700 dark:text-red-300">{consoleOutput.error}</p>
                                                     </div>
                                                 </div>
                                             )}
@@ -2448,33 +2474,63 @@ const ContestInterface = ({ isPractice = false }) => {
             {/* —"—"—" Modals —"—"—" */}
             {/* Offline Enforcer */}
             {!isOnline && (
-                <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-gray-900/90 backdrop-blur-sm">
-                    <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
-                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-[#0a0f1a]/90 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-[#0a0f1a] p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center border border-gray-100 dark:border-gray-700">
+                        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
                             <span className="text-3xl">📶</span>
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">No Internet Connection</h2>
-                        <p className="text-gray-600 mb-2">You have lost your connection to the internet. Compilation and submissions are paused.</p>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">No Internet Connection</h2>
+                        <p className="text-gray-600 dark:text-gray-400 mb-2">You have lost your connection to the internet. Compilation and submissions are paused.</p>
                         <p className="text-sm font-semibold text-red-500 animate-pulse">Waiting for connection to be restored...</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Finish Contest Confirmation Modal (Manual only) */}
+            {showFinishModal && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 dark:bg-[#0a0f1a]/80 backdrop-blur-sm animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white dark:bg-[#111827] rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center border border-gray-200 dark:border-gray-700 transform scale-100 transition-colors">
+                        <div className="w-20 h-20 bg-purple-50 dark:bg-purple-900/20 rounded-full flex items-center justify-center mx-auto mb-5 relative">
+                            <LogOut className="text-purple-600 dark:text-purple-400 w-9 h-9" />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 tracking-tight">Finish Contest?</h2>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-6">
+                            Are you sure you want to finish this contest? You will <span className="font-semibold text-red-500">not</span> be able to submit any more solutions after this.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowFinishModal(false)}
+                                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold text-sm transition-colors border border-gray-200 dark:border-gray-600"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => { setShowFinishModal(false); handleFinishContest(false); }}
+                                disabled={finishing}
+                                className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl font-bold text-sm transition-all shadow-[0_4px_14px_0_rgba(147,51,234,0.39)] hover:shadow-[0_6px_20px_rgba(147,51,234,0.23)] hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {finishing ? <><Loader2 size={14} className="inline animate-spin mr-1" /> Finishing...</> : 'Yes, Finish'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
 
             {/* Fullscreen Enforcer Overlay */}
             {(!isPractice && contestActive && !contestSubmitted && contest?.proctoringEnabled && !isFullscreen && !finishing && isOnline) && (
-                <div className="fixed inset-0 z-[99998] flex flex-col items-center justify-center bg-gray-900/95 backdrop-blur-md">
-                    <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border border-gray-100 transform scale-100 transition-transform">
-                        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 relative">
-                            <Maximize2 className="w-8 h-8 text-blue-600" />
-                            <div className="absolute inset-0 rounded-full border-4 border-blue-500/20 animate-ping"></div>
+                <div className="fixed inset-0 z-[99998] flex flex-col items-center justify-center bg-[#0a0f1a]/95 backdrop-blur-md">
+                    <div className="bg-white dark:bg-[#0a0f1a] p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border border-gray-100 dark:border-gray-700 transform scale-100 transition-transform">
+                        <div className="w-20 h-20 bg-purple-50 dark:bg-purple-900/20 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+                            <Maximize2 className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                            <div className="absolute inset-0 rounded-full border-4 border-purple-500/20 animate-ping"></div>
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">Fullscreen Required</h2>
-                        <p className="text-gray-600 mb-8 text-sm leading-relaxed">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">Fullscreen Required</h2>
+                        <p className="text-gray-600 dark:text-gray-400 mb-8 text-sm leading-relaxed">
                             This contest requires you to stay in fullscreen mode. Please enter fullscreen to continue with the assessment.
                         </p>
                         <button
                             onClick={() => enterFullscreen()}
-                            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-bold transition-all shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5"
+                            className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl font-bold transition-all shadow-[0_4px_14px_0_rgba(147,51,234,0.39)] hover:shadow-[0_6px_20px_rgba(147,51,234,0.23)] hover:-translate-y-0.5"
                         >
                             Enter Fullscreen Mode
                         </button>
@@ -2484,19 +2540,19 @@ const ContestInterface = ({ isPractice = false }) => {
 
             {showViolationModal && (
                 <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-red-900/60 backdrop-blur-sm animate-in fade-in zoom-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center border-4 border-red-500 transform scale-100">
-                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5 relative">
-                            <AlertTriangle className="text-red-600 w-10 h-10 animate-pulse" />
+                    <div className="bg-white dark:bg-[#0a0f1a] rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center border-4 border-red-500 transform scale-100 transition-colors">
+                        <div className="w-20 h-20 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-5 relative">
+                            <AlertTriangle className="text-red-600 dark:text-red-400 w-10 h-10 animate-pulse" />
                             <div className="absolute inset-0 rounded-full border-4 border-red-500/30 animate-ping"></div>
                         </div>
-                        <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-wide">Warning!</h2>
-                        <h3 className="text-lg font-bold text-red-600 mb-3">{currentViolationType?.type} Detected</h3>
-                        <p className="text-gray-600 text-sm mb-6 leading-relaxed bg-red-50 p-3 rounded-lg border border-red-100 font-medium">
+                        <h2 className="text-2xl font-black text-gray-900 dark:text-gray-100 mb-2 uppercase tracking-wide">Warning!</h2>
+                        <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-3">{currentViolationType?.type} Detected</h3>
+                        <p className="text-gray-600 dark:text-gray-300 text-sm mb-6 leading-relaxed bg-red-50 dark:bg-red-900/10 p-3 rounded-lg border border-red-100 dark:border-red-900/30 font-medium">
                             {currentViolationType?.message}
                         </p>
-                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Violation Count</p>
-                            <p className="text-3xl font-black text-gray-900">
+                        <div className="bg-gray-50 dark:bg-[#0a0f1a] rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Violation Count</p>
+                            <p className="text-3xl font-black text-gray-900 dark:text-white">
                                 {violationSummary.totalViolations} <span className="text-sm font-semibold text-gray-400">/ {contest?.maxViolations || 5}</span>
                             </p>
                             {violationSummary.isNearLimit && (
@@ -2505,15 +2561,21 @@ const ContestInterface = ({ isPractice = false }) => {
                                 </p>
                             )}
                         </div>
+                        <button
+                            onClick={() => setShowViolationModal(false)}
+                            className="w-full mt-6 py-4 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-xl font-bold transition-all shadow-lg active:scale-95"
+                        >
+                            I Understand
+                        </button>
                     </div>
                 </div>
             )}
             {showLeaderboard && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-6 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden border border-gray-200" onClick={e => e.stopPropagation()}>
-                        <div className="bg-white border-b border-gray-100 p-5 flex justify-between items-start shrink-0">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0f1a]/50 backdrop-blur-sm p-6 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#0a0f1a] rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="bg-white dark:bg-[#0a0f1a] border-b border-gray-100 dark:border-gray-700 p-5 flex justify-between items-start shrink-0">
                             <div className="flex-1 min-w-0">
-                                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">🏆 Leaderboard</h2>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">🏆 Leaderboard</h2>
                                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                                     <p className="text-xs text-gray-500">
                                         {sortedLeaderboardData.length} participant{sortedLeaderboardData.length !== 1 ? 's' : ''}
@@ -2541,7 +2603,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                         } finally { setLoadingLeaderboard(false); }
                                     }}
                                     disabled={loadingLeaderboard}
-                                    className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+                                    className="p-2 rounded-full bg-gray-100 dark:bg-[#0a0f1a] hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors disabled:opacity-50"
                                     title="Refresh leaderboard"
                                 >
                                     <RotateCw size={15} className={loadingLeaderboard ? 'animate-spin' : ''} />
@@ -2557,67 +2619,67 @@ const ContestInterface = ({ isPractice = false }) => {
                             </div>
                         </div>
                         {/* Page size selector for inline leaderboard modal */}
-                        <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50/40 shrink-0">
-                            <span className="text-xs text-gray-500 font-medium">Show:</span>
+                        <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3 bg-gray-50 dark:bg-[#0a0f1a] shrink-0">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Show:</span>
                             {[20, 50, 100, 200, 500].map(size => (
                                 <button key={size} onClick={() => { setItemsPerPage(size); setCurrentPage(1); }}
-                                    className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors ${itemsPerPage === size ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400 hover:text-blue-600'
+                                    className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors ${itemsPerPage === size ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-[#0a0f1a] text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 hover:border-purple-400 hover:text-purple-600'
                                         }`}>{size}</button>
                             ))}
                             <span className="ml-auto text-xs text-gray-400">{sortedLeaderboardData.length} total</span>
                         </div>
                         {/* Single Rankings view — no separate violations tab */}
-                        <div className="flex-1 overflow-auto scrollbar-thin bg-gray-50/50 relative">
+                        <div className="flex-1 overflow-auto scrollbar-thin bg-gray-50/50 dark:bg-[#0a0f1a] relative">
                             <div className="overflow-auto">
-                                <table className="w-full text-left border-collapse min-w-max">
-                                    <thead className="bg-white sticky top-0 z-10 shadow-sm text-xs uppercase tracking-wider text-gray-500">
+                                <table className="w-full text-left border-separate border-spacing-0 min-w-max">
+                                    <thead className="bg-white dark:bg-[#0a0f1a] sticky top-0 z-[100] shadow-sm text-xs uppercase tracking-wider text-gray-900 dark:text-white font-bold">
                                         <tr>
-                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[60px]" onClick={() => handleSort('rank')}>
-                                                Rank {sortConfig.key === 'rank' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider sticky left-0 bg-white dark:bg-[#0a0f1a] z-[110] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 min-w-[60px]">
+                                                Rank
                                             </th>
-                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[60px] bg-gray-50 z-20 border-r border-gray-200 min-w-[110px]" onClick={() => handleSort('rollNumber')}>
-                                                Roll No {sortConfig.key === 'rollNumber' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider sticky left-[60px] bg-white dark:bg-[#0a0f1a] z-[110] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 min-w-[110px]">
+                                                Roll No
                                             </th>
-                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 sticky left-[170px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-200 min-w-[140px]" onClick={() => handleSort('fullName')}>
-                                                Full Name {sortConfig.key === 'fullName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider sticky left-[170px] bg-white dark:bg-[#0a0f1a] z-[110] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 min-w-[140px]">
+                                                Full Name
                                             </th>
-                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 min-w-[120px]" onClick={() => handleSort('username')}>
+                                            <th className="px-3 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] min-w-[120px] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700" onClick={() => handleSort('username')}>
                                                 Username {sortConfig.key === 'username' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('branch')}>
+                                            <th className="px-3 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] min-w-[120px] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700" onClick={() => handleSort('branch')}>
                                                 Branch {sortConfig.key === 'branch' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
 
                                             {/* Problem Columns — in contest order */}
                                             {contest?.problems?.map((prob, i) => (
-                                                <th key={prob._id} className="p-4 font-bold text-center whitespace-nowrap min-w-[130px]">
+                                                <th key={prob._id} className="p-4 font-bold text-center whitespace-nowrap min-w-[130px] border-b border-gray-200 dark:border-gray-700 border-r border-gray-50 dark:border-gray-800">
                                                     P{i + 1}: {prob.title?.length > 12 ? prob.title.slice(0, 12) + '—' : prob.title}
                                                 </th>
                                             ))}
 
-                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('time')}>
+                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#141b2b] whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700" onClick={() => handleSort('time')}>
                                                 Time (hrs) {sortConfig.key === 'time' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('problemsSolved')}>
+                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#141b2b] whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700" onClick={() => handleSort('problemsSolved')}>
                                                 Solved {sortConfig.key === 'problemsSolved' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
                                             {contest?.proctoringEnabled && (
                                                 <>
-                                                    <th className="p-4 font-bold text-center whitespace-nowrap">Tab Switches</th>
-                                                    <th className="p-4 font-bold text-center whitespace-nowrap">FS Exits</th>
-                                                    <th className="p-4 font-bold text-center whitespace-nowrap text-amber-600">—  Violations</th>
+                                                    <th className="p-4 font-bold text-center whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700">Tab Switches</th>
+                                                    <th className="p-4 font-bold text-center whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700">FS Exits</th>
+                                                    <th className="p-4 font-bold text-center whitespace-nowrap text-amber-600 border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700">—  Violations</th>
                                                 </>
                                             )}
-                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap" onClick={() => handleSort('status')}>
+                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#141b2b] whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700" onClick={() => handleSort('status')}>
                                                 Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
-                                            <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 whitespace-nowrap sticky right-0 bg-white z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]" onClick={() => handleSort('score')}>
-                                                Score {sortConfig.key === 'score' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider sticky right-0 bg-white dark:bg-[#0a0f1a] z-[110] border-l border-gray-200 dark:border-gray-700 border-b border-gray-200 dark:border-gray-700 min-w-[100px]">
+                                                Total Points
                                             </th>
                                         </tr>
                                     </thead>
                                     {!loadingLeaderboard && (
-                                        <tbody className="divide-y divide-gray-100 text-sm bg-white">
+                                        <tbody className="text-sm bg-white dark:bg-[#0a0f1a]">
                                             {(() => {
                                                 const currentUserEntry = sortedLeaderboardData.find(entry => entry.studentId === user?._id || entry.studentId === user?.userId || entry.studentId === user?.id);
 
@@ -2625,25 +2687,25 @@ const ContestInterface = ({ isPractice = false }) => {
                                                     <>
                                                         {/* Pinned Current User Row */}
                                                         {currentUserEntry && (
-                                                            <tr className="bg-blue-50 ring-2 ring-blue-400 sticky top-[44px] z-30 shadow-md">
-                                                                <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-blue-50 z-10 border-r border-blue-100">
-                                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold text-base bg-blue-600 text-white shadow">
+                                                            <tr className="bg-purple-50 dark:bg-[#1e1b4b] ring-2 ring-purple-400 dark:ring-purple-600 sticky top-[44px] z-40 shadow-md transition-colors">
+                                                                <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-purple-100 dark:bg-[#1e1b4b] z-[70] border-b border-purple-100 dark:border-purple-800 border-r border-purple-100 dark:border-purple-800">
+                                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold text-base bg-purple-600 text-white shadow">
                                                                         #{currentUserEntry.rank}
                                                                     </div>
                                                                 </td>
-                                                                <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900 font-mono sticky left-[60px] bg-blue-50 z-10 border-r border-blue-100">{currentUserEntry.rollNumber}</td>
-                                                                <td className="px-3 py-3 text-sm text-blue-900 font-bold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-blue-50 z-10 border-r border-blue-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={currentUserEntry.fullName !== 'N/A' ? currentUserEntry.fullName : currentUserEntry.username}>
+                                                                <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 font-mono sticky left-[60px] bg-purple-100 dark:bg-[#1e1b4b] z-[70] border-b border-purple-100 dark:border-purple-800 border-r border-purple-100 dark:border-purple-800">{currentUserEntry.rollNumber}</td>
+                                                                <td className="px-3 py-3 text-sm text-purple-900 dark:text-purple-300 font-bold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-purple-100 dark:bg-[#1e1b4b] z-[70] border-b border-purple-100 dark:border-purple-800 border-r border-purple-100 dark:border-purple-800" title={currentUserEntry.fullName !== 'N/A' ? currentUserEntry.fullName : currentUserEntry.username}>
                                                                     {currentUserEntry.fullName !== 'N/A' ? currentUserEntry.fullName : currentUserEntry.username} (You)
                                                                 </td>
-                                                                <td className="px-3 py-3 text-sm text-blue-700 max-w-[120px] truncate" title={(currentUserEntry.isSpotUser || currentUserEntry.username?.startsWith('spot_')) ? '' : currentUserEntry.username}>
-                                                                    {(currentUserEntry.isSpotUser || currentUserEntry.username?.startsWith('spot_')) ? <span className="font-medium text-blue-400">-</span> : currentUserEntry.username}
+                                                                <td className="px-3 py-3 text-sm text-purple-700 dark:text-purple-400 max-w-[120px] truncate border-b border-purple-100 dark:border-purple-800 bg-purple-50 dark:bg-[#1e1b4b]" title={(currentUserEntry.isSpotUser || currentUserEntry.username?.startsWith('spot_')) ? '' : currentUserEntry.username}>
+                                                                    {(currentUserEntry.isSpotUser || currentUserEntry.username?.startsWith('spot_')) ? <span className="font-medium text-purple-400">-</span> : currentUserEntry.username}
                                                                 </td>
-                                                                <td className="px-3 py-3 whitespace-nowrap text-sm text-blue-700">{currentUserEntry.branch}</td>
+                                                                <td className="px-3 py-3 whitespace-nowrap text-sm text-purple-700 dark:text-purple-400 border-b border-purple-100 dark:border-purple-800 bg-purple-50 dark:bg-[#1e1b4b]">{currentUserEntry.branch}</td>
 
                                                                 {contest?.problems?.map(prob => {
                                                                     const pData = currentUserEntry.problems?.[prob._id];
                                                                     const status = pData?.status || 'Not Attempted';
-                                                                    let cellClass = 'bg-blue-100 text-blue-500';
+                                                                    let cellClass = 'bg-purple-100 dark:bg-purple-900/40 text-purple-500 dark:text-purple-300';
                                                                     let icon = null;
 
                                                                     if (status === 'Accepted') {
@@ -2655,7 +2717,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                     }
 
                                                                     return (
-                                                                        <td key={`cu-${prob._id}`} className="p-2 text-center border-r border-blue-100">
+                                                                        <td key={`cu-${prob._id}`} className="p-2 text-center border-b border-purple-100 dark:border-purple-800 border-r border-purple-100 dark:border-purple-800 bg-purple-50 dark:bg-[#1e1b4b]">
                                                                             <div className="flex flex-col items-center justify-center gap-0.5">
                                                                                 <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
                                                                                     {icon && <span className="font-bold">{icon}</span>}
@@ -2666,9 +2728,9 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                     );
                                                                 })}
 
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-blue-700 font-mono">{(currentUserEntry.time / 60).toFixed(2)} hrs</td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-center">
-                                                                    <span className="inline-block bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold border border-blue-300">
+                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-purple-700 dark:text-purple-400 font-mono border-b border-purple-100 dark:border-purple-800 bg-purple-50 dark:bg-[#1e1b4b]">{(currentUserEntry.time / 60).toFixed(2)} hrs</td>
+                                                                <td className="px-3 py-2 whitespace-nowrap text-center border-b border-purple-100 dark:border-purple-800 bg-purple-50 dark:bg-[#1e1b4b]">
+                                                                    <span className="inline-block bg-purple-200 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded-full text-xs font-bold border border-purple-300 dark:border-purple-700">
                                                                         {currentUserEntry.problemsSolved}/{contest?.problems?.length || 0}
                                                                     </span>
                                                                 </td>
@@ -2679,13 +2741,13 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                     const maxV = contest?.maxViolations || 5;
                                                                     return (
                                                                         <>
-                                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center border-b border-purple-100 dark:border-purple-800 bg-purple-50 dark:bg-[#1e1b4b]">
                                                                                 <span className={cuTs > 0 ? 'text-red-600 font-bold' : 'text-gray-500'}>{cuTs}/{maxV}</span>
                                                                             </td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center border-b border-purple-100 dark:border-purple-800 bg-purple-50 dark:bg-[#1e1b4b]">
                                                                                 <span className={cuFse > 0 ? 'text-red-600 font-bold' : 'text-gray-500'}>{cuFse}/{maxV}</span>
                                                                             </td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap text-center">
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-center border-b border-purple-100 dark:border-purple-800 bg-purple-50 dark:bg-[#1e1b4b]">
                                                                                 <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${cuTotal === 0 ? 'bg-green-100 text-green-800'
                                                                                     : cuTotal >= maxV ? 'bg-red-200 text-red-900'
                                                                                         : 'bg-red-100 text-red-700'
@@ -2694,14 +2756,14 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                         </>
                                                                     );
                                                                 })()}
-                                                                <td className="p-4 text-center">
+                                                                <td className="p-4 text-center border-b border-purple-100 dark:border-purple-800 bg-purple-50 dark:bg-[#1e1b4b]">
                                                                     {currentUserEntry.isCompleted ? (
-                                                                        <span className="px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-bold">Finished</span>
+                                                                        <span className="px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-xs font-bold border border-green-200 dark:border-green-800">Finished</span>
                                                                     ) : (
-                                                                        <span className="px-2 py-1 bg-yellow-200 text-yellow-800 rounded-full text-xs font-bold">In Progress</span>
+                                                                        <span className="px-2 py-1 bg-amber-500 text-black rounded-full text-xs font-black shadow-[0_0_10px_rgba(245,158,11,0.5)]">In Progress</span>
                                                                     )}
                                                                 </td>
-                                                                <td className="p-4 text-center font-bold text-blue-800 sticky right-0 bg-blue-50 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-blue-100">{currentUserEntry.score}</td>
+                                                                <td className="p-4 text-center font-bold text-purple-800 dark:text-purple-300 sticky right-0 bg-purple-50 dark:bg-[#1e1b4b] z-10 border-b border-purple-100 dark:border-purple-800 border-l border-purple-100 dark:border-purple-800">{currentUserEntry.score}</td>
                                                             </tr>
                                                         )}
                                                         {paginatedData.map((entry, pageIndex) => {
@@ -2712,45 +2774,45 @@ const ContestInterface = ({ isPractice = false }) => {
 
                                                             const rowRank = entry.rank;
                                                             return (
-                                                                <tr key={index} className="hover:bg-gray-50 transition bg-white">
-                                                                    <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-100">
+                                                                <tr key={index} className="group hover:bg-gray-50 dark:hover:bg-[#141b2b] transition bg-white dark:bg-[#0a0f1a]">
+                                                                    <td className="px-3 py-3 whitespace-nowrap sticky left-0 bg-white dark:bg-[#0a0f1a] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-100 dark:border-gray-700 group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">
                                                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto font-bold shadow-sm ${rowRank === 1 ? 'bg-yellow-100 border-2 border-yellow-300 text-xl' :
                                                                             rowRank === 2 ? 'bg-gray-100 border-2 border-gray-300 text-xl' :
-                                                                                rowRank === 3 ? 'bg-orange-100 border-2 border-orange-300 text-xl' : 'bg-white border border-gray-200 text-gray-500 text-base'
+                                                                                rowRank === 3 ? 'bg-orange-100 border-2 border-orange-300 text-xl' : 'bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-base'
                                                                             }`}>
                                                                             {rowRank === 1 ? '🥇' : rowRank === 2 ? '🥈' : rowRank === 3 ? '🥉' : `#${rowRank}`}
                                                                         </div>
                                                                     </td>
                                                                     {/* Roll No - sticky */}
-                                                                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-mono sticky left-[60px] bg-white z-10 border-r border-gray-100">{entry.rollNumber}</td>
+                                                                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-mono sticky left-[60px] bg-white dark:bg-[#0a0f1a] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-100 dark:border-gray-700 group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">{entry.rollNumber}</td>
                                                                     {/* Full Name - sticky */}
-                                                                    <td className="px-3 py-3 text-sm text-gray-900 font-semibold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-white z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" title={entry.fullName !== 'N/A' ? entry.fullName : entry.username}>
+                                                                    <td className="px-3 py-3 text-sm text-gray-900 dark:text-gray-100 font-bold max-w-[140px] min-w-[140px] truncate sticky left-[170px] bg-white dark:bg-[#0a0f1a] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-100 dark:border-gray-700 overflow-hidden group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]" title={entry.fullName !== 'N/A' ? entry.fullName : entry.username}>
                                                                         {entry.fullName !== 'N/A' ? entry.fullName : entry.username}
                                                                     </td>
                                                                     {/* Username */}
-                                                                    <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={(entry.isSpotUser || entry.username?.startsWith('spot_')) ? '' : entry.username}>
-                                                                        {(entry.isSpotUser || entry.username?.startsWith('spot_')) ? <span className="font-medium text-gray-400">-</span> : entry.username}
+                                                                    <td className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400 max-w-[120px] truncate border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]" title={(entry.isSpotUser || entry.username?.startsWith('spot_')) ? '' : entry.username}>
+                                                                        {(entry.isSpotUser || entry.username?.startsWith('spot_')) ? <span className="font-medium text-gray-400 dark:text-gray-500">-</span> : entry.username}
                                                                     </td>
                                                                     {/* Branch */}
-                                                                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
+                                                                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">{entry.branch}</td>
 
                                                                     {/* Problem Cells — order matches contest.problems */}
                                                                     {contest?.problems?.map(prob => {
                                                                         const pData = entry.problems?.[prob._id];
                                                                         const status = pData?.status || 'Not Attempted';
-                                                                        let cellClass = 'bg-gray-50 text-gray-400';
+                                                                        let cellClass = 'bg-gray-50 dark:bg-[#0a0f1a]/30 text-gray-400 dark:text-gray-500';
                                                                         let icon = null;
 
                                                                         if (status === 'Accepted') {
-                                                                            cellClass = 'bg-green-50 text-green-700 font-semibold';
+                                                                            cellClass = 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-semibold';
                                                                             icon = '✓';
                                                                         } else if (status === 'Wrong Answer') {
-                                                                            cellClass = 'bg-red-50 text-red-600';
+                                                                            cellClass = 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400';
                                                                             icon = '—';
                                                                         }
 
                                                                         return (
-                                                                            <td key={prob._id} className="p-2 text-center border-r border-gray-50">
+                                                                            <td key={prob._id} className="p-2 text-center border-b border-gray-100 dark:border-gray-700 border-r border-gray-50 dark:border-gray-800 bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">
                                                                                 <div className="flex flex-col items-center justify-center gap-0.5">
                                                                                     <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
                                                                                         {icon && <span className="font-bold">{icon}</span>}
@@ -2766,9 +2828,9 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                         );
                                                                     })}
 
-                                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">{(entry.time / 60).toFixed(2)} hrs</td>
-                                                                    <td className="px-3 py-2 whitespace-nowrap text-center">
-                                                                        <span className="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
+                                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">{(entry.time / 60).toFixed(2)} hrs</td>
+                                                                    <td className="px-3 py-2 whitespace-nowrap text-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">
+                                                                        <span className="inline-block bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full text-xs font-bold border border-primary-100">
                                                                             {entry.problemsSolved}/{contest?.problems?.length || 0}
                                                                         </span>
                                                                     </td>
@@ -2780,17 +2842,17 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                         const pct = Math.min(100, Math.round((totalV / limit) * 100));
                                                                         return (
                                                                             <>
-                                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">
                                                                                     <span className={ts > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
                                                                                         {ts}/{limit}
                                                                                     </span>
                                                                                 </td>
-                                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">
                                                                                     <span className={fse > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
                                                                                         {fse}/{limit}
                                                                                     </span>
                                                                                 </td>
-                                                                                <td className="px-3 py-2 whitespace-nowrap text-center">
+                                                                                <td className="px-3 py-2 whitespace-nowrap text-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">
                                                                                     <div className="flex flex-col items-center gap-1">
                                                                                         <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${totalV === 0 ? 'bg-green-100 text-green-800'
                                                                                             : pct >= 100 ? 'bg-red-100 text-red-800'
@@ -2801,14 +2863,14 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                             </>
                                                                         );
                                                                     })()}
-                                                                    <td className="p-4 text-center">
+                                                                    <td className="p-4 text-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">
                                                                         {entry.isCompleted ? (
-                                                                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">Finished</span>
+                                                                            <span className="px-2 py-1 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-xs font-medium border border-green-100 dark:border-green-800">Finished</span>
                                                                         ) : (
-                                                                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-200">In Progress</span>
+                                                                            <span className="px-2 py-1 bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 rounded-full text-xs font-bold border border-amber-200 dark:border-amber-500/50">In Progress</span>
                                                                         )}
                                                                     </td>
-                                                                    <td className="p-4 text-center font-bold text-blue-600 sticky right-0 bg-white z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] border-l border-gray-100">{entry.score}</td>
+                                                                    <td className="p-4 text-center font-bold text-purple-600 dark:text-purple-400 sticky right-0 bg-white dark:bg-[#0a0f1a] z-[50] border-b border-gray-100 dark:border-gray-700 border-l border-gray-100 dark:border-gray-700 group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]">{entry.score}</td>
                                                                 </tr>
                                                             )
                                                         })}
@@ -2820,7 +2882,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                 </table>
                                 {loadingLeaderboard && (
                                     <div className="flex flex-col items-center justify-center py-20 w-full min-w-max">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
                                         <p className="text-sm text-gray-500 font-medium mt-3">Refreshing leaderboard data...</p>
                                     </div>
                                 )}
@@ -2829,7 +2891,7 @@ const ContestInterface = ({ isPractice = false }) => {
 
                         {/* Pagination Controls */}
                         {totalPages > 1 && !loadingLeaderboard && leaderboardData.length > 0 && (
-                            <div className="bg-white border-t border-gray-100 p-4 flex items-center justify-between mt-auto shrink-0 w-full z-20 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.05)]">
+                            <div className="bg-white dark:bg-[#0a0f1a] border-t border-gray-100 dark:border-gray-700 p-4 flex items-center justify-between mt-auto shrink-0 w-full z-20 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.05)]">
                                 <span className="text-sm text-gray-600 font-medium">
                                     Showing <span className="text-gray-900 font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-gray-900 font-semibold">{Math.min(currentPage * itemsPerPage, sortedLeaderboardData.length)}</span> of <span className="text-gray-900 font-semibold">{sortedLeaderboardData.length}</span> students
                                 </span>

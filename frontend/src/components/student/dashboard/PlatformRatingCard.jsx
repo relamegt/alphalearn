@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 
-const PlatformRatingCard = ({ platform, stats, color = '#4F46E5', icon }) => {
+const PlatformRatingCard = ({ platform, stats, color = '#6257E3', icon }) => {
     // Process stats
     const { rating = 0, maxRating: apiMaxRating = 0, totalContests = 0, allContests = [] } = stats || {};
     const maxRating = allContests.length > 0 ? Math.max(...allContests.map(c => c.rating)) : (apiMaxRating || rating);
@@ -41,26 +41,26 @@ const PlatformRatingCard = ({ platform, stats, color = '#4F46E5', icon }) => {
             const data = payload[0].payload;
             const isPositive = data.diff >= 0;
             const diffText = data.diff !== 0 ? `${isPositive ? '+' : ''}${data.diff}` : '-';
-            const diffColor = data.diff > 0 ? 'text-green-600' : (data.diff < 0 ? 'text-red-600' : 'text-gray-500');
+            const diffColor = data.diff > 0 ? 'text-green-500' : (data.diff < 0 ? 'text-red-500' : 'text-gray-500');
 
             return (
-                <div className="bg-white p-3 border border-gray-100 shadow-xl rounded-lg text-xs z-50 min-w-[150px]">
-                    <p className="font-bold text-gray-800 mb-1">{data.contestName}</p>
-                    <p className="text-gray-400 text-[10px] mb-2">{data.date}</p>
+                <div className="bg-white dark:bg-gray-800 p-3 border border-gray-100 dark:border-gray-700 shadow-xl rounded-lg text-xs z-50 min-w-[150px]">
+                    <p className="font-bold text-gray-800 dark:text-gray-100 mb-1">{data.contestName}</p>
+                    <p className="text-gray-400 dark:text-gray-500 text-[10px] mb-2">{data.date}</p>
 
                     <div className="space-y-1">
                         <div className="flex justify-between items-center">
-                            <span className="text-gray-500">Rating:</span>
-                            <span className="font-bold text-gray-900">{data.rating}</span>
+                            <span className="text-gray-500 dark:text-gray-400">Rating:</span>
+                            <span className="font-bold text-gray-900 dark:text-gray-100">{data.rating}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-gray-500">Change:</span>
+                            <span className="text-gray-500 dark:text-gray-400">Change:</span>
                             <span className={`font-bold ${diffColor}`}>{diffText}</span>
                         </div>
                         {data.problemsSolved !== undefined && (
-                            <div className="flex justify-between items-center pt-1 mt-1 border-t border-gray-50">
-                                <span className="text-gray-500">Solved:</span>
-                                <span className="font-bold text-blue-600">{data.problemsSolved}</span>
+                            <div className="flex justify-between items-center pt-1 mt-1 border-t border-gray-50 dark:border-gray-700">
+                                <span className="text-gray-500 dark:text-gray-400">Solved:</span>
+                                <span className="font-bold text-blue-600 dark:text-blue-400">{data.problemsSolved}</span>
                             </div>
                         )}
                     </div>
@@ -73,30 +73,30 @@ const PlatformRatingCard = ({ platform, stats, color = '#4F46E5', icon }) => {
     const isPositiveChange = ratingChange >= 0;
 
     return (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mt-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mt-4 transition-all">
             <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                    {icon && <img src={icon} alt={platform} className="w-6 h-6" />}
-                    <h3 className="text-lg font-bold text-gray-800 capitalize">{platform} Ratings</h3>
+                <div className="flex items-center space-x-3">
+                    {icon && <img src={icon} alt={platform} className="w-8 h-8 rounded-lg shadow-sm" />}
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 capitalize">{platform} Ratings</h3>
                 </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">Current Rating</p>
-                    <p className="text-2xl font-bold text-gray-900">{rating}</p>
+                <div className="bg-gray-50/50 dark:bg-[#0a0f1a]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold mb-1">Current</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{rating}</p>
                 </div>
-                <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">Highest Rating</p>
-                    <p className="text-2xl font-bold text-gray-900">{maxRating || rating}</p>
+                <div className="bg-gray-50/50 dark:bg-[#0a0f1a]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold mb-1">Highest</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{maxRating || rating}</p>
                 </div>
-                <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">Total Contests</p>
-                    <p className="text-xl font-bold text-gray-900">{totalContests}</p>
+                <div className="bg-gray-50/50 dark:bg-[#0a0f1a]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold mb-1">Contests</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{totalContests}</p>
                 </div>
-                <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">Rating Change</p>
-                    <p className={`text-xl font-bold ${isPositiveChange ? 'text-green-600' : 'text-red-600'}`}>
+                <div className="bg-gray-50/50 dark:bg-[#0a0f1a]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold mb-1">Change</p>
+                    <p className={`text-xl font-bold ${isPositiveChange ? 'text-green-500' : 'text-red-500'}`}>
                         {isPositiveChange ? '▲' : '▼'} {Math.abs(ratingChange)}
                     </p>
                 </div>
@@ -127,7 +127,7 @@ const PlatformRatingCard = ({ platform, stats, color = '#4F46E5', icon }) => {
                         </AreaChart>
                     </ResponsiveContainer>
                 ) : (
-                    <div className="h-full flex items-center justify-center text-gray-400 text-sm italic">
+                    <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm italic">
                         No activity recorded
                     </div>
                 )}

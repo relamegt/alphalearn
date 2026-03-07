@@ -11,9 +11,9 @@ import { useAuth } from '../../contexts/AuthContext';
 const SIDEBAR_CACHE = { problems: null, sections: null };
 
 const DIFF_COLORS = {
-    Easy: { text: 'text-green-700', bg: 'bg-green-100', dot: 'bg-green-500' },
-    Medium: { text: 'text-yellow-800', bg: 'bg-yellow-100', dot: 'bg-yellow-500' },
-    Hard: { text: 'text-red-800', bg: 'bg-red-100', dot: 'bg-red-500' },
+    Easy: { text: 'text-green-700 dark:text-green-400', bg: 'bg-green-100 dark:bg-[#064e3b]', dot: 'bg-green-500' },
+    Medium: { text: 'text-yellow-800 dark:text-yellow-400', bg: 'bg-yellow-100 dark:bg-[#78350f]', dot: 'bg-yellow-500' },
+    Hard: { text: 'text-red-800 dark:text-red-400', bg: 'bg-red-100 dark:bg-[#450a0a]', dot: 'bg-red-500' },
 };
 
 const ProblemSidebar = () => {
@@ -207,29 +207,29 @@ const ProblemSidebar = () => {
 
     if (loading) {
         return (
-            <div className="flex flex-col h-full bg-white overflow-hidden border-r border-gray-200 animate-pulse">
+            <div className="flex flex-col h-full bg-white dark:bg-[#0a0f1a] overflow-hidden border-r border-gray-200 dark:border-gray-800 animate-pulse transition-colors">
                 {/* Header Skeleton */}
-                <div className="shrink-0 p-4 border-b border-gray-100 bg-white z-10">
+                <div className="shrink-0 p-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#0a0f1a] z-10">
                     {/* Title row */}
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-full bg-gray-200"></div>
+                            <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-[#0a0f1a]"></div>
                             <div className="space-y-2">
-                                <div className="w-24 h-4 bg-gray-200 rounded"></div>
-                                <div className="w-16 h-3 bg-gray-200 rounded"></div>
+                                <div className="w-24 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
+                                <div className="w-16 h-3 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
                             </div>
                         </div>
                         {/* Circular progress dummy */}
-                        <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0"></div>
+                        <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-[#0a0f1a] shrink-0"></div>
                     </div>
 
                     {/* Search Bar Skeleton */}
-                    <div className="w-full h-8 bg-gray-100 rounded-lg mb-3"></div>
+                    <div className="w-full h-8 bg-gray-100 dark:bg-[#0a0f1a] rounded-lg mb-3"></div>
 
                     {/* Difficulty filter skeleton */}
-                    <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                    <div className="flex gap-1 bg-gray-50 dark:bg-[#0a0f1a]/50 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
                         {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="flex-1 py-1.5 h-6 bg-gray-200 rounded-md"></div>
+                            <div key={i} className="flex-1 py-1.5 h-6 bg-gray-200 dark:bg-[#0a0f1a] rounded-md"></div>
                         ))}
                     </div>
                 </div>
@@ -240,15 +240,15 @@ const ProblemSidebar = () => {
                         <div key={section} className="space-y-3">
                             {/* Section header */}
                             <div className="flex items-center gap-3 w-full">
-                                <div className="w-5 h-5 rounded bg-gray-200 shrink-0"></div>
-                                <div className="w-3/4 h-4 bg-gray-200 rounded"></div>
+                                <div className="w-5 h-5 rounded bg-gray-200 dark:bg-[#0a0f1a] shrink-0"></div>
+                                <div className="w-3/4 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
                             </div>
                             {/* Problem items */}
                             {[1, 2].map(item => (
                                 <div key={item} className="flex items-center gap-3 pl-8">
-                                    <div className="w-4 h-4 rounded-full bg-gray-200 shrink-0"></div>
-                                    <div className="w-2/3 h-3 bg-gray-200 rounded"></div>
-                                    <div className="w-8 h-3 bg-gray-200 rounded ml-auto"></div>
+                                    <div className="w-4 h-4 rounded-full bg-gray-200 dark:bg-[#0a0f1a] shrink-0"></div>
+                                    <div className="w-2/3 h-3 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
+                                    <div className="w-8 h-3 bg-gray-200 dark:bg-[#0a0f1a] rounded ml-auto"></div>
                                 </div>
                             ))}
                         </div>
@@ -259,28 +259,28 @@ const ProblemSidebar = () => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-white overflow-hidden border-r border-gray-200">
+        <div className="flex flex-col h-full bg-white dark:bg-[#0a0f1a] overflow-hidden border-r border-gray-200 dark:border-gray-800 transition-colors">
 
             {/* ── Header ─────────────────────────────────────────────── */}
-            <div className="shrink-0 p-4 border-b border-gray-100 bg-white z-10">
+            <div className="shrink-0 p-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#0a0f1a] z-10 transition-colors">
 
                 {/* Title row */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                        <CiCircleList className="text-gray-500 text-2xl" />
+                        <CiCircleList className="text-gray-500 dark:text-gray-400 text-2xl" />
                         <div>
-                            <h2 className="text-base font-bold text-gray-900 leading-tight">Problem List</h2>
-                            <p className="text-xs font-medium text-gray-500 mt-0.5">{solvedCount} / {problems.length} Solved</p>
+                            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">Problem List</h2>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">{solvedCount} / {problems.length} Solved</p>
                         </div>
                     </div>
 
                     {/* Circular progress */}
                     <div className="relative w-10 h-10 shrink-0">
                         <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                            <circle cx="18" cy="18" r="16" fill="none" className="stroke-gray-100" strokeWidth="3" />
+                            <circle cx="18" cy="18" r="16" fill="none" className="stroke-gray-100 dark:stroke-gray-800" strokeWidth="3" />
                             <circle
                                 cx="18" cy="18" r="16" fill="none"
-                                className="stroke-blue-600 transition-all duration-500 ease-out"
+                                className="stroke-purple-600 dark:stroke-purple-500 transition-all duration-500 ease-out"
                                 strokeWidth="3"
                                 strokeDasharray={circumference}
                                 strokeDashoffset={circumference * (1 - (problems.length ? solvedCount / problems.length : 0))}
@@ -288,7 +288,7 @@ const ProblemSidebar = () => {
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-[10px] font-bold text-blue-600">{progressPct}%</span>
+                            <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400">{progressPct}%</span>
                         </div>
                     </div>
                 </div>
@@ -296,19 +296,19 @@ const ProblemSidebar = () => {
                 {/* Search Bar */}
                 <div className="relative mb-3 group">
                     <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                        <Search size={13} className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <Search size={13} className="text-gray-400 group-focus-within:text-purple-500 transition-colors" />
                     </div>
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search problems..."
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg py-1.5 pl-8 pr-7 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 font-medium"
+                        className="w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-xs rounded-lg py-1.5 pl-8 pr-7 focus:bg-white dark:focus:bg-gray-700 focus:border-purple-500 dark:focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 font-medium"
                     />
                     {searchQuery && (
                         <button
                             onClick={() => setSearchQuery('')}
-                            className="absolute inset-y-0 right-0 pr-2 flex items-center text-gray-400 hover:text-gray-600 cursor-pointer"
+                            className="absolute inset-y-0 right-0 pr-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                         >
                             <X size={12} />
                         </button>
@@ -316,15 +316,15 @@ const ProblemSidebar = () => {
                 </div>
 
                 {/* Difficulty filter */}
-                <div className="flex gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                <div className="flex gap-1 bg-gray-50 dark:bg-[#0a0f1a]/50 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
                     {['All', 'Easy', 'Medium', 'Hard'].map(level => (
                         <button
                             key={level}
                             onClick={() => setDifficulty(level)}
                             className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all duration-200
                                 ${difficulty === level
-                                    ? 'bg-white text-gray-800 shadow-sm ring-1 ring-gray-200'
-                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                    ? 'bg-white dark:bg-[#0a0f1a] text-gray-800 dark:text-gray-100 shadow-sm ring-1 ring-gray-200 dark:ring-gray-600'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50'
                                 }`}
                         >
                             {level}
@@ -334,9 +334,9 @@ const ProblemSidebar = () => {
             </div>
 
             {/* ── List ────────────────────────────────────────────────── */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-white dark:bg-[#0a0f1a] transition-colors">
                 {structuredContent?.sections.map(section => (
-                    <div key={section._id} className="border-b border-gray-50 last:border-0">
+                    <div key={section._id} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
                         {/* Section header */}
                         <SectionHeader
                             title={section.title}
@@ -346,22 +346,22 @@ const ProblemSidebar = () => {
                         />
 
                         {expandedSections[section._id] && (
-                            <div className="bg-gray-50/50 pb-2">
+                            <div className="bg-gray-50/50 dark:bg-[#0a0f1a] pb-2">
                                 {section.subsections.map(sub => (
                                     <div key={sub._id}>
                                         {/* Subsection header */}
                                         <button
                                             onClick={() => toggleSubsection(sub._id)}
-                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100/50 transition-colors group"
+                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100/50 dark:hover:bg-[#141b2b] transition-colors group"
                                         >
                                             <div className="w-6 flex justify-center shrink-0">
                                                 <ChevronRight
                                                     size={16}
-                                                    className={`text-gray-400 transition-transform duration-200 ${expandedSubsections[sub._id] ? 'rotate-90 text-gray-600' : 'group-hover:text-gray-500'}`}
+                                                    className={`text-gray-400 dark:text-gray-500 transition-transform duration-200 ${expandedSubsections[sub._id] ? 'rotate-90 text-gray-600 dark:text-gray-300' : 'group-hover:text-gray-500 dark:group-hover:text-gray-400'}`}
                                                 />
                                             </div>
-                                            <span className="text-sm font-semibold text-gray-700 flex-1 text-left truncate">{sub.title}</span>
-                                            <span className="text-xs font-medium text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200 shadow-sm">
+                                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex-1 text-left truncate">{sub.title}</span>
+                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-[#0a0f1a] px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
                                                 {sub.problems.length}
                                             </span>
                                         </button>
@@ -393,7 +393,7 @@ const ProblemSidebar = () => {
 
                 {/* Uncategorized */}
                 {structuredContent?.uncategorized.length > 0 && (
-                    <div className="border-t border-gray-100">
+                    <div className="border-t border-gray-100 dark:border-gray-800">
                         <SectionHeader
                             title="Other Problems"
                             expanded={true}
@@ -431,30 +431,30 @@ const SectionHeader = ({ title, expanded, count, onClick, noToggle }) => {
         <button
             onClick={onClick}
             className={`w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200
-                ${expanded ? 'bg-white' : 'bg-white hover:bg-gray-50'}
+                ${expanded ? 'bg-white dark:bg-[#0a0f1a]' : 'bg-white dark:bg-[#0a0f1a] hover:bg-gray-50 dark:hover:bg-[#141b2b]'}
                 ${!noToggle ? 'cursor-pointer' : 'cursor-default'}
             `}
         >
             {/* Folder icon */}
-            <div className="shrink-0">
+            <div className="shrink-0 transition-transform duration-200">
                 {expanded
                     ? <FcOpenedFolder size={20} />
                     : <FcFolder size={20} />
                 }
             </div>
 
-            <span className="text-sm font-bold text-gray-800 flex-1 text-left truncate leading-tight">
+            <span className="text-sm font-bold text-gray-800 dark:text-gray-200 flex-1 text-left truncate leading-tight">
                 {title}
             </span>
 
-            <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-[#0a0f1a] px-2 py-0.5 rounded-full border border-transparent dark:border-gray-700 transition-colors">
                 {count}
             </span>
 
             {!noToggle && (
                 <ChevronRight
                     size={16}
-                    className={`text-gray-400 transition-transform duration-200 shrink-0 ${expanded ? 'rotate-90' : ''}`}
+                    className={`text-gray-400 dark:text-gray-500 transition-transform duration-200 shrink-0 ${expanded ? 'rotate-90 text-gray-600 dark:text-gray-300' : ''}`}
                 />
             )}
         </button>
@@ -472,20 +472,20 @@ const ProblemRow = ({ problem, active, indent, onClick }) => {
                 flex items-center gap-3 pr-4 py-2.5 my-0.5 cursor-pointer transition-all duration-150 border-l-[3px]
                 ${indent}
                 ${active
-                    ? 'bg-blue-50 border-l-blue-600'
-                    : 'border-l-transparent hover:bg-gray-100 hover:border-l-gray-300'
+                    ? 'bg-purple-50 dark:bg-[#141b2b] border-l-purple-600 dark:border-l-purple-500'
+                    : 'border-l-transparent hover:bg-gray-100 dark:hover:bg-[#141b2b] hover:border-l-gray-300 dark:hover:border-l-gray-700'
                 }
             `}
         >
             <div className="shrink-0">
                 {problem.isSolved
-                    ? <CheckCircle size={16} className="text-green-500 fill-green-50" />
-                    : <Circle size={16} className="text-gray-300" strokeWidth={2} />
+                    ? <CheckCircle size={16} className="text-green-500 dark:text-green-400 fill-green-50 dark:fill-[#064e3b]/20" />
+                    : <Circle size={16} className="text-gray-300 dark:text-gray-600" strokeWidth={2} />
                 }
             </div>
 
-            <span className={`flex-1 text-sm truncate leading-snug
-                ${active ? 'font-semibold text-blue-700' : 'font-medium text-gray-600'}
+            <span className={`flex-1 text-sm truncate leading-snug transition-colors
+                ${active ? 'font-semibold text-purple-700 dark:text-purple-400' : 'font-medium text-gray-600 dark:text-gray-400'}
             `}>
                 {problem.title}
             </span>

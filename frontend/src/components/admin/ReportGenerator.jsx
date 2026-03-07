@@ -98,10 +98,10 @@ const ReportGenerator = () => {
         <div className="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-24">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight flex items-center gap-3">
                         {user?.role === 'instructor' ? 'My Batch Leaderboard' : 'Batch Reports & Leaderboards'}
                     </h1>
-                    <p className="text-gray-500 mt-2 ml-1">
+                    <p className="text-gray-500 dark:text-gray-400 mt-2 ml-1">
                         View student performance and generate detailed reports.
                     </p>
                 </div>
@@ -112,7 +112,7 @@ const ReportGenerator = () => {
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     {/* Batch Selector */}
                     <div className="w-full md:w-80">
-                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 ml-1">
+                        <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-1">
                             Select Batch
                         </label>
                         <CustomDropdown
@@ -129,7 +129,7 @@ const ReportGenerator = () => {
                         <button
                             onClick={handleExportCSV}
                             disabled={!selectedBatch && user?.role !== 'instructor' || isExportingCSV}
-                            className="bg-white border border-gray-200 hover:border-green-300 text-gray-700 hover:text-green-700 px-5 py-2.5 rounded-xl font-medium transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-500 text-gray-700 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-400 px-5 py-2.5 rounded-xl font-medium transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                         >
                             {isExportingCSV ? (
                                 <>
@@ -176,12 +176,12 @@ const ReportGenerator = () => {
                     <Leaderboard batchId={selectedBatch} />
                 </div>
             ) : (
-                <div className="text-center py-24 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                        <Layers className="w-10 h-10 text-gray-300" />
+                <div className="text-center py-24 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                        <Layers className="w-10 h-10 text-gray-300 dark:text-gray-600" />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">No Batch Selected</h3>
-                    <p className="text-gray-500 max-w-md mx-auto">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">No Batch Selected</h3>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
                         Please select a batch from the dropdown above to view the leaderboard and generate performance reports.
                     </p>
                 </div>

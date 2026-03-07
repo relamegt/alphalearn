@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import ThemeToggle from './ThemeToggle';
 import toast from 'react-hot-toast';
 
 const Navbar = () => {
@@ -101,7 +102,7 @@ const Navbar = () => {
     const links = getNavLinks();
 
     return (
-        <nav className="bg-white border-b border-gray-200">
+        <nav className="bg-white dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     {/* Logo (Left side) */}
@@ -112,31 +113,34 @@ const Navbar = () => {
                                 alt="AlphaKnowledge"
                                 className="h-8 w-auto object-contain"
                             />
-                            <span className="text-xl font-bold text-gray-800 tracking-tight">AlphaKnowledge</span>
+                            <span className="text-xl font-bold text-gray-800 dark:text-gray-100 tracking-tight">AlphaKnowledge</span>
                         </Link>
                     </div>
 
-                    {/* Right Side: Profile & Dropdown */}
-                    <div className="flex items-center">
+                    {/* Right Side: Theme Toggle & Profile & Dropdown */}
+                    <div className="flex items-center gap-2">
+                        {/* Theme Toggle */}
+                        <ThemeToggle size="md" />
+
                         <div className="relative group h-16 flex items-center">
-                            <button className="flex items-center space-x-3 text-gray-700 hover:text-gray-900 focus:outline-none transition-colors px-3 py-2 rounded-md hover:bg-gray-50">
-                                <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 border border-gray-300">
+                            <button className="flex items-center space-x-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none transition-colors px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-[#141b2b]">
+                                <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600">
                                     {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
                                 </div>
                                 <span className="font-medium text-sm hidden md:block">
                                     {user.username || user.firstName}
                                 </span>
-                                <svg className="w-4 h-4 text-gray-500 group-hover:text-gray-700 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
                             </button>
 
                             {/* Dropdown Menu */}
-                            <div className="absolute top-[60px] right-0 w-64 bg-white rounded-lg shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)] border border-gray-100 hidden group-hover:block z-50 py-2">
+                            <div className="absolute top-[60px] right-0 w-64 bg-white dark:bg-[#0a0f1a] rounded-lg shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] border border-gray-100 dark:border-gray-700 hidden group-hover:block z-[500] py-2">
                                 {/* Header in Dropdown (optional context) */}
-                                <div className="px-4 py-3 border-b border-gray-100 mb-1">
-                                    <p className="text-sm font-semibold text-gray-800 truncate">{user.firstName} {user.lastName}</p>
-                                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 mb-1">
+                                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{user.firstName} {user.lastName}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
                                 </div>
 
                                 {/* Menu Items */}
@@ -145,7 +149,7 @@ const Navbar = () => {
                                         <div key={idx} className="relative group/item">
                                             {link.children ? (
                                                 <>
-                                                    <button className="w-[calc(100%-1rem)] flex items-center justify-between px-4 py-2.5 mx-2 rounded-md hover:bg-blue-50 text-gray-700 hover:text-primary-600 transition-all text-sm font-medium">
+                                                    <button className="w-[calc(100%-1rem)] flex items-center justify-between px-4 py-2.5 mx-2 rounded-md hover:bg-primary-50 dark:hover:bg-primary-500/10 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-sm font-medium">
                                                         <div className="flex items-center space-x-3">
                                                             <span className="opacity-70 group-hover:opacity-100 transition-opacity">
                                                                 {link.icon}
@@ -154,13 +158,13 @@ const Navbar = () => {
                                                         </div>
                                                     </button>
                                                     {/* Submenu Flyout */}
-                                                    <div className="absolute right-full top-0 pr-1 hidden group-hover/item:block z-50">
-                                                        <div className="w-56 bg-white rounded-lg shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)] border border-gray-100 py-1">
+                                                    <div className="absolute right-full top-0 pr-1 hidden group-hover/item:block z-[500]">
+                                                        <div className="w-56 bg-white dark:bg-[#0a0f1a] rounded-lg shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] border border-gray-100 dark:border-gray-700 py-1">
                                                             {link.children.map((child, cIdx) => (
                                                                 <Link
                                                                     key={cIdx}
                                                                     to={child.to}
-                                                                    className="block px-4 py-2.5 hover:bg-blue-50 text-gray-700 hover:text-primary-600 transition-all text-sm font-medium truncate"
+                                                                    className="block px-4 py-2.5 hover:bg-primary-50 dark:hover:bg-primary-500/10 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-sm font-medium truncate"
                                                                 >
                                                                     {child.label}
                                                                 </Link>
@@ -173,7 +177,7 @@ const Navbar = () => {
                                                     to={link.to}
                                                     target={link.newTab ? "_blank" : undefined}
                                                     rel={link.newTab ? "noopener noreferrer" : undefined}
-                                                    className="flex items-center space-x-3 px-4 py-2.5 mx-2 rounded-md hover:bg-blue-50 text-gray-700 hover:text-primary-600 transition-all text-sm font-medium w-[calc(100%-1rem)]"
+                                                    className="flex items-center space-x-3 px-4 py-2.5 mx-2 rounded-md hover:bg-primary-50 dark:hover:bg-primary-500/10 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-sm font-medium w-[calc(100%-1rem)]"
                                                 >
                                                     <span className="opacity-70 group-hover:opacity-100 transition-opacity">
                                                         {link.icon}
@@ -186,13 +190,13 @@ const Navbar = () => {
                                 </div>
 
                                 {/* Divider */}
-                                <div className="my-2 border-t border-gray-100" />
+                                <div className="my-2 border-t border-gray-100 dark:border-gray-700" />
 
                                 {/* Logout */}
                                 <button
                                     onClick={handleLogout}
                                     disabled={isLoggingOut}
-                                    className="w-[calc(100%-1rem)] flex items-center space-x-3 px-4 py-2.5 mx-2 rounded-md hover:bg-red-50 text-gray-700 hover:text-red-600 transition-all text-sm font-medium text-left disabled:opacity-70 disabled:cursor-not-allowed"
+                                    className="w-[calc(100%-1rem)] flex items-center space-x-3 px-4 py-2.5 mx-2 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-all text-sm font-medium text-left disabled:opacity-70 disabled:cursor-not-allowed"
                                 >
                                     {isLoggingOut ? (
                                         <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>

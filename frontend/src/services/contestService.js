@@ -89,13 +89,19 @@ const contestService = {
     },
 
     // Submit Contest Code → POST /contest/:contestId/submit
-    submitContestCode: async (contestId, submissionData) => {
+    // Handles 429 (Redis lock) by automatically retrying after a delay
+    submitContestCode: async (contestId, submissionData, _retryCount = 0) => {
         try {
             const response = await apiClient.post(`/contest/${contestId}/submit`, submissionData);
             return response.data;
         } catch (error) {
             // Preserve the raw error for network failures
             if (!error.response) throw error;
+            // Auto-retry on 429 (previous submission still processing in worker)
+            if (error.response?.status === 429 && _retryCount < 3) {
+                await new Promise(r => setTimeout(r, 3000)); // wait 3s
+                return contestService.submitContestCode(contestId, submissionData, _retryCount + 1);
+            }
             throw error.response?.data || { message: 'Contest submission failed' };
         }
     },
@@ -184,6 +190,17 @@ const contestService = {
         } catch (error) {
             const message = error.response?.data?.message || 'Failed to finish contest';
             throw { message, ...error.response?.data };
+        }
+    },
+
+    // Unlock Contest For User → POST /contest/:contestId/unlock-user
+    // Only admin or contest-creator instructor can call this
+    unlockContestForUser: async (contestId, studentId) => {
+        try {
+            const response = await apiClient.post(`/contest/${contestId}/unlock-user`, { studentId });
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to unlock contest for user' };
         }
     },
 

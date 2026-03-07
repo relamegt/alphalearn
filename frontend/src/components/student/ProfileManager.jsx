@@ -315,16 +315,16 @@ const ProfileManager = () => {
 
     if (initialLoading) {
         return (
-            <div className="p-6 bg-gray-50 min-h-screen">
+            <div className="p-6 bg-[#F7F5FF] dark:bg-[#0a0f1a] min-h-screen transition-colors">
                 {/* Header Skeleton */}
-                <div className="w-1/4 h-8 bg-gray-200 rounded mb-6 animate-pulse"></div>
+                <div className="w-1/4 h-8 bg-gray-200 dark:bg-gray-800 rounded mb-6 animate-pulse"></div>
 
                 {/* Tabs Skeleton */}
-                <div className="flex space-x-4 border-b border-gray-200 mb-6 pb-2 animate-pulse">
-                    <div className="w-32 h-6 bg-gray-200 rounded"></div>
-                    <div className="w-32 h-6 bg-gray-200 rounded"></div>
-                    <div className="w-32 h-6 bg-gray-200 rounded"></div>
-                    <div className="w-32 h-6 bg-gray-200 rounded"></div>
+                <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-800 mb-6 pb-2 animate-pulse">
+                    <div className="w-32 h-6 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                    <div className="w-32 h-6 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                    <div className="w-32 h-6 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                    <div className="w-32 h-6 bg-gray-200 dark:bg-gray-800 rounded"></div>
                 </div>
 
                 {/* Content Card Skeleton matching Personal Details tab */}
@@ -353,7 +353,7 @@ const ProfileManager = () => {
                         </div>
 
                         {/* Save Button Skeleton */}
-                        <div className="w-full md:w-48 h-10 bg-gray-200 rounded mt-6"></div>
+                        <div className="w-full md:w-48 h-10 bg-gray-200 dark:bg-gray-800 rounded mt-6"></div>
                     </div>
                 </div>
             </div>
@@ -361,43 +361,43 @@ const ProfileManager = () => {
     }
 
     return (
-        <div className="p-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-6">Profile Management</h1>
+        <div className="p-6 bg-[#F7F5FF] dark:bg-[#0a0f1a] min-h-screen transition-colors">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 font-display">Profile Management</h1>
 
             {/* Tabs */}
-            <div className="flex space-x-4 border-b border-gray-200 mb-6">
+            <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-800 mb-6 overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('personal')}
-                    className={`px-4 py-2 font-medium ${activeTab === 'personal'
+                    className={`px-4 py-2 font-medium transition-colors ${activeTab === 'personal'
                         ? 'border-b-2 border-primary-600 text-primary-600'
-                        : 'text-gray-600 hover:text-gray-900'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
                         }`}
                 >
                     Personal Details
                 </button>
                 <button
                     onClick={() => setActiveTab('professional')}
-                    className={`px-4 py-2 font-medium ${activeTab === 'professional'
+                    className={`px-4 py-2 font-medium transition-colors ${activeTab === 'professional'
                         ? 'border-b-2 border-primary-600 text-primary-600'
-                        : 'text-gray-600 hover:text-gray-900'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
                         }`}
                 >
                     Professional Details
                 </button>
                 <button
                     onClick={() => setActiveTab('coding')}
-                    className={`px-4 py-2 font-medium ${activeTab === 'coding'
+                    className={`px-4 py-2 font-medium transition-colors ${activeTab === 'coding'
                         ? 'border-b-2 border-primary-600 text-primary-600'
-                        : 'text-gray-600 hover:text-gray-900'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
                         }`}
                 >
                     Coding Profiles
                 </button>
                 <button
                     onClick={() => setActiveTab('security')}
-                    className={`px-4 py-2 font-medium ${activeTab === 'security'
+                    className={`px-4 py-2 font-medium transition-colors ${activeTab === 'security'
                         ? 'border-b-2 border-primary-600 text-primary-600'
-                        : 'text-gray-600 hover:text-gray-900'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
                         }`}
                 >
                     Security

@@ -28,12 +28,12 @@ const HeatmapChart = ({ data, streakDays = 0, maxStreakDays = 0 }) => {
     }, []);
 
     const getColorClass = (count) => {
-        if (!count) return 'bg-gray-100';
-        if (count >= 10) return 'bg-green-700';
-        if (count >= 5) return 'bg-green-500';
-        if (count >= 3) return 'bg-green-400';
-        if (count >= 1) return 'bg-green-300';
-        return 'bg-gray-100';
+        if (!count) return 'bg-gray-100 dark:bg-gray-800';
+        if (count >= 10) return 'bg-green-700 dark:bg-green-600';
+        if (count >= 5) return 'bg-green-500 dark:bg-green-500';
+        if (count >= 3) return 'bg-green-400 dark:bg-green-400/80';
+        if (count >= 1) return 'bg-green-300 dark:bg-green-400/40';
+        return 'bg-gray-100 dark:bg-gray-800';
     };
 
     const monthLabels = useMemo(() => {
@@ -56,23 +56,23 @@ const HeatmapChart = ({ data, streakDays = 0, maxStreakDays = 0 }) => {
         <div className="w-full">
             {/* Header with Streaks */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                     Submission Activity
                 </h3>
 
                 <div className="flex gap-4 self-start sm:self-auto">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg border border-orange-100">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-lg border border-orange-100 dark:border-orange-500/20">
                         <Flame size={18} className="text-orange-500 fill-orange-500" />
                         <div className="flex flex-col leading-none">
-                            <span className="text-[10px] font-semibold text-orange-400 uppercase tracking-wide">Current Streak</span>
+                            <span className="text-[10px] font-semibold text-orange-400 dark:text-orange-500/70 uppercase tracking-wide">Current Streak</span>
                             <span className="font-bold text-sm">{streakDays} Days</span>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg border border-yellow-100">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 rounded-lg border border-yellow-100 dark:border-yellow-500/20">
                         <Trophy size={18} className="text-yellow-500 fill-yellow-500" />
                         <div className="flex flex-col leading-none">
-                            <span className="text-[10px] font-semibold text-yellow-400 uppercase tracking-wide">Max Streak</span>
+                            <span className="text-[10px] font-semibold text-yellow-400 dark:text-yellow-500/70 uppercase tracking-wide">Max Streak</span>
                             <span className="font-bold text-sm">{maxStreakDays} Days</span>
                         </div>
                     </div>
@@ -83,7 +83,7 @@ const HeatmapChart = ({ data, streakDays = 0, maxStreakDays = 0 }) => {
             <div className="overflow-x-auto pb-2">
                 <div className="min-w-[700px]">
                     {/* Month Labels */}
-                    <div className="flex mb-2 text-xs text-gray-400 relative h-4">
+                    <div className="flex mb-2 text-xs text-gray-400 dark:text-gray-500 relative h-4">
                         {monthLabels.map((month, idx) => (
                             <span
                                 key={idx}
@@ -103,7 +103,7 @@ const HeatmapChart = ({ data, streakDays = 0, maxStreakDays = 0 }) => {
                                 <div
                                     key={index}
                                     title={`${date.toLocaleDateString()}: ${count} submissions`}
-                                    className={`w-3 h-3 rounded-[2px] transition-all hover:ring-1 hover:ring-offset-1 hover:ring-gray-400 ${getColorClass(count)}`}
+                                    className={`w-3 h-3 rounded-[2px] transition-all hover:ring-1 hover:ring-offset-1 hover:ring-gray-400 dark:hover:ring-gray-600 ${getColorClass(count)}`}
                                 ></div>
                             );
                         })}
@@ -112,14 +112,14 @@ const HeatmapChart = ({ data, streakDays = 0, maxStreakDays = 0 }) => {
             </div>
 
             {/* Legend */}
-            <div className="flex items-center justify-end gap-2 mt-4 text-xs text-gray-500">
+            <div className="flex items-center justify-end gap-2 mt-4 text-xs text-gray-500 dark:text-gray-400">
                 <span>Less</span>
                 <div className="flex gap-[3px]">
-                    <div className="w-3 h-3 bg-gray-100 rounded-[2px]"></div>
-                    <div className="w-3 h-3 bg-green-300 rounded-[2px]"></div>
-                    <div className="w-3 h-3 bg-green-400 rounded-[2px]"></div>
-                    <div className="w-3 h-3 bg-green-500 rounded-[2px]"></div>
-                    <div className="w-3 h-3 bg-green-700 rounded-[2px]"></div>
+                    <div className="w-3 h-3 bg-gray-100 dark:bg-gray-800 rounded-[2px]"></div>
+                    <div className="w-3 h-3 bg-green-300 dark:bg-green-400/40 rounded-[2px]"></div>
+                    <div className="w-3 h-3 bg-green-400 dark:bg-green-400/80 rounded-[2px]"></div>
+                    <div className="w-3 h-3 bg-green-500 dark:bg-green-500 rounded-[2px]"></div>
+                    <div className="w-3 h-3 bg-green-700 dark:bg-green-600 rounded-[2px]"></div>
                 </div>
                 <span>More</span>
             </div>

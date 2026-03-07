@@ -267,6 +267,25 @@ class ContestSubmission {
         return { totalTabSwitches: 0, totalTabSwitchDuration: 0, totalPasteAttempts: 0, totalFullscreenExits: 0 };
     }
 
+    // Remove the "contest completed" marker for a specific student, allowing them to continue.
+    // Only deletes the single isFinalContestSubmission record — all code submissions are preserved.
+    static async removeContestCompletion(studentId, contestId) {
+        return await collections.contestSubmissions.deleteOne({
+            studentId: new ObjectId(studentId),
+            contestId: new ObjectId(contestId),
+            isFinalContestSubmission: true
+        });
+    }
+
+    // Clear all violation log records for a student in a contest (used on unlock).
+    static async clearViolationLogs(studentId, contestId) {
+        return await collections.contestSubmissions.deleteMany({
+            studentId: new ObjectId(studentId),
+            contestId: new ObjectId(contestId),
+            isViolationLog: true
+        });
+    }
+
     static async deleteByContest(contestId) {
         return await collections.contestSubmissions.deleteMany({ contestId: new ObjectId(contestId) });
     }

@@ -309,7 +309,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
     const removeTestCase = (idx) => setCurrentProblem({ ...currentProblem, testCases: currentProblem.testCases.filter((_, i) => i !== idx) });
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-24">
+        <div className="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-24 bg-gray-50 dark:bg-[#0a0f1a] min-h-screen transition-colors">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <button
@@ -318,8 +318,8 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                     >
                         <ArrowLeft size={16} className="mr-1" /> Back to Contests
                     </button>
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl text-white shadow-sm">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-br from-purple-400 to-primary-600 rounded-xl text-white shadow-sm">
                             <Trophy size={28} />
                         </div>
                         {initialData ? 'Edit Contest' : 'Create Contest'}
@@ -330,7 +330,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                 </div>
             </div>
 
-            <div className="glass-panel p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="glass-panel p-6 md:p-8 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm transition-colors">
                 <form onSubmit={handleCreateContest} className="space-y-8">
                     {/* Basic Info */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -342,7 +342,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Contest Title <span className="text-red-500">*</span></label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Contest Title <span className="text-red-500">*</span></label>
                                     <input
                                         type="text"
                                         value={formData.title}
@@ -354,7 +354,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Target Batch <span className="text-red-500">*</span></label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Target Batch <span className="text-red-500">*</span></label>
                                     <CustomDropdown
                                         options={batchOptions}
                                         value={formData.batchId}
@@ -365,7 +365,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Description</label>
                                     <textarea
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -385,7 +385,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Start Time <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Start Time <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                             <input
@@ -398,7 +398,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">End Time <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">End Time <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                             <input
@@ -413,14 +413,14 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                 </div>
 
                                 {/* Proctoring Settings */}
-                                <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100 space-y-4">
+                                <div className="bg-gray-50/50 dark:bg-[#0a0f1a]/20 rounded-xl p-4 border border-gray-100 dark:border-gray-700 space-y-4">
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-start gap-3">
-                                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg mt-0.5">
+                                            <div className="p-2 bg-primary-50 text-primary-600 rounded-lg mt-0.5">
                                                 <Shield size={18} />
                                             </div>
                                             <div>
-                                                <span className="font-semibold text-gray-900 block">Proctoring</span>
+                                                <span className="font-semibold text-gray-900 dark:text-gray-100 block">Proctoring</span>
                                                 <p className="text-xs text-gray-500 mt-0.5">Monitor tab switching and focus loss</p>
                                             </div>
                                         </div>
@@ -469,11 +469,11 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                     </div>
 
                     {/* Problems Section */}
-                    <div className="space-y-6 pt-4 border-t border-gray-100">
+                    <div className="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-700">
                         <div className="flex flex-col sm:flex-row justify-between items-end sm:items-center gap-4">
                             <div>
-                                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                    <div className="p-1.5 bg-green-50 text-green-600 rounded-lg">
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <div className="p-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg">
                                         <Code size={20} />
                                     </div>
                                     Problems
@@ -494,14 +494,14 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
 
                         {/* New Problems Summary */}
                         {newProblems.length > 0 && (
-                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100/50">
-                                <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            <div className="bg-gradient-to-r from-purple-50 to-primary-50 dark:from-purple-900/10 dark:to-primary-900/10 p-4 rounded-xl border border-purple-100/50 dark:border-purple-800/30">
+                                <h4 className="font-bold text-purple-900 dark:text-purple-300 mb-3 flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
                                     Newly Created Problems ({newProblems.length})
                                 </h4>
                                 <div className="space-y-2">
                                     {newProblems.map((p, idx) => (
-                                        <div key={`new-problem-${idx}`} className="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border border-blue-100">
+                                        <div key={`new-problem-${idx}`} className="flex justify-between items-center bg-white dark:bg-[#0a0f1a] p-3 rounded-lg shadow-sm border border-purple-100 dark:border-purple-800/30">
                                             <div>
                                                 <span className="font-semibold text-gray-800">{p.title}</span>
                                                 <div className="flex items-center space-x-2 mt-1">
@@ -528,7 +528,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                         )}
 
                         {/* Search and Filter */}
-                        <div className="flex flex-col md:flex-row gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-200/50">
+                        <div className="flex flex-col md:flex-row gap-4 bg-gray-50 dark:bg-[#0a0f1a]/40 p-4 rounded-2xl border border-gray-200/50 dark:border-gray-700/50">
                             <div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <input
@@ -536,7 +536,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                     placeholder="Search existing problems..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full bg-white border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all shadow-sm"
+                                    className="w-full bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-100 dark:focus:ring-purple-900/20 focus:border-purple-400 dark:focus:border-purple-500 transition-all shadow-sm dark:text-white"
                                 />
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
@@ -554,8 +554,8 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                         </div>
 
                         {/* Existing Problems List */}
-                        <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                            <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                        <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-[#0a0f1a]">
+                            <div className="bg-gray-50/50 dark:bg-[#0a0f1a]/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Available Problems</span>
                                 <span className="text-xs font-medium text-gray-400">
                                     Selected: {formData.existingProblemIds.length + newProblems.length}
@@ -579,22 +579,22 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                                     key={`problem-item-${problemId}`}
                                                     onClick={() => toggleExistingProblem(problemId)}
                                                     className={`flex items-center p-3 rounded-xl transition-all cursor-pointer border ${isSelected
-                                                        ? 'bg-primary-50 border-primary-200 shadow-sm'
-                                                        : 'bg-white hover:bg-gray-50 border-transparent hover:border-gray-100'
+                                                        ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-700 shadow-sm'
+                                                        : 'bg-white dark:bg-[#0a0f1a] hover:bg-gray-50 dark:hover:bg-[#141b2b] border-transparent hover:border-gray-100 dark:hover:border-gray-700'
                                                         }`}
                                                 >
-                                                    <div className={`w-5 h-5 rounded border mr-3 flex items-center justify-center transition-colors ${isSelected ? 'bg-primary-600 border-primary-600' : 'border-gray-300 bg-white'}`}>
+                                                    <div className={`w-5 h-5 rounded border mr-3 flex items-center justify-center transition-colors ${isSelected ? 'bg-primary-600 border-primary-600' : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0a0f1a]'}`}>
                                                         {isSelected && <CheckSquare size={12} className="text-white" />}
                                                     </div>
 
                                                     <div className="flex-1">
-                                                        <div className="font-semibold text-gray-800 text-sm">
+                                                        <div className="font-semibold text-gray-800 dark:text-gray-100 text-sm">
                                                             {problem.title || 'Untitled'}
                                                         </div>
                                                         <div className="flex items-center gap-3 mt-1">
-                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${problem.difficulty === 'Easy' ? 'bg-green-50 text-green-700' :
-                                                                problem.difficulty === 'Medium' ? 'bg-yellow-50 text-yellow-700' :
-                                                                    'bg-red-50 text-red-700'
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${problem.difficulty === 'Easy' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' :
+                                                                problem.difficulty === 'Medium' ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400' :
+                                                                    'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
                                                                 }`}>
                                                                 {problem.difficulty || 'N/A'}
                                                             </span>
@@ -647,28 +647,28 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                     <div className="modal-backdrop overflow-y-auto">
                         <div className="modal-content max-w-4xl p-0 my-8 shadow-2xl">
                             {/* Header */}
-                            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+                            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/50 rounded-t-2xl transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-green-50 text-green-600 rounded-lg">
                                         <Plus size={20} />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-bold text-gray-900">Create New Problem</h2>
-                                        <p className="text-xs text-gray-500 mt-0.5">Define problem details, test cases, and constraints.</p>
+                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create New Problem</h2>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Define problem details, test cases, and constraints.</p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => setShowProblemModal(false)}
-                                    className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
                                 >
                                     <X size={24} />
                                 </button>
                             </div>
 
-                            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto bg-white dark:bg-[#0a0f1a] transition-colors">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Problem Title <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Problem Title <span className="text-red-500">*</span></label>
                                         <input
                                             type="text"
                                             className="input-field w-full"
@@ -678,7 +678,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Difficulty</label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Difficulty</label>
                                         <CustomDropdown
                                             options={[
                                                 { value: 'Easy', label: 'Easy (20 pts)' },
@@ -692,7 +692,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Description <span className="text-red-500">*</span></label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Description <span className="text-red-500">*</span></label>
                                     <textarea
                                         className="input-field w-full min-h-[120px]"
                                         value={currentProblem.description}
@@ -702,8 +702,8 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                 </div>
 
                                 {/* Constraints */}
-                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200/60">
-                                    <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                <div className="bg-gray-50 dark:bg-[#0a0f1a]/40 p-4 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
+                                    <label className="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
                                         <AlertTriangle size={16} className="text-amber-500" />
                                         Constraints
                                     </label>
@@ -738,9 +738,9 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
 
                                 {/* Examples */}
                                 <div className="space-y-4">
-                                    <label className="block text-sm font-bold text-gray-800">Examples</label>
+                                    <label className="block text-sm font-bold text-gray-800 dark:text-gray-200">Examples</label>
                                     {currentProblem.examples.map((ex, idx) => (
-                                        <div key={`example-${idx}`} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative group">
+                                        <div key={`example-${idx}`} className="bg-white dark:bg-[#0a0f1a] p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm relative group transition-colors">
                                             <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     type="button"
@@ -755,7 +755,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                                     <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Input</div>
                                                     <input
                                                         type="text"
-                                                        className="input-field w-full font-mono text-sm bg-gray-50"
+                                                        className="input-field w-full font-mono text-sm bg-gray-50 dark:bg-[#0a0f1a]"
                                                         value={ex.input}
                                                         onChange={(e) => updateExample(idx, 'input', e.target.value)}
                                                     />
@@ -764,7 +764,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                                     <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Output</div>
                                                     <input
                                                         type="text"
-                                                        className="input-field w-full font-mono text-sm bg-gray-50"
+                                                        className="input-field w-full font-mono text-sm bg-gray-50 dark:bg-[#0a0f1a]"
                                                         value={ex.output}
                                                         onChange={(e) => updateExample(idx, 'output', e.target.value)}
                                                     />
@@ -791,10 +791,10 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                                 </div>
 
                                 {/* Test Cases */}
-                                <div className="space-y-4 pt-4 border-t border-gray-100">
-                                    <label className="block text-sm font-bold text-gray-800">Test Cases <span className="text-red-500 px-1 font-normal text-xs">* Required for judging</span></label>
+                                <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                                    <label className="block text-sm font-bold text-gray-800 dark:text-gray-200">Test Cases <span className="text-red-500 px-1 font-normal text-xs">* Required for judging</span></label>
                                     {currentProblem.testCases.map((tc, idx) => (
-                                        <div key={`testcase-${idx}`} className="bg-gray-900 text-gray-200 p-4 rounded-xl border border-gray-700 relative group">
+                                        <div key={`testcase-${idx}`} className="bg-[#0a0f1a] text-gray-200 p-4 rounded-xl border border-gray-700 relative group">
                                             <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     type="button"
@@ -849,7 +849,7 @@ const ContestCreator = ({ onSuccess, onBack, initialData }) => {
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-2xl">
+                            <div className="px-6 py-4 bg-gray-50 dark:bg-[#0a0f1a]/80 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 rounded-b-2xl transition-colors">
                                 <button
                                     type="button"
                                     onClick={() => {

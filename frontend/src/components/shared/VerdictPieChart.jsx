@@ -19,7 +19,7 @@ const VerdictPieChart = ({ data }) => {
 
     if (chartData.length === 0) {
         return (
-            <div className="flex justify-center items-center h-64 text-gray-500">
+            <div className="flex justify-center items-center h-64 text-gray-500 dark:text-gray-400">
                 No submission data available
             </div>
         );
@@ -42,8 +42,19 @@ const VerdictPieChart = ({ data }) => {
                         <Cell key={`cell-${index}`} fill={VERDICT_COLORS[entry.name] || '#6b7280'} />
                     ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip
+                    contentStyle={{
+                        backgroundColor: 'var(--color-bg-card)',
+                        borderColor: 'var(--color-border)',
+                        color: 'var(--color-text-primary)',
+                        borderRadius: '0.75rem',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                    }}
+                    itemStyle={{ color: 'var(--color-text-primary)' }}
+                />
+                <Legend
+                    formatter={(value) => <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">{value}</span>}
+                />
             </PieChart>
         </ResponsiveContainer>
     );

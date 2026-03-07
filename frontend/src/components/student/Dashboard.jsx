@@ -38,45 +38,45 @@ const Dashboard = () => {
 
     if (loading) {
         return (
-            <div className="p-6 bg-gray-50 min-h-screen">
+            <div className="p-6 bg-[#F7F5FF] dark:bg-[#0a0f1a] min-h-screen transition-colors">
                 <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 animate-pulse">
                     {/* Left Column Skeleton */}
                     <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-white rounded-2xl h-64 border border-gray-100 p-6 flex flex-col items-center justify-center gap-4 shadow-sm">
-                            <div className="w-24 h-24 bg-gray-200 rounded-full"></div>
-                            <div className="w-3/4 h-5 bg-gray-200 rounded"></div>
-                            <div className="w-1/2 h-4 bg-gray-200 rounded"></div>
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl h-64 border border-gray-100 dark:border-gray-700 p-6 flex flex-col items-center justify-center gap-4 shadow-sm">
+                            <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                            <div className="w-3/4 h-5 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                            <div className="w-1/2 h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white rounded-xl h-36 border border-gray-100 p-4 flex flex-col items-center justify-center gap-2 shadow-sm">
-                                <div className="w-12 h-12 bg-gray-200 rounded-full mb-2"></div>
-                                <div className="w-2/3 h-3 bg-gray-200 rounded"></div>
-                                <div className="w-1/2 h-6 bg-gray-200 rounded"></div>
+                            <div className="bg-white dark:bg-gray-800 rounded-xl h-36 border border-gray-100 dark:border-gray-700 p-4 flex flex-col items-center justify-center gap-2 shadow-sm">
+                                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full mb-2"></div>
+                                <div className="w-2/3 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                                <div className="w-1/2 h-6 bg-gray-200 dark:bg-gray-700 rounded"></div>
                             </div>
-                            <div className="bg-white rounded-xl h-36 border border-gray-100 p-4 flex flex-col items-center justify-center gap-2 shadow-sm">
-                                <div className="w-12 h-12 bg-gray-200 rounded-full mb-2"></div>
-                                <div className="w-2/3 h-3 bg-gray-200 rounded"></div>
-                                <div className="w-1/2 h-6 bg-gray-200 rounded"></div>
+                            <div className="bg-white dark:bg-gray-800 rounded-xl h-36 border border-gray-100 dark:border-gray-700 p-4 flex flex-col items-center justify-center gap-2 shadow-sm">
+                                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full mb-2"></div>
+                                <div className="w-2/3 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                                <div className="w-1/2 h-6 bg-gray-200 dark:bg-gray-700 rounded"></div>
                             </div>
                         </div>
-                        <div className="bg-white rounded-2xl h-48 border border-gray-100 p-6 flex flex-col gap-4 shadow-sm">
-                            <div className="w-1/3 h-5 bg-gray-200 rounded mb-2"></div>
-                            <div className="w-full h-4 bg-gray-200 rounded"></div>
-                            <div className="w-5/6 h-4 bg-gray-200 rounded"></div>
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl h-48 border border-gray-100 dark:border-gray-700 p-6 flex flex-col gap-4 shadow-sm">
+                            <div className="w-1/3 h-5 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                            <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                            <div className="w-5/6 h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
                         </div>
                     </div>
 
                     {/* Right Column Skeleton */}
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white rounded-2xl h-96 border border-gray-100 p-6 flex flex-col shadow-sm">
-                            <div className="w-1/4 h-6 bg-gray-200 rounded mb-6"></div>
-                            <div className="w-full flex-1 bg-gray-100 rounded-xl"></div>
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl h-96 border border-gray-100 dark:border-gray-700 p-6 flex flex-col shadow-sm">
+                            <div className="w-1/4 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-6"></div>
+                            <div className="w-full flex-1 bg-gray-100 dark:bg-gray-750/50 rounded-xl"></div>
                         </div>
-                        <div className="bg-white rounded-2xl h-[400px] border border-gray-100 p-6 flex flex-col shadow-sm">
-                            <div className="w-1/4 h-6 bg-gray-200 rounded mb-6"></div>
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl h-[400px] border border-gray-100 dark:border-gray-700 p-6 flex flex-col shadow-sm">
+                            <div className="w-1/4 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-6"></div>
                             <div className="flex items-end justify-between h-full gap-4 pb-2">
                                 {[30, 60, 100, 80, 50, 70, 40].map((h, i) => (
-                                    <div key={i} className="w-full bg-gray-200 rounded-t-sm" style={{ height: `${h}%` }}></div>
+                                    <div key={i} className="w-full bg-gray-200 dark:bg-gray-700 rounded-t-sm" style={{ height: `${h}%` }}></div>
                                 ))}
                             </div>
                         </div>
@@ -110,7 +110,7 @@ const Dashboard = () => {
     // For now using null or emojis in cards if updated
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="p-6 bg-[#F7F5FF] dark:bg-[#0a0f1a] min-h-screen transition-colors">
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* LEFT COLUMN - Profile, Education, Platform Stats */}

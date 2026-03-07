@@ -106,15 +106,41 @@ const GlobalRankGraph = ({ externalContestStats, leaderboardStats }) => {
 
     if (data.length === 0) {
         return (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 h-96 flex items-center justify-center">
-                <p className="text-gray-400">Not enough data for global history</p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 h-96 flex flex-col items-center justify-center text-center">
+                <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 rounded-full w-16 h-16 flex items-center justify-center mb-4 text-2xl">
+                    📊
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 font-medium">Not enough data for global history</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Connect your coding profiles to see your progress</p>
             </div>
         );
     }
 
+    const CustomTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            const data = payload[0].payload;
+            // The provided snippet for CustomTooltip seems to be for a different context (e.g., PlatformRatingCard)
+            // as it references `contestName`, `rating`, `diff`, `problemsSolved`.
+            // For GlobalRankGraph, the payload will contain `totalScore` and `date`.
+            // Let's adapt it for GlobalRankGraph's data structure.
+            return (
+                <div className="bg-white dark:bg-gray-800 p-3 border border-gray-100 dark:border-gray-700 shadow-xl rounded-lg text-xs z-50 min-w-[150px]">
+                    <p className="font-bold text-gray-800 dark:text-gray-100 mb-1">Overall Score</p>
+                    <p className="text-gray-400 dark:text-gray-500 text-[10px] mb-2">{data.date}</p>
+
+                    <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Score:</span>
+                        <span className="font-bold text-gray-900 dark:text-gray-100">{data.totalScore}</span>
+                    </div>
+                </div>
+            );
+        }
+        return null;
+    };
+
     return (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-6">Overall Score Progression</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-all">
+            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-6 font-display">Overall Score Progression</h3>
             <div className="h-96 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
@@ -140,10 +166,16 @@ const GlobalRankGraph = ({ externalContestStats, leaderboardStats }) => {
                             tickLine={false}
                             domain={['auto', 'auto']}
                         />
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" className="opacity-40 dark:opacity-10" />
                         <Tooltip
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                            labelStyle={{ color: '#6B7280' }}
+                            contentStyle={{
+                                backgroundColor: 'var(--color-bg-card)',
+                                borderRadius: '12px',
+                                border: '1px solid var(--color-border)',
+                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                            }}
+                            labelStyle={{ color: 'var(--color-text-muted)', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}
+                            itemStyle={{ color: 'var(--color-text-primary)' }}
                         />
                         <Area
                             type="monotone"

@@ -134,35 +134,35 @@ const PersonalDetails = () => {
 
     if (initialLoading) {
         return (
-            <div className="max-w-4xl mx-auto card animate-pulse">
-                <div className="w-48 h-6 bg-gray-200 rounded mb-6 pb-2 border-b border-gray-100"></div>
+            <div className="max-w-4xl mx-auto card dark:bg-[#0a0f1a] dark:border-gray-800 animate-pulse transition-colors">
+                <div className="w-48 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-6 pb-2 border-b border-gray-100 dark:border-gray-800"></div>
                 <div className="space-y-6 mt-4">
                     {/* Profile Picture Skeleton */}
                     <div className="flex items-center space-x-6">
-                        <div className="w-24 h-24 rounded-full bg-gray-200"></div>
+                        <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700"></div>
                         <div className="flex-1 space-y-2">
-                            <div className="w-1/3 h-8 bg-gray-200 rounded"></div>
-                            <div className="w-1/4 h-4 bg-gray-200 rounded"></div>
+                            <div className="w-1/3 h-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                            <div className="w-1/4 h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
                         </div>
                     </div>
                     {/* Basic info skeleton grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                             <div key={i}>
-                                <div className="w-32 h-4 bg-gray-200 rounded mb-1"></div>
-                                <div className="w-full h-10 bg-gray-200 rounded"></div>
+                                <div className="w-32 h-4 bg-gray-200 dark:bg-gray-700 rounded mb-1"></div>
+                                <div className="w-full h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
                             </div>
                         ))}
                     </div>
-                    <div className="w-full md:w-48 h-10 bg-gray-200 rounded mt-4"></div>
+                    <div className="w-full md:w-48 h-10 bg-gray-200 dark:bg-gray-700 rounded mt-4"></div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-4xl mx-auto card animate-fade-in">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 pb-2 border-b border-gray-100">Personal Details</h2>
+        <div className="max-w-4xl mx-auto card dark:bg-[#0a0f1a] dark:border-gray-800 animate-fade-in transition-colors">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6 pb-2 border-b border-gray-100 dark:border-gray-800">Personal Details</h2>
             <form onSubmit={handleUpdatePersonal} className="space-y-6">
                 {/* Profile Picture */}
                 <div className="flex items-center space-x-6">
@@ -171,17 +171,17 @@ const PersonalDetails = () => {
                             <img
                                 src={personalData.profilePicture}
                                 alt="Profile"
-                                className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
+                                className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-md"
                             />
                         ) : (
-                            <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
+                            <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-500 transition-colors">
                                 <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                 </svg>
                             </div>
                         )}
-                        <label className="absolute bottom-0 right-0 bg-white rounded-full p-1.5 shadow-md cursor-pointer border border-gray-200 hover:bg-gray-50 transition-colors">
-                            <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <label className="absolute bottom-0 right-0 bg-white dark:bg-gray-700 rounded-full p-1.5 shadow-md cursor-pointer border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                            <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
@@ -194,8 +194,8 @@ const PersonalDetails = () => {
                         </label>
                     </div>
                     <div>
-                        <h3 className="font-medium text-gray-900">Profile Picture</h3>
-                        <p className="text-sm text-gray-500">JPG, PNG, GIF, WebP. Max 5MB</p>
+                        <h3 className="font-medium text-gray-900 dark:text-gray-100">Profile Picture</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">JPG, PNG, GIF, WebP. Max 5MB</p>
                     </div>
                 </div>
 
@@ -244,12 +244,12 @@ const PersonalDetails = () => {
 
                     {/* Editable details */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone </label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone </label>
                         <input
                             type="tel"
                             value={personalData.phone}
                             onChange={(e) => setPersonalData({ ...personalData, phone: e.target.value })}
-                            className="input-field"
+                            className="input-field dark:bg-[#0a0f1a] dark:text-gray-100 dark:border-gray-700"
                             maxLength="10"
                         />
                     </div>

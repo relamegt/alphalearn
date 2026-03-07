@@ -50,5 +50,6 @@ router.post('/:contestId/violation', requireRole('student', 'instructor', 'admin
 router.post('/:contestId/finish', requireRole('student', 'instructor', 'admin'), validateObjectId('contestId'), contestController.finishContest); // NEW
 router.get('/:contestId/submissions', requireRole('student', 'instructor', 'admin'), validateObjectId('contestId'), contestController.getStudentContestSubmissions);
 router.get('/:contestId/leaderboard', validateObjectId('contestId'), contestController.getContestLeaderboard);
+router.post('/:contestId/unlock-user', instructorOrAdmin, validateObjectId('contestId'), contestController.unlockContestForUser);
 
 module.exports = router;

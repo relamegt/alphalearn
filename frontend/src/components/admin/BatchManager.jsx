@@ -187,8 +187,8 @@ const BatchManager = () => {
         <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Batch Management</h1>
-                    <p className="text-gray-500 mt-1">Manage student batches, academic calendars, and statistics.</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Batch Management</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">Manage student batches, academic calendars, and statistics.</p>
                 </div>
                 <button
                     onClick={() => setShowCreateModal(true)}
@@ -200,10 +200,10 @@ const BatchManager = () => {
             </div>
 
             {/* Batches Table */}
-            <div className="glass-panel overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
+            <div className="glass-panel overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-gray-50/50 text-xs uppercase text-gray-500 font-semibold tracking-wider">
+                        <thead className="bg-gray-50/50 dark:bg-[#0a0f1a]/40 text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold tracking-wider">
                             <tr>
                                 <th className="px-6 py-4">Batch Name</th>
                                 <th className="px-6 py-4">Duration</th>
@@ -214,26 +214,26 @@ const BatchManager = () => {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {batches.map((batch) => (
-                                <tr key={batch._id} className="hover:bg-gray-50/50 transition-colors">
+                                <tr key={batch._id} className="hover:bg-gray-50/50 dark:hover:bg-[#141b2b]/30 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
-                                            <span className="font-semibold text-gray-900">{batch.name}</span>
-                                            {batch.description && <span className="text-xs text-gray-500 truncate max-w-xs">{batch.description}</span>}
+                                            <span className="font-semibold text-gray-900 dark:text-gray-100">{batch.name}</span>
+                                            {batch.description && <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">{batch.description}</span>}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <Calendar size={14} className="text-gray-400" />
+                                        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                            <Calendar size={14} className="text-gray-400 dark:text-gray-500" />
                                             <span>{new Date(batch.startDate).toLocaleDateString()}</span>
-                                            <span className="text-gray-400">→</span>
+                                            <span className="text-gray-400 dark:text-gray-600">→</span>
                                             <span>{new Date(batch.endDate).toLocaleDateString()}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <span
                                             className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${batch.status === 'active'
-                                                ? 'bg-green-50 text-green-700 border border-green-100'
-                                                : 'bg-red-50 text-red-700 border border-red-100'
+                                                ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-100 dark:border-green-800'
+                                                : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-100 dark:border-red-800'
                                                 }`}
                                         >
                                             <span className={`w-1.5 h-1.5 rounded-full ${batch.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`}></span>
@@ -241,23 +241,23 @@ const BatchManager = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                                            <Users size={14} className="text-gray-400" />
+                                        <div className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300">
+                                            <Users size={14} className="text-gray-400 dark:text-gray-500" />
                                             {batch.studentCount || 0}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
+                                        <div className="flex items-center justify-end gap-2 text-gray-400 dark:text-gray-500">
                                             <button
                                                 onClick={() => handleViewStats(batch)}
-                                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors tooltip-trigger"
+                                                className="p-2 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors tooltip-trigger"
                                                 title="View Statistics"
                                             >
                                                 <BarChart2 size={18} />
                                             </button>
                                             <button
                                                 onClick={() => handleEditClick(batch)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors tooltip-trigger"
+                                                className="p-2 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors tooltip-trigger"
                                                 title="Edit Batch"
                                             >
                                                 <Edit2 size={18} />
@@ -267,15 +267,15 @@ const BatchManager = () => {
                                                     setSelectedBatch(batch);
                                                     setShowExtendModal(true);
                                                 }}
-                                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors tooltip-trigger"
+                                                className="p-2 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors tooltip-trigger"
                                                 title="Extend Expiry"
                                             >
                                                 <Clock size={18} />
                                             </button>
-                                            <div className="h-4 w-px bg-gray-200 mx-1"></div>
+                                            <div className="h-4 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
                                             <button
                                                 onClick={() => handleDeleteBatch(batch._id, batch.name)}
-                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors tooltip-trigger"
+                                                className="p-2 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors tooltip-trigger"
                                                 title="Delete Batch"
                                             >
                                                 <Trash2 size={18} />
@@ -299,16 +299,16 @@ const BatchManager = () => {
             {showCreateModal && (
                 <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
                     <div className="modal-content max-w-4xl max-h-[90vh] overflow-y-auto p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-primary-50 text-primary-600 rounded-lg">
+                                <div className="p-2 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg">
                                     <GraduationCap size={20} />
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-900">Create New Batch</h2>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Create New Batch</h2>
                             </div>
                             <button
                                 onClick={() => setShowCreateModal(false)}
-                                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -317,7 +317,7 @@ const BatchManager = () => {
                             <form onSubmit={handleCreateBatch} className="space-y-6">
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Batch Name <span className="text-red-500">*</span>
                                         </label>
                                         <input
@@ -326,7 +326,7 @@ const BatchManager = () => {
                                             onChange={(e) =>
                                                 setFormData({ ...formData, name: e.target.value })
                                             }
-                                            className="input-field w-full"
+                                            className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                             placeholder="e.g., 2022-2026 CS Batch A"
                                             required
                                         />
@@ -334,7 +334,7 @@ const BatchManager = () => {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                 Start Date <span className="text-red-500">*</span>
                                             </label>
                                             <input
@@ -343,12 +343,12 @@ const BatchManager = () => {
                                                 onChange={(e) =>
                                                     setFormData({ ...formData, startDate: e.target.value })
                                                 }
-                                                className="input-field w-full"
+                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                                 required
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                 End Date <span className="text-red-500">*</span>
                                             </label>
                                             <input
@@ -357,7 +357,7 @@ const BatchManager = () => {
                                                 onChange={(e) =>
                                                     setFormData({ ...formData, endDate: e.target.value })
                                                 }
-                                                className="input-field w-full"
+                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                                 required
                                             />
                                         </div>
@@ -365,13 +365,13 @@ const BatchManager = () => {
                                 </div>
 
                                 {/* Educational Details Section */}
-                                <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-1">Educational Defaults</h3>
-                                    <p className="text-sm text-gray-500 mb-4">Default academic details for students in this batch.</p>
+                                <div className="bg-gray-50 dark:bg-[#0a0f1a]/40 p-5 rounded-xl border border-gray-100 dark:border-gray-800">
+                                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-1">Educational Defaults</h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Default academic details for students in this batch.</p>
 
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                 College/Institution
                                             </label>
                                             <input
@@ -383,14 +383,14 @@ const BatchManager = () => {
                                                         education: { ...formData.education, institution: e.target.value }
                                                     })
                                                 }
-                                                className="input-field w-full"
+                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                                 placeholder="e.g., ABC Engineering College"
                                             />
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                     Degree
                                                 </label>
                                                 <input
@@ -402,7 +402,7 @@ const BatchManager = () => {
                                                             education: { ...formData.education, degree: e.target.value }
                                                         })
                                                     }
-                                                    className="input-field w-full"
+                                                    className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                                     placeholder="e.g., B.Tech"
                                                 />
                                             </div>
@@ -455,7 +455,7 @@ const BatchManager = () => {
                                         <div className="relative">
                                             <input
                                                 type="text"
-                                                className="input-field w-full"
+                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                                 placeholder="Type branch code and press Enter or Comma (e.g. CSE, IT)"
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' || e.key === ',') {
@@ -478,13 +478,13 @@ const BatchManager = () => {
                                                     }
                                                 }}
                                             />
-                                            <p className="text-xs text-gray-500 mt-1">Separate multiple branches with commas or press Enter.</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Separate multiple branches with commas or press Enter.</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Description
                                     </label>
                                     <textarea
@@ -492,13 +492,13 @@ const BatchManager = () => {
                                         onChange={(e) =>
                                             setFormData({ ...formData, description: e.target.value })
                                         }
-                                        className="input-field w-full"
+                                        className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                         rows="3"
                                         placeholder="Optional notes about this batch..."
                                     />
                                 </div>
 
-                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
                                     <button
                                         type="button"
                                         onClick={() => setShowCreateModal(false)}
@@ -528,16 +528,16 @@ const BatchManager = () => {
             {showEditModal && selectedBatch && (
                 <div className="modal-backdrop" onClick={() => setShowEditModal(false)}>
                     <div className="modal-content max-w-4xl max-h-[90vh] overflow-y-auto p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                                <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
                                     <Edit2 size={20} />
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-900">Edit Batch</h2>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Edit Batch</h2>
                             </div>
                             <button
                                 onClick={() => setShowEditModal(false)}
-                                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -546,7 +546,7 @@ const BatchManager = () => {
                             <form onSubmit={handleUpdateBatch} className="space-y-6">
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Batch Name <span className="text-red-500">*</span>
                                         </label>
                                         <input
@@ -555,14 +555,14 @@ const BatchManager = () => {
                                             onChange={(e) =>
                                                 setEditFormData({ ...editFormData, name: e.target.value })
                                             }
-                                            className="input-field w-full"
+                                            className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                             required
                                         />
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                 Start Date <span className="text-red-500">*</span>
                                             </label>
                                             <input
@@ -571,12 +571,12 @@ const BatchManager = () => {
                                                 onChange={(e) =>
                                                     setEditFormData({ ...editFormData, startDate: e.target.value })
                                                 }
-                                                className="input-field w-full"
+                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                                 required
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                 End Date <span className="text-red-500">*</span>
                                             </label>
                                             <input
@@ -585,7 +585,7 @@ const BatchManager = () => {
                                                 onChange={(e) =>
                                                     setEditFormData({ ...editFormData, endDate: e.target.value })
                                                 }
-                                                className="input-field w-full"
+                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                                 required
                                             />
                                         </div>
@@ -599,7 +599,7 @@ const BatchManager = () => {
 
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                 College/Institution
                                             </label>
                                             <input
@@ -611,13 +611,13 @@ const BatchManager = () => {
                                                         education: { ...editFormData.education, institution: e.target.value }
                                                     })
                                                 }
-                                                className="input-field w-full"
+                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                             />
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                     Degree
                                                 </label>
                                                 <input
@@ -629,7 +629,7 @@ const BatchManager = () => {
                                                             education: { ...editFormData.education, degree: e.target.value }
                                                         })
                                                     }
-                                                    className="input-field w-full"
+                                                    className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                                 />
                                             </div>
                                             <div>
@@ -751,26 +751,26 @@ const BatchManager = () => {
             {showExtendModal && selectedBatch && (
                 <div className="modal-backdrop" onClick={() => setShowExtendModal(false)}>
                     <div className="modal-content max-w-md p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-green-50 text-green-600 rounded-lg">
+                                <div className="p-2 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg">
                                     <Clock size={20} />
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-900">Extend Batch</h2>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Extend Batch</h2>
                             </div>
                             <button
                                 onClick={() => setShowExtendModal(false)}
-                                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
                         </div>
                         <div className="p-6">
-                            <div className="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200">
-                                <p className="text-sm text-gray-600">
-                                    Current End Date: <strong className="text-gray-900">{new Date(selectedBatch.endDate).toLocaleDateString()}</strong>
+                            <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-700">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    Current End Date: <strong className="text-gray-900 dark:text-gray-100">{new Date(selectedBatch.endDate).toLocaleDateString()}</strong>
                                 </p>
-                                <p className="text-xs text-gray-500 mt-1">Select a new date after the current end date.</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Select a new date after the current end date.</p>
                             </div>
 
                             <form
@@ -782,14 +782,14 @@ const BatchManager = () => {
                                 className="space-y-4"
                             >
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         New End Date <span className="text-red-500">*</span>
                                     </label>
                                     <input
                                         type="date"
                                         name="newEndDate"
                                         min={selectedBatch.endDate}
-                                        className="input-field w-full"
+                                        className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
                                         required
                                     />
                                 </div>
@@ -823,16 +823,16 @@ const BatchManager = () => {
             {showStatsModal && selectedBatch && (
                 <div className="modal-backdrop" onClick={() => setShowStatsModal(false)}>
                     <div className="modal-content max-w-2xl max-h-[90vh] overflow-y-auto p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                                <div className="p-2 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
                                     <BarChart2 size={24} />
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-900">Batch Analytics</h2>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Batch Analytics</h2>
                             </div>
                             <button
                                 onClick={() => setShowStatsModal(false)}
-                                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -842,28 +842,28 @@ const BatchManager = () => {
                             {batchStats ? (
                                 <div className="space-y-6">
                                     {/* Batch Information */}
-                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                                        <h3 className="text-sm font-semibold mb-3 text-gray-500 uppercase tracking-wider">Batch Details</h3>
+                                    <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                                        <h3 className="text-sm font-semibold mb-3 text-gray-500 dark:text-gray-400 uppercase tracking-wider">Batch Details</h3>
                                         <div className="grid grid-cols-2 gap-4 text-sm">
                                             <div>
-                                                <span className="text-gray-500 block text-xs">Name</span>
-                                                <span className="font-medium text-gray-900">{batchStats.batch?.name}</span>
+                                                <span className="text-gray-500 dark:text-gray-400 block text-xs">Name</span>
+                                                <span className="font-medium text-gray-900 dark:text-gray-100">{batchStats.batch?.name}</span>
                                             </div>
                                             <div>
-                                                <span className="text-gray-500 block text-xs">Status</span>
-                                                <span className={`font-medium ${batchStats.batch?.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                                                <span className="text-gray-500 dark:text-gray-400 block text-xs">Status</span>
+                                                <span className={`font-medium ${batchStats.batch?.status === 'active' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                     {batchStats.batch?.status}
                                                 </span>
                                             </div>
                                             <div>
-                                                <span className="text-gray-500 block text-xs">Start Date</span>
-                                                <span className="font-medium text-gray-900">
+                                                <span className="text-gray-500 dark:text-gray-400 block text-xs">Start Date</span>
+                                                <span className="font-medium text-gray-900 dark:text-gray-100">
                                                     {batchStats.batch?.startDate ? new Date(batchStats.batch.startDate).toLocaleDateString() : 'N/A'}
                                                 </span>
                                             </div>
                                             <div>
-                                                <span className="text-gray-500 block text-xs">End Date</span>
-                                                <span className="font-medium text-gray-900">
+                                                <span className="text-gray-500 dark:text-gray-400 block text-xs">End Date</span>
+                                                <span className="font-medium text-gray-900 dark:text-gray-100">
                                                     {batchStats.batch?.endDate ? new Date(batchStats.batch.endDate).toLocaleDateString() : 'N/A'}
                                                 </span>
                                             </div>
@@ -872,38 +872,38 @@ const BatchManager = () => {
 
                                     {/* Statistics Grid */}
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-blue-50 p-5 rounded-xl border border-blue-100">
-                                            <h4 className="text-sm font-medium text-blue-700 mb-2">Total Students</h4>
+                                        <div className="bg-blue-50 dark:bg-blue-900/30 p-5 rounded-xl border border-blue-100 dark:border-blue-800">
+                                            <h4 className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-2">Total Students</h4>
                                             <div className="flex items-baseline gap-2">
-                                                <p className="text-3xl font-bold text-blue-900">{batchStats.students?.total || 0}</p>
-                                                <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                                                <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">{batchStats.students?.total || 0}</p>
+                                                <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-800/50 px-2 py-0.5 rounded-full">
                                                     {batchStats.students?.active || 0} Active
                                                 </span>
                                             </div>
                                         </div>
 
-                                        <div className="bg-purple-50 p-5 rounded-xl border border-purple-100">
-                                            <h4 className="text-sm font-medium text-purple-700 mb-2">Problems Solved</h4>
+                                        <div className="bg-purple-50 dark:bg-purple-900/30 p-5 rounded-xl border border-purple-100 dark:border-purple-800">
+                                            <h4 className="text-sm font-medium text-purple-700 dark:text-purple-400 mb-2">Problems Solved</h4>
                                             <div className="flex items-baseline gap-2">
-                                                <p className="text-3xl font-bold text-purple-900">{batchStats.problems?.solved || 0}</p>
+                                                <p className="text-3xl font-bold text-purple-900 dark:text-purple-100">{batchStats.problems?.solved || 0}</p>
                                             </div>
-                                            <p className="text-xs text-purple-600 mt-1">
+                                            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
                                                 {batchStats.problems?.solvedPercentage || '0.00'}% Completion Rate
                                             </p>
                                         </div>
 
-                                        <div className="bg-green-50 p-5 rounded-xl border border-green-100">
-                                            <h4 className="text-sm font-medium text-green-700 mb-2">Total Submissions</h4>
-                                            <p className="text-3xl font-bold text-green-900">{batchStats.submissions?.total || 0}</p>
-                                            <p className="text-xs text-green-600 mt-1">
+                                        <div className="bg-green-50 dark:bg-green-900/30 p-5 rounded-xl border border-green-100 dark:border-green-800">
+                                            <h4 className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">Total Submissions</h4>
+                                            <p className="text-3xl font-bold text-green-900 dark:text-green-100">{batchStats.submissions?.total || 0}</p>
+                                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                                                 Avg {batchStats.submissions?.averagePerStudent || '0.00'} per student
                                             </p>
                                         </div>
 
-                                        <div className="bg-yellow-50 p-5 rounded-xl border border-yellow-100">
-                                            <h4 className="text-sm font-medium text-yellow-700 mb-2">Acceptance Rate</h4>
-                                            <p className="text-3xl font-bold text-yellow-900">{batchStats.submissions?.acceptanceRate || 0}%</p>
-                                            <p className="text-xs text-yellow-600 mt-1">
+                                        <div className="bg-yellow-50 dark:bg-yellow-900/30 p-5 rounded-xl border border-yellow-100 dark:border-yellow-800">
+                                            <h4 className="text-sm font-medium text-yellow-700 dark:text-yellow-400 mb-2">Acceptance Rate</h4>
+                                            <p className="text-3xl font-bold text-yellow-900 dark:text-yellow-100">{batchStats.submissions?.acceptanceRate || 0}%</p>
+                                            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
                                                 {batchStats.submissions?.accepted || 0} Accepted
                                             </p>
                                         </div>

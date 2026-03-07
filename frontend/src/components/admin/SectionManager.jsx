@@ -230,8 +230,8 @@ const SectionManager = () => {
         <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Curriculum Management</h1>
-                    <p className="text-gray-500 mt-1">Organize learning content into sections and subsections.</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Curriculum Management</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">Organize learning content into sections and subsections.</p>
                 </div>
                 <button
                     onClick={() => setShowCreateSectionModal(true)}
@@ -249,22 +249,22 @@ const SectionManager = () => {
             ) : (
                 <div className="space-y-4">
                     {sections.map(section => (
-                        <div key={section._id} className="glass-panel overflow-hidden transition-all duration-300 hover:shadow-md border border-gray-200 rounded-xl">
+                        <div key={section._id} className="glass-panel overflow-hidden transition-all duration-300 hover:shadow-md border border-gray-100 dark:border-gray-800 rounded-xl">
                             {/* Section Header */}
                             <div
-                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors duration-200 ${expandedSection === section._id ? 'bg-primary-50/30' : 'hover:bg-gray-50'}`}
+                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors duration-200 ${expandedSection === section._id ? 'bg-primary-50/30 dark:bg-primary-900/10' : 'hover:bg-gray-50 dark:hover:bg-[#141b2b]/40'}`}
                                 onClick={() => toggleSection(section._id)}
                             >
                                 <div className="flex items-center space-x-4">
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200 ${expandedSection === section._id ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-500'}`}>
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200 ${expandedSection === section._id ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
                                         {expandedSection === section._id ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                                             {section.title}
                                         </h3>
                                         <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="text-xs font-medium text-gray-500 bg-white border border-gray-200 px-2 py-0.5 rounded-full shadow-sm">
+                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-full shadow-sm">
                                                 {section.subsections?.length || 0} subsections
                                             </span>
                                         </div>
@@ -283,7 +283,7 @@ const SectionManager = () => {
                                     </button>
                                     <button
                                         onClick={() => handleDeleteSection(section._id)}
-                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                         title="Delete Section"
                                     >
                                         <Trash2 size={18} />
@@ -296,20 +296,20 @@ const SectionManager = () => {
                                 <div className="bg-gray-50/30 border-t border-gray-100 p-4 space-y-3 animate-fade-in">
                                     {section.subsections && section.subsections.length > 0 ? (
                                         section.subsections.map(sub => (
-                                            <div key={sub._id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                                            <div key={sub._id} className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-all hover:shadow-md">
                                                 <div
-                                                    className="p-3 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors"
+                                                    className="p-3 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                                                     onClick={() => toggleSubsection(sub._id)}
                                                 >
                                                     <div className="flex items-center space-x-3">
-                                                        <div className={`p-1.5 rounded-md transition-colors ${expandedSubsection === sub._id ? 'text-primary-600 bg-primary-50' : 'text-gray-400'}`}>
+                                                        <div className={`p-1.5 rounded-md transition-colors ${expandedSubsection === sub._id ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30' : 'text-gray-400 dark:text-gray-500'}`}>
                                                             {expandedSubsection === sub._id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                                         </div>
-                                                        <span className="font-semibold text-gray-700 flex items-center gap-2">
-                                                            <Folder size={16} className="text-gray-400" />
+                                                        <span className="font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                                                            <Folder size={16} className="text-gray-400 dark:text-gray-500" />
                                                             {sub.title}
                                                         </span>
-                                                        <span className="text-xs text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full font-medium">
+                                                        <span className="text-xs text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-0.5 rounded-full font-medium">
                                                             {sub.problemIds?.length || 0} problems
                                                         </span>
                                                     </div>
@@ -327,7 +327,7 @@ const SectionManager = () => {
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteSubsection(section._id, sub._id)}
-                                                            className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg transition-colors"
+                                                            className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 p-1.5 rounded-lg transition-colors"
                                                             title="Delete Subsection"
                                                         >
                                                             <Trash2 size={16} />
@@ -337,7 +337,7 @@ const SectionManager = () => {
 
                                                 {/* Problems List */}
                                                 {expandedSubsection === sub._id && (
-                                                    <div className="border-t border-gray-100 bg-gray-50/30">
+                                                    <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-[#0a0f1a]/20">
                                                         {sub.problemIds && sub.problemIds.length > 0 ? (
                                                             <>
                                                                 {selectedToRemove.length > 0 && (
@@ -351,28 +351,28 @@ const SectionManager = () => {
                                                                         </button>
                                                                     </div>
                                                                 )}
-                                                                <ul className="divide-y divide-gray-100">
+                                                                <ul className="divide-y divide-gray-100 dark:divide-gray-700">
                                                                     {sub.problemIds.map(pid => {
                                                                         const problem = problemsMap[pid];
                                                                         const isChecked = selectedToRemove.includes(pid);
 
                                                                         return (
-                                                                            <li key={pid} className={`flex justify-between items-center text-sm p-3 transition-colors pl-4 group ${isChecked ? 'bg-red-50/40' : 'hover:bg-white'}`}>
+                                                                            <li key={pid} className={`flex justify-between items-center text-sm p-3 transition-colors pl-4 group ${isChecked ? 'bg-red-50/40 dark:bg-red-900/10' : 'hover:bg-white dark:hover:bg-[#141b2b]'}`}>
                                                                                 <div className="flex items-center space-x-3">
                                                                                     <input
                                                                                         type="checkbox"
                                                                                         checked={isChecked}
                                                                                         onChange={() => toggleProblemToRemove(pid)}
-                                                                                        className="w-4 h-4 text-primary-600 bg-white border-gray-300 rounded focus:ring-primary-500 mr-2 cursor-pointer"
+                                                                                        className="w-4 h-4 text-primary-600 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 mr-2 cursor-pointer"
                                                                                     />
-                                                                                    <FileText size={16} className="text-gray-400" />
-                                                                                    <span className="text-gray-700 font-medium">
+                                                                                    <FileText size={16} className="text-gray-400 dark:text-gray-500" />
+                                                                                    <span className="text-gray-700 dark:text-gray-200 font-medium">
                                                                                         {problem ? problem.title : 'Unknown Problem'}
                                                                                     </span>
                                                                                     {problem && (
-                                                                                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${problem.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
-                                                                                            problem.difficulty === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                                                                                                'bg-rose-100 text-rose-700'
+                                                                                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${problem.difficulty === 'Easy' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                                                                                            problem.difficulty === 'Medium' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' :
+                                                                                                'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400'
                                                                                             }`}>
                                                                                             {problem.difficulty}
                                                                                         </span>
@@ -380,7 +380,7 @@ const SectionManager = () => {
                                                                                 </div>
                                                                                 <button
                                                                                     onClick={() => handleRemoveProblem(section._id, sub._id, pid)}
-                                                                                    className="text-gray-300 hover:text-red-500 p-1.5 rounded hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                                                                                    className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
                                                                                     title="Remove from subsection"
                                                                                 >
                                                                                     <Trash2 size={14} />
@@ -392,8 +392,8 @@ const SectionManager = () => {
                                                             </>
                                                         ) : (
                                                             <div className="p-6 text-center">
-                                                                <p className="text-sm text-gray-400 flex flex-col items-center gap-2">
-                                                                    <Layers size={24} className="text-gray-300" />
+                                                                 <p className="text-sm text-gray-400 dark:text-gray-500 flex flex-col items-center gap-2">
+                                                                    <Layers size={24} className="text-gray-300 dark:text-gray-600" />
                                                                     No problems in this subsection
                                                                 </p>
                                                             </div>
@@ -403,14 +403,14 @@ const SectionManager = () => {
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl bg-white/50">
-                                            <p className="text-sm text-gray-500 mb-2">Each section needs at least one subsection to hold problems.</p>
+                                        <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl bg-white/50 dark:bg-gray-800/50">
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Each section needs at least one subsection to hold problems.</p>
                                             <button
                                                 onClick={() => {
                                                     setSelectedSectionId(section._id);
                                                     setShowCreateSubsectionModal(true);
                                                 }}
-                                                className="text-primary-600 font-medium text-sm hover:underline flex items-center justify-center gap-1"
+                                                className="text-primary-600 dark:text-primary-400 font-medium text-sm hover:underline flex items-center justify-center gap-1"
                                             >
                                                 <Plus size={14} /> Create your first subsection
                                             </button>
@@ -421,12 +421,12 @@ const SectionManager = () => {
                         </div>
                     ))}
                     {sections.length === 0 && (
-                        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Layers size={32} className="text-gray-300" />
+                        <div className="text-center py-16 bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                            <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Layers size={32} className="text-gray-300 dark:text-gray-600" />
                             </div>
-                            <h3 className="text-lg font-bold text-gray-900 mb-1">No curriculum content yet</h3>
-                            <p className="text-gray-500 mb-6 max-w-sm mx-auto">Start building your course structure by creating a section (e.g., "Data Structures").</p>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">No curriculum content yet</h3>
+                            <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">Start building your course structure by creating a section (e.g., "Data Structures").</p>
                             <button
                                 onClick={() => setShowCreateSectionModal(true)}
                                 className="btn-primary"
@@ -443,14 +443,14 @@ const SectionManager = () => {
                 <div className="modal-backdrop" onClick={() => setShowCreateSectionModal(false)}>
                     <div className="modal-content max-w-md" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-primary-50 text-primary-600 rounded-lg">
+                            <div className="p-2 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg">
                                 <Layers size={20} />
                             </div>
-                            <h2 className="text-xl font-bold text-gray-900">Create New Section</h2>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Create New Section</h2>
                         </div>
                         <form onSubmit={handleCreateSection} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Section Title</label>
+                             <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section Title</label>
                                 <input
                                     type="text"
                                     value={sectionTitle}
@@ -484,14 +484,14 @@ const SectionManager = () => {
                 <div className="modal-backdrop" onClick={() => setShowCreateSubsectionModal(false)}>
                     <div className="modal-content max-w-md" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-primary-50 text-primary-600 rounded-lg">
+                            <div className="p-2 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg">
                                 <Folder size={20} />
                             </div>
-                            <h2 className="text-xl font-bold text-gray-900">Add Subsection</h2>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Add Subsection</h2>
                         </div>
                         <form onSubmit={handleAddSubsection} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Subsection Title</label>
+                             <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subsection Title</label>
                                 <input
                                     type="text"
                                     value={subsectionTitle}
@@ -525,10 +525,10 @@ const SectionManager = () => {
                 <div className="modal-backdrop" onClick={() => setShowAddProblemModal(false)}>
                     <div className="modal-content max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-gray-900">Add Problem to Subsection</h2>
-                            <button onClick={() => setShowAddProblemModal(false)} className="text-gray-400 hover:text-gray-600">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Add Problem to Subsection</h2>
+                            <button onClick={() => setShowAddProblemModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
                                 <span className="sr-only">Close</span>
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                <X size={24} />
                             </button>
                         </div>
 

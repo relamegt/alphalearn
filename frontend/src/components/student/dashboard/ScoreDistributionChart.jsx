@@ -43,15 +43,18 @@ const ScoreDistributionChart = ({ leaderboardDetails }) => {
 
     if (data.length === 0) {
         return (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mt-6 h-64 flex items-center justify-center">
-                <p className="text-gray-400">No score data available</p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mt-6 h-64 flex flex-col items-center justify-center text-center">
+                <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 rounded-full w-12 h-12 flex items-center justify-center mb-3">
+                    <span className="text-xl">🥧</span>
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 font-medium">No score data available</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mt-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Score Distribution</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mt-6 Transition-all">
+            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Score Distribution</h3>
             <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -73,13 +76,14 @@ const ScoreDistributionChart = ({ leaderboardDetails }) => {
                                 if (active && payload && payload.length) {
                                     const data = payload[0];
                                     return (
-                                        <div className="bg-white p-2 border border-gray-100 shadow-md rounded text-xs">
-                                            <span className="font-semibold" style={{ color: data.payload.fill }}>
-                                                {data.name}:
-                                            </span>
-                                            <span className="ml-1 font-bold text-gray-700">
-                                                {data.value} Points
-                                            </span>
+                                        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-100 dark:border-gray-700 shadow-xl rounded-xl text-xs">
+                                            <p className="text-gray-400 dark:text-gray-500 text-[10px] uppercase font-bold mb-1 tracking-wider">{data.name}</p>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: data.payload.fill }}></div>
+                                                <span className="font-bold text-gray-900 dark:text-gray-100">
+                                                    {data.value} Points
+                                                </span>
+                                            </div>
                                         </div>
                                     );
                                 }

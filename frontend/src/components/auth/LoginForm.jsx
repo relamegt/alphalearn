@@ -87,7 +87,7 @@ const LoginForm = () => {
 
 
     return (
-        <div className="min-h-screen flex bg-white font-sans">
+        <div className="min-h-screen flex bg-white dark:bg-[#0a0f1a] font-sans transition-colors">
             {/* Left Side - Brand/Illustration */}
             <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-900 via-blue-900 to-indigo-800 justify-center items-center relative overflow-hidden">
                 {/* Decorative Background Elements */}
@@ -114,7 +114,7 @@ const LoginForm = () => {
             </div>
 
             {/* Right Side - Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-gray-50/50 relative">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-gray-50/50 dark:bg-[#0a0f1a] relative transition-colors">
                 <div className="max-w-md w-full space-y-8">
                     {/* Mobile Header */}
                     <div className="text-center lg:hidden">
@@ -139,7 +139,7 @@ const LoginForm = () => {
                     </div>
 
                     {/* Form container */}
-                    <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+                    <div className="bg-white dark:bg-[#0a0f1a] p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_30px_rgb(0,0,0,0.4)]">
                         <form className="space-y-6" onSubmit={handleSubmit}>
                             <div className="space-y-5">
                                 {/* Email Field */}

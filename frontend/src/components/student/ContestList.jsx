@@ -41,16 +41,16 @@ const ContestList = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50/50 pb-20">
+            <div className="min-h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] pb-20 transition-colors">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
                     {/* Header Skeleton */}
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-200 pb-6 animate-pulse">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-200 dark:border-gray-800 pb-6 animate-pulse">
                         <div>
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
-                                <div className="w-64 h-8 bg-gray-200 rounded"></div>
+                                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
+                                <div className="w-64 h-8 bg-gray-200 dark:bg-gray-800 rounded"></div>
                             </div>
-                            <div className="w-96 h-5 bg-gray-200 rounded mt-4 ml-1"></div>
+                            <div className="w-96 h-5 bg-gray-200 dark:bg-gray-800 rounded mt-4 ml-1"></div>
                         </div>
                     </div>
 
@@ -83,14 +83,14 @@ const ContestList = () => {
     const pastContests = contests.filter(c => getContestStatus(c) === 'past');
 
     return (
-        <div className="min-h-screen bg-gray-50/50 pb-20">
+        <div className="min-h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] pb-20 transition-colors">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-200 pb-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
-                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight flex items-center gap-3">
+                            <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
                                 <Trophy size={28} />
                             </div>
                             Internal Contests
