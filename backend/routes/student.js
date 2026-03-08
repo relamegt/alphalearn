@@ -36,6 +36,7 @@ router.post('/external-profiles/sync', profileSyncLimiter, requireBatch, profile
 // Code submission
 router.post('/code/run', codeExecutionLimiter, validateSubmission, submissionController.runCode);
 router.post('/code/submit', codeExecutionLimiter, validateSubmission, submissionController.submitCode);
+router.post('/code/:problemId/complete', validateObjectId('problemId'), submissionController.markProblemComplete);
 
 // Submissions
 router.get('/submissions', submissionController.getStudentSubmissions);

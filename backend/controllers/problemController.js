@@ -88,6 +88,7 @@ const getAllProblems = async (req, res) => {
                 id: p.slug || p._id,
                 _id: p._id,
                 title: p.title,
+                type: p.type || 'problem',
                 difficulty: p.difficulty,
                 points: p.points,
                 createdAt: p.createdAt,
@@ -124,6 +125,19 @@ const getProblemById = async (req, res) => {
                 problem.isSolved = progress.problemsSolved.some(id => id.toString() === problem._id.toString());
             } else {
                 problem.isSolved = false;
+            }
+
+            // If it's a solved quiz, try to load the saved answers so they persist on refresh
+            if (problem.isSolved && problem.type === 'quiz') {
+                try {
+                    const Submission = require('../models/Submission');
+                    const subs = await Submission.findByStudentAndProblem(req.user.userId, problem._id.toString());
+                    if (subs && subs.length > 0 && subs[0].language === 'json') {
+                        problem.savedAnswers = JSON.parse(subs[0].code);
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse saved quiz answers', e);
+                }
             }
         }
 

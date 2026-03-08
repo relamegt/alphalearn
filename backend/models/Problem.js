@@ -24,6 +24,8 @@ class Problem {
             slug: await uniqueSlug(problemData.title),
             title: problemData.title,
             section: problemData.section,
+            type: problemData.type || 'problem',
+            quizQuestions: problemData.quizQuestions || [],
             difficulty: problemData.difficulty, // 'Easy' | 'Medium' | 'Hard'
             points: problemData.difficulty === 'Easy' ? 20 : problemData.difficulty === 'Medium' ? 50 : 100,
             description: problemData.description,
@@ -183,6 +185,8 @@ class Problem {
             slug: await uniqueSlug(p.title),
             title: p.title,
             section: p.section,
+            type: p.type || 'problem',
+            quizQuestions: p.quizQuestions || [],
             difficulty: p.difficulty,
             points: p.difficulty === 'Easy' ? 20 : p.difficulty === 'Medium' ? 50 : 100,
             description: p.description,

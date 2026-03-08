@@ -464,6 +464,7 @@ const SectionHeader = ({ title, expanded, count, onClick, noToggle }) => {
 // ── Problem Row ──────────────────────────────────────────────────────────────
 const ProblemRow = ({ problem, active, indent, onClick }) => {
     const d = DIFF_COLORS[problem.difficulty] || DIFF_COLORS.Easy;
+    const isNonCoding = problem.type === 'quiz' || problem.type === 'material';
 
     return (
         <div
@@ -490,12 +491,14 @@ const ProblemRow = ({ problem, active, indent, onClick }) => {
                 {problem.title}
             </span>
 
-            <span className={`
-                text-[10px] uppercase font-bold px-2 py-0.5 rounded-full shrink-0 tracking-wide
-                ${d.bg} ${d.text}
-            `}>
-                {problem.difficulty === 'Medium' ? 'Med' : problem.difficulty}
-            </span>
+            {!isNonCoding && (
+                <span className={`
+                    text-[10px] uppercase font-bold px-2 py-0.5 rounded-full shrink-0 tracking-wide
+                    ${d.bg} ${d.text}
+                `}>
+                    {problem.difficulty === 'Medium' ? 'Med' : problem.difficulty}
+                </span>
+            )}
         </div>
     );
 };

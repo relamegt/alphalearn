@@ -55,6 +55,7 @@ const ProblemManager = () => {
 
     const [formData, setFormData] = useState({
         title: '',
+        type: 'problem', // 'problem', 'quiz', 'material'
         difficulty: 'Easy',
         points: 20,
         description: '',
@@ -65,6 +66,7 @@ const ProblemManager = () => {
         editorialLink: '',
         videoUrl: '',
         solutionCode: {},
+        quizQuestions: [{ questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]
     });
 
     const [bulkFile, setBulkFile] = useState(null);
@@ -244,6 +246,7 @@ const ProblemManager = () => {
             setEditingProblem(problem);
             setFormData({
                 title: p.title,
+                type: p.type || 'problem',
                 difficulty: p.difficulty,
                 points: p.points,
                 description: p.description,
@@ -254,6 +257,7 @@ const ProblemManager = () => {
                 editorialLink: p.editorialLink || '',
                 videoUrl: p.videoUrl || '',
                 solutionCode: p.solutionCode || {},
+                quizQuestions: p.quizQuestions || [{ questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]
             });
             setShowEditModal(true);
         } catch (error) {
@@ -265,6 +269,7 @@ const ProblemManager = () => {
     const resetForm = () => {
         setFormData({
             title: '',
+            type: 'problem',
             difficulty: 'Easy',
             points: 20,
             description: '',
@@ -275,6 +280,7 @@ const ProblemManager = () => {
             editorialLink: '',
             videoUrl: '',
             solutionCode: {},
+            quizQuestions: [{ questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]
         });
     };
 
@@ -304,6 +310,23 @@ const ProblemManager = () => {
         setFormData({ ...formData, testCases: updated });
     };
 
+    const addQuizQuestion = () => {
+        setFormData({
+            ...formData,
+            quizQuestions: [...formData.quizQuestions, { questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]
+        });
+    };
+
+    const updateQuizQuestion = (idx, field, val, optionIdx = null) => {
+        const updated = [...formData.quizQuestions];
+        if (field === 'options' && optionIdx !== null) {
+            updated[idx].options[optionIdx] = val;
+        } else {
+            updated[idx][field] = val;
+        }
+        setFormData({ ...formData, quizQuestions: updated });
+    };
+
     // Helper to remove items
     const removeItem = (type, idx) => {
         if (type === 'example') {
@@ -312,6 +335,9 @@ const ProblemManager = () => {
         } else if (type === 'testCase') {
             const updated = formData.testCases.filter((_, i) => i !== idx);
             setFormData({ ...formData, testCases: updated });
+        } else if (type === 'quizQuestion') {
+            const updated = formData.quizQuestions.filter((_, i) => i !== idx);
+            setFormData({ ...formData, quizQuestions: updated });
         }
     };
 
@@ -319,12 +345,13 @@ const ProblemManager = () => {
         const sample = [
             {
                 title: 'Right-Angle Triangle Pattern',
+                type: 'problem',
                 difficulty: 'Easy',
                 description: 'Given an integer N, print a right-angled triangle pattern of stars (`*`) with N rows. Each row must be printed on a new line.\n\n**Input Format:**\n- An integer N representing the number of rows.',
                 constraints: ['1 <= N <= 1000'],
                 examples: [
                     {
-                        input: '3',
+                        input: '3', // As a string
                         output: '*\n**\n***',
                         explanation: 'A right-angled triangle of height 3.',
                     },
@@ -343,6 +370,7 @@ const ProblemManager = () => {
             },
             {
                 title: "Largest Element in Array",
+                type: "problem",
                 difficulty: "Easy",
                 description: "Given an array of integers `arr` of size `N`, find and return the **largest element** in the array.\n\n**Input Format:**\n- First line: integer `N`.\n- Second line: `N` space-separated integers.\n\n**Output Format:**\n- Print a single integer — the largest element.",
                 constraints: [
@@ -385,8 +413,33 @@ const ProblemManager = () => {
                     "python": "n = int(input())\narr = list(map(int, input().split()))\nprint(max(arr))",
                     "cpp": "#include <iostream>\n#include <vector>\n#include <algorithm>\nusing namespace std;\nint main() {\n    int n; cin >> n;\n    int mx = -2e9;\n    for(int i=0; i<n; i++) { int x; cin >> x; mx = max(mx, x); }\n    cout << mx << endl;\n    return 0;\n}"
                 }
+            },
+            {
+                title: "Introduction to Big O",
+                type: "material",
+                difficulty: "Easy",
+                description: "## Material Only Example\n\nStudy material does not require any submissions or test cases. Users simply read the content and mark it as complete. You can embed images like `![alt](url)` and format text with markdown.\n\n### Basics of Algorithm Complexity\n- Time Complexity measures how the runtime scales.\n- Space Complexity measures how the memory usage scales.",
+                editorialLink: "https://example.com/big-o",
+                videoUrl: "https://youtube.com/watch?placeholder"
+            },
+            {
+                title: "Data Structures Quiz",
+                type: "quiz",
+                difficulty: "Medium",
+                description: "Test your knowledge of basic data structures. You need to score at least 75% to pass.",
+                quizQuestions: [
+                    {
+                        question: "Which data structure follows the Last In First Out (LIFO) principle?",
+                        options: ["Queue", "Stack", "Linked List", "Binary Tree"],
+                        correctAnswer: 1
+                    },
+                    {
+                        question: "What is the average time complexity for a search operation in a Hash Map?",
+                        options: ["O(1)", "O(log N)", "O(N)", "O(N^2)"],
+                        correctAnswer: 0
+                    }
+                ]
             }
-
         ];
 
         const blob = new Blob([JSON.stringify(sample, null, 2)], { type: 'application/json' });
@@ -398,6 +451,12 @@ const ProblemManager = () => {
     };
 
     // Dropdown options
+    const typeOptions = [
+        { value: 'problem', label: 'Coding Problem' },
+        { value: 'quiz', label: 'Quiz' },
+        { value: 'material', label: 'Study Material' }
+    ];
+
     const difficultyOptions = [
         { value: 'all', label: 'All Difficulties' },
         ...DIFFICULTIES.map(d => ({ value: d, label: d }))
@@ -508,6 +567,7 @@ const ProblemManager = () => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="font-semibold text-gray-900">{problem.title}</div>
+                                            <div className="text-xs text-gray-500 mt-1 capitalize">{problem.type || 'problem'}</div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${problem.difficulty === 'Easy' ? 'bg-green-50 text-green-700 border-green-100' :
@@ -568,9 +628,9 @@ const ProblemManager = () => {
 
                         <div className="overflow-y-auto p-6 flex-1">
                             <form id="problemForm" onSubmit={showEditModal ? handleUpdateProblem : handleCreateProblem} className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Problem Title <span className="text-red-500">*</span></label>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Title <span className="text-red-500">*</span></label>
                                         <input
                                             type="text"
                                             value={formData.title}
@@ -580,6 +640,17 @@ const ProblemManager = () => {
                                             placeholder="e.g. Valid Palindrome"
                                         />
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Type</label>
+                                        <CustomDropdown
+                                            options={typeOptions}
+                                            value={formData.type}
+                                            onChange={(val) => setFormData({ ...formData, type: val })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1.5">Difficulty</label>
                                         <CustomDropdown
@@ -592,9 +663,6 @@ const ProblemManager = () => {
                                             })}
                                         />
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
                                             <Award size={16} className="text-gray-400" /> Points
@@ -620,184 +688,240 @@ const ProblemManager = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Description <span className="text-red-500">*</span></label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Description (Markdown Supported) <span className="text-red-500">*</span></label>
                                     <textarea
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                         className="input-field w-full min-h-[150px]"
-                                        placeholder="Supports Markdown..."
+                                        placeholder="Supports Markdown... (For materials, this is the main content)"
                                         required
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Constraints</label>
-                                    <textarea
-                                        value={formData.constraints.join(', ')}
-                                        onChange={(e) => setFormData({
-                                            ...formData,
-                                            constraints: e.target.value.split(',').map(c => c.trim())
-                                        })}
-                                        className="input-field w-full font-mono text-sm"
-                                        rows="2"
-                                        placeholder="Comma separated, e.g. 1 <= n <= 100, 0 <= nums[i] <= 1000"
-                                    />
-                                </div>
-
-                                {/* Examples */}
-                                <div className="space-y-4 pt-4 border-t border-gray-100">
-                                    <div className="flex justify-between items-center">
-                                        <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                                            <List size={16} /> Examples
-                                        </label>
-                                        <button type="button" onClick={addExample} className="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline">
-                                            + Add Example
-                                        </button>
-                                    </div>
-                                    {formData.examples.map((example, idx) => (
-                                        <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-200 relative group">
-                                            <button type="button" onClick={() => removeItem('example', idx)} className="absolute right-2 top-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <X size={16} />
-                                            </button>
-                                            <div className="grid grid-cols-2 gap-3 mb-2">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Input"
-                                                    value={example.input}
-                                                    onChange={(e) => updateExample(idx, 'input', e.target.value)}
-                                                    className="input-field text-sm font-mono"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Output"
-                                                    value={example.output}
-                                                    onChange={(e) => updateExample(idx, 'output', e.target.value)}
-                                                    className="input-field text-sm font-mono"
-                                                />
-                                            </div>
-                                            <input
-                                                type="text"
-                                                placeholder="Explanation (Optional)"
-                                                value={example.explanation}
-                                                onChange={(e) => updateExample(idx, 'explanation', e.target.value)}
-                                                className="input-field w-full text-sm"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Test Cases */}
-                                <div className="space-y-4 pt-4 border-t border-gray-100">
-                                    <div className="flex justify-between items-center">
-                                        <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                                            <CheckCircle size={16} /> Test Cases
-                                        </label>
-                                        <button type="button" onClick={addTestCase} className="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline">
-                                            + Add Test Case
-                                        </button>
-                                    </div>
-                                    {formData.testCases.map((tc, idx) => (
-                                        <div key={idx} className="bg-gray-900 rounded-xl p-4 border border-gray-800 relative group">
-                                            <button type="button" onClick={() => removeItem('testCase', idx)} className="absolute right-2 top-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <X size={16} />
-                                            </button>
-                                            <div className="grid grid-cols-2 gap-3 mb-3">
-                                                <textarea
-                                                    placeholder="Input"
-                                                    value={tc.input}
-                                                    onChange={(e) => updateTestCase(idx, 'input', e.target.value)}
-                                                    className="w-full bg-gray-800 border-gray-700 rounded-lg p-2 text-sm font-mono text-white focus:ring-1 focus:ring-primary-500 focus:outline-none"
-                                                    rows="2"
-                                                />
-                                                <textarea
-                                                    placeholder="Expected Output"
-                                                    value={tc.output}
-                                                    onChange={(e) => updateTestCase(idx, 'output', e.target.value)}
-                                                    className="w-full bg-gray-800 border-gray-700 rounded-lg p-2 text-sm font-mono text-white focus:ring-1 focus:ring-primary-500 focus:outline-none"
-                                                    rows="2"
-                                                />
-                                            </div>
-                                            <label className="flex items-center space-x-2 cursor-pointer select-none">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={tc.isHidden}
-                                                    onChange={(e) => updateTestCase(idx, 'isHidden', e.target.checked)}
-                                                    className="rounded bg-gray-700 border-gray-600 text-primary-500 focus:ring-offset-gray-900"
-                                                />
-                                                <span className="text-xs font-medium text-gray-400">Hidden Test Case</span>
-                                            </label>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Reference Solution */}
-                                <div className="space-y-3 pt-4 border-t border-gray-100">
-                                    <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                                        <Code2 size={16} /> Reference Solution (Optional)
-                                    </label>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
-                                            C++ Solution Code (Used to generate expected outputs for custom test cases)
-                                        </label>
-                                        <div className="h-64 border border-gray-200 rounded-lg overflow-hidden">
-                                            <Editor
-                                                height="100%"
-                                                language="cpp"
-                                                theme="light"
-                                                value={formData.solutionCode?.cpp || ''}
-                                                onChange={(val) => setFormData({
+                                {formData.type === 'problem' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Constraints</label>
+                                            <textarea
+                                                value={formData.constraints.join(', ')}
+                                                onChange={(e) => setFormData({
                                                     ...formData,
-                                                    solutionCode: {
-                                                        ...formData.solutionCode,
-                                                        cpp: val
-                                                    }
+                                                    constraints: e.target.value.split(',').map(c => c.trim())
                                                 })}
-                                                options={{
-                                                    minimap: { enabled: false },
-                                                    fontSize: 13,
-                                                    scrollBeyondLastLine: false,
-                                                }}
+                                                className="input-field w-full font-mono text-sm"
+                                                rows="2"
+                                                placeholder="Comma separated, e.g. 1 <= n <= 100, 0 <= nums[i] <= 1000"
                                             />
                                         </div>
-                                        <p className="text-[10px] text-gray-400 mt-2">You can add reference solutions in other languages via the <Code2 size={10} className="inline mx-0.5" /> button in the problem list.</p>
-                                    </div>
-                                </div>
 
-                                {/* Editorial Links */}
-                                <div className="space-y-3 pt-4 border-t border-gray-100">
-                                    <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                                        <Link size={16} /> Editorial Links
-                                    </label>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
-                                            <Link size={12} className="text-gray-400" /> GitHub Editorial URL
-                                        </label>
-                                        <input
-                                            type="url"
-                                            value={formData.editorialLink}
-                                            onChange={(e) => setFormData({ ...formData, editorialLink: e.target.value })}
-                                            className="input-field w-full font-mono text-sm"
-                                            placeholder="https://github.com/user/repo/blob/main/editorial.md"
-                                        />
-                                        <p className="text-[10px] text-gray-400 mt-1">Raw or blob GitHub URL — will be fetched and rendered as markdown.</p>
+                                        {/* Examples */}
+                                        <div className="space-y-4 pt-4 border-t border-gray-100">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                                    <List size={16} /> Examples
+                                                </label>
+                                                <button type="button" onClick={addExample} className="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline">
+                                                    + Add Example
+                                                </button>
+                                            </div>
+                                            {formData.examples.map((example, idx) => (
+                                                <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-200 relative group">
+                                                    <button type="button" onClick={() => removeItem('example', idx)} className="absolute right-2 top-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <X size={16} />
+                                                    </button>
+                                                    <div className="grid grid-cols-2 gap-3 mb-2">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Input"
+                                                            value={example.input}
+                                                            onChange={(e) => updateExample(idx, 'input', e.target.value)}
+                                                            className="input-field text-sm font-mono"
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Output"
+                                                            value={example.output}
+                                                            onChange={(e) => updateExample(idx, 'output', e.target.value)}
+                                                            className="input-field text-sm font-mono"
+                                                        />
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Explanation (Optional)"
+                                                        value={example.explanation}
+                                                        onChange={(e) => updateExample(idx, 'explanation', e.target.value)}
+                                                        className="input-field w-full text-sm"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Test Cases */}
+                                        <div className="space-y-4 pt-4 border-t border-gray-100">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                                    <CheckCircle size={16} /> Test Cases
+                                                </label>
+                                                <button type="button" onClick={addTestCase} className="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline">
+                                                    + Add Test Case
+                                                </button>
+                                            </div>
+                                            {formData.testCases.map((tc, idx) => (
+                                                <div key={idx} className="bg-gray-900 rounded-xl p-4 border border-gray-800 relative group">
+                                                    <button type="button" onClick={() => removeItem('testCase', idx)} className="absolute right-2 top-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <X size={16} />
+                                                    </button>
+                                                    <div className="grid grid-cols-2 gap-3 mb-3">
+                                                        <textarea
+                                                            placeholder="Input"
+                                                            value={tc.input}
+                                                            onChange={(e) => updateTestCase(idx, 'input', e.target.value)}
+                                                            className="w-full bg-gray-800 border-gray-700 rounded-lg p-2 text-sm font-mono text-white focus:ring-1 focus:ring-primary-500 focus:outline-none"
+                                                            rows="2"
+                                                        />
+                                                        <textarea
+                                                            placeholder="Expected Output"
+                                                            value={tc.output}
+                                                            onChange={(e) => updateTestCase(idx, 'output', e.target.value)}
+                                                            className="w-full bg-gray-800 border-gray-700 rounded-lg p-2 text-sm font-mono text-white focus:ring-1 focus:ring-primary-500 focus:outline-none"
+                                                            rows="2"
+                                                        />
+                                                    </div>
+                                                    <label className="flex items-center space-x-2 cursor-pointer select-none">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={tc.isHidden}
+                                                            onChange={(e) => updateTestCase(idx, 'isHidden', e.target.checked)}
+                                                            className="rounded bg-gray-700 border-gray-600 text-primary-500 focus:ring-offset-gray-900"
+                                                        />
+                                                        <span className="text-xs font-medium text-gray-400">Hidden Test Case</span>
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Reference Solution */}
+                                        <div className="space-y-3 pt-4 border-t border-gray-100">
+                                            <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                                <Code2 size={16} /> Reference Solution (Optional)
+                                            </label>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
+                                                    C++ Solution Code (Used to generate expected outputs for custom test cases)
+                                                </label>
+                                                <div className="h-64 border border-gray-200 rounded-lg overflow-hidden">
+                                                    <Editor
+                                                        height="100%"
+                                                        language="cpp"
+                                                        theme="light"
+                                                        value={formData.solutionCode?.cpp || ''}
+                                                        onChange={(val) => setFormData({
+                                                            ...formData,
+                                                            solutionCode: {
+                                                                ...formData.solutionCode,
+                                                                cpp: val
+                                                            }
+                                                        })}
+                                                        options={{
+                                                            minimap: { enabled: false },
+                                                            fontSize: 13,
+                                                            scrollBeyondLastLine: false,
+                                                        }}
+                                                    />
+                                                </div>
+                                                <p className="text-[10px] text-gray-400 mt-2">You can add reference solutions in other languages via the <Code2 size={10} className="inline mx-0.5" /> button in the problem list.</p>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {formData.type === 'quiz' && (
+                                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                                <List size={16} /> Quiz Questions
+                                            </label>
+                                            <button type="button" onClick={addQuizQuestion} className="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline">
+                                                + Add Question
+                                            </button>
+                                        </div>
+                                        {formData.quizQuestions.map((q, idx) => (
+                                            <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-200 relative group">
+                                                <button type="button" onClick={() => removeItem('quizQuestion', idx)} className="absolute right-2 top-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <X size={16} />
+                                                </button>
+                                                <div className="mb-3">
+                                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Question {idx + 1}</label>
+                                                    <input
+                                                        type="text"
+                                                        value={q.questionText}
+                                                        onChange={(e) => updateQuizQuestion(idx, 'questionText', e.target.value)}
+                                                        className="input-field w-full text-sm"
+                                                        placeholder="Enter question text here..."
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    {q.options.map((opt, optIdx) => (
+                                                        <div key={optIdx} className="flex items-center gap-2">
+                                                            <input
+                                                                type="radio"
+                                                                name={`correct_opt_${idx}`}
+                                                                checked={q.correctOptionIndex === optIdx}
+                                                                onChange={() => updateQuizQuestion(idx, 'correctOptionIndex', optIdx)}
+                                                                className="text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                                            />
+                                                            <input
+                                                                type="text"
+                                                                value={opt}
+                                                                onChange={(e) => updateQuizQuestion(idx, 'options', e.target.value, optIdx)}
+                                                                className="input-field w-full text-sm py-1.5"
+                                                                placeholder={`Option ${optIdx + 1}`}
+                                                                required={q.correctOptionIndex === optIdx || opt.length > 0}
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <p className="text-[10px] text-gray-500 mt-2 ml-6">Select the radio button next to the correct answer.</p>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
-                                            <Youtube size={13} className="text-red-500" /> YouTube Video URL (optional)
+                                )}
+
+                                {(formData.type === 'problem' || formData.type === 'material') && (
+                                    <div className="space-y-3 pt-4 border-t border-gray-100">
+                                        <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                            <Link size={16} /> {formData.type === 'material' ? 'Material Additional Links' : 'Editorial Links'}
                                         </label>
-                                        <input
-                                            type="url"
-                                            value={formData.videoUrl}
-                                            onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-                                            className="input-field w-full font-mono text-sm"
-                                            placeholder="https://www.youtube.com/watch?v=..."
-                                        />
-                                        <p className="text-[10px] text-gray-400 mt-1">Video will appear above the editorial when available.</p>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
+                                                <Link size={12} className="text-gray-400" /> GitHub Content URL (Markdown file to fetch)
+                                            </label>
+                                            <input
+                                                type="url"
+                                                value={formData.editorialLink}
+                                                onChange={(e) => setFormData({ ...formData, editorialLink: e.target.value })}
+                                                className="input-field w-full font-mono text-sm"
+                                                placeholder="https://github.com/user/repo/blob/main/content.md"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
+                                                <Youtube size={13} className="text-red-500" /> YouTube Video URL (optional)
+                                            </label>
+                                            <input
+                                                type="url"
+                                                value={formData.videoUrl}
+                                                onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                                                className="input-field w-full font-mono text-sm"
+                                                placeholder="https://www.youtube.com/watch?v=..."
+                                            />
+                                            <p className="text-[10px] text-gray-400 mt-1">Video will appear at the top.</p>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </form>
                         </div>
-
                         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
                             <button
                                 type="button"
@@ -883,182 +1007,184 @@ const ProblemManager = () => {
                         </div>
                     </div>
                 </div>
-            )}
+            )
+            }
             {/* Solution Code Modal — full fixed overlay, bypasses any container clipping */}
-            {showSolutionModal && (
-                <div
-                    style={{
-                        position: 'fixed', inset: 0, zIndex: 9999,
-                        background: 'rgba(15,15,25,0.72)',
-                        backdropFilter: 'blur(6px)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        padding: '24px'
-                    }}
-                    onClick={() => setShowSolutionModal(false)}
-                >
+            {
+                showSolutionModal && (
                     <div
                         style={{
-                            background: '#fff', borderRadius: '20px',
-                            width: '100%', maxWidth: '900px',
-                            maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-                            boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
-                            overflow: 'hidden',
-                            border: '1px solid rgba(255,255,255,0.08)'
+                            position: 'fixed', inset: 0, zIndex: 9999,
+                            background: 'rgba(15,15,25,0.72)',
+                            backdropFilter: 'blur(6px)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            padding: '24px'
                         }}
-                        onClick={e => e.stopPropagation()}
+                        onClick={() => setShowSolutionModal(false)}
                     >
-                        {/* ── Header ── */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #f0f0f5', background: 'linear-gradient(135deg,#f8f7ff 0%,#fff 100%)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                                <div style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(124,58,237,0.3)' }}>
-                                    <Code2 size={20} color="#fff" />
+                        <div
+                            style={{
+                                background: '#fff', borderRadius: '20px',
+                                width: '100%', maxWidth: '900px',
+                                maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+                                boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
+                                overflow: 'hidden',
+                                border: '1px solid rgba(255,255,255,0.08)'
+                            }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* ── Header ── */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #f0f0f5', background: 'linear-gradient(135deg,#f8f7ff 0%,#fff 100%)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                    <div style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(124,58,237,0.3)' }}>
+                                        <Code2 size={20} color="#fff" />
+                                    </div>
+                                    <div>
+                                        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a2e', margin: 0 }}>Reference Solution</h2>
+                                        <p style={{ fontSize: '12px', color: '#7c3aed', margin: '2px 0 0', fontWeight: 500, background: '#f3f0ff', padding: '2px 8px', borderRadius: '20px', display: 'inline-block' }}>
+                                            {solutionProblem?.title}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a2e', margin: 0 }}>Reference Solution</h2>
-                                    <p style={{ fontSize: '12px', color: '#7c3aed', margin: '2px 0 0', fontWeight: 500, background: '#f3f0ff', padding: '2px 8px', borderRadius: '20px', display: 'inline-block' }}>
-                                        {solutionProblem?.title}
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setShowSolutionModal(false)}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '10px', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}
-                                onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                            >
-                                <X size={22} />
-                            </button>
-                        </div>
-
-                        {/* ── Info banner ── */}
-                        <div style={{ padding: '10px 24px', background: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <AlertTriangle size={14} color="#d97706" />
-                            <span style={{ fontSize: '12px', color: '#92400e', fontWeight: 500 }}>
-                                When a student runs their code with custom input, the backend also executes this reference solution to generate the expected output.
-                            </span>
-                        </div>
-
-                        {/* ── Language tabs (IDE-style) ── */}
-                        <div style={{ display: 'flex', alignItems: 'center', background: '#1e1e2e', padding: '0 16px', borderBottom: '1px solid #2d2d3f', gap: '2px', minHeight: '44px' }}>
-                            {[
-                                { id: 'c', label: 'C' },
-                                { id: 'cpp', label: 'C++' },
-                                { id: 'java', label: 'Java' },
-                                { id: 'python', label: 'Python' },
-                                { id: 'javascript', label: 'JavaScript' },
-                            ].map(({ id, label }) => {
-                                const isActive = solutionLang === id;
-                                return (
-                                    <button
-                                        key={id}
-                                        onClick={async () => {
-                                            setSolutionLang(id);
-                                            try {
-                                                const data = await problemService.getProblemById(solutionProblem.id || solutionProblem._id);
-                                                setSolutionCodeVal(data.problem?.solutionCode?.[id] || '');
-                                            } catch (error) { console.error('Failed fetching solution', error); }
-                                        }}
-                                        style={{
-                                            background: isActive ? '#fff' : 'transparent',
-                                            border: 'none',
-                                            borderRadius: '8px 8px 0 0',
-                                            padding: '8px 16px',
-                                            fontSize: '12px',
-                                            fontWeight: isActive ? 700 : 500,
-                                            color: isActive ? '#7c3aed' : '#9ca3af',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.15s',
-                                            position: 'relative',
-                                            letterSpacing: '0.01em',
-                                        }}
-                                    >
-                                        {label}
-                                        {isActive && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: '#7c3aed', borderRadius: '2px 2px 0 0' }} />}
-                                    </button>
-                                );
-                            })}
-                            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ fontSize: '11px', color: '#6b7280', background: '#2d2d3f', padding: '3px 10px', borderRadius: '20px' }}>
-                                    {solutionCode?.trim() ? `${solutionCode.split('\n').length} lines` : 'empty'}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* ── Monaco Editor ── */}
-                        <div style={{ height: '380px', flexShrink: 0 }}>
-                            <Editor
-                                height="380px"
-                                language={
-                                    solutionLang === 'cpp' ? 'cpp' :
-                                        solutionLang === 'c' ? 'c' :
-                                            solutionLang === 'java' ? 'java' :
-                                                solutionLang === 'python' ? 'python' :
-                                                    'javascript'
-                                }
-                                value={solutionCode}
-                                onChange={val => setSolutionCodeVal(val || '')}
-                                theme="vs-dark"
-                                options={{
-                                    minimap: { enabled: false },
-                                    fontSize: 13,
-                                    fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
-                                    fontLigatures: true,
-                                    lineNumbers: 'on',
-                                    scrollBeyondLastLine: false,
-                                    automaticLayout: true,
-                                    padding: { top: 12, bottom: 12 },
-                                    renderLineHighlight: 'gutter',
-                                    cursorBlinking: 'smooth',
-                                }}
-                            />
-                        </div>
-
-                        {/* ── Footer ── */}
-                        <div style={{ padding: '16px 24px', borderTop: '1px solid #e5e7eb', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                            <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>
-                                💡 This solution is executed server-side and never shown to students. Only the output is compared.
-                            </p>
-                            <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
                                 <button
                                     onClick={() => setShowSolutionModal(false)}
-                                    style={{ padding: '9px 18px', borderRadius: '10px', border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.borderColor = '#d1d5db'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e5e7eb'; }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '10px', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
                                 >
-                                    Cancel
+                                    <X size={22} />
                                 </button>
-                                <button
-                                    onClick={handleSaveSolution}
-                                    disabled={savingSolution}
-                                    style={{
-                                        padding: '9px 20px', borderRadius: '10px', border: 'none',
-                                        background: savingSolution ? '#a78bfa' : 'linear-gradient(135deg,#7c3aed,#6d28d9)',
-                                        color: '#fff', fontSize: '13px', fontWeight: 700,
-                                        cursor: savingSolution ? 'not-allowed' : 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: '8px',
-                                        boxShadow: '0 4px 14px rgba(124,58,237,0.35)',
-                                        transition: 'all 0.15s'
+                            </div>
+
+                            {/* ── Info banner ── */}
+                            <div style={{ padding: '10px 24px', background: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <AlertTriangle size={14} color="#d97706" />
+                                <span style={{ fontSize: '12px', color: '#92400e', fontWeight: 500 }}>
+                                    When a student runs their code with custom input, the backend also executes this reference solution to generate the expected output.
+                                </span>
+                            </div>
+
+                            {/* ── Language tabs (IDE-style) ── */}
+                            <div style={{ display: 'flex', alignItems: 'center', background: '#1e1e2e', padding: '0 16px', borderBottom: '1px solid #2d2d3f', gap: '2px', minHeight: '44px' }}>
+                                {[
+                                    { id: 'c', label: 'C' },
+                                    { id: 'cpp', label: 'C++' },
+                                    { id: 'java', label: 'Java' },
+                                    { id: 'python', label: 'Python' },
+                                    { id: 'javascript', label: 'JavaScript' },
+                                ].map(({ id, label }) => {
+                                    const isActive = solutionLang === id;
+                                    return (
+                                        <button
+                                            key={id}
+                                            onClick={async () => {
+                                                setSolutionLang(id);
+                                                try {
+                                                    const data = await problemService.getProblemById(solutionProblem.id || solutionProblem._id);
+                                                    setSolutionCodeVal(data.problem?.solutionCode?.[id] || '');
+                                                } catch (error) { console.error('Failed fetching solution', error); }
+                                            }}
+                                            style={{
+                                                background: isActive ? '#fff' : 'transparent',
+                                                border: 'none',
+                                                borderRadius: '8px 8px 0 0',
+                                                padding: '8px 16px',
+                                                fontSize: '12px',
+                                                fontWeight: isActive ? 700 : 500,
+                                                color: isActive ? '#7c3aed' : '#9ca3af',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s',
+                                                position: 'relative',
+                                                letterSpacing: '0.01em',
+                                            }}
+                                        >
+                                            {label}
+                                            {isActive && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: '#7c3aed', borderRadius: '2px 2px 0 0' }} />}
+                                        </button>
+                                    );
+                                })}
+                                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ fontSize: '11px', color: '#6b7280', background: '#2d2d3f', padding: '3px 10px', borderRadius: '20px' }}>
+                                        {solutionCode?.trim() ? `${solutionCode.split('\n').length} lines` : 'empty'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* ── Monaco Editor ── */}
+                            <div style={{ height: '380px', flexShrink: 0 }}>
+                                <Editor
+                                    height="380px"
+                                    language={
+                                        solutionLang === 'cpp' ? 'cpp' :
+                                            solutionLang === 'c' ? 'c' :
+                                                solutionLang === 'java' ? 'java' :
+                                                    solutionLang === 'python' ? 'python' :
+                                                        'javascript'
+                                    }
+                                    value={solutionCode}
+                                    onChange={val => setSolutionCodeVal(val || '')}
+                                    theme="vs-dark"
+                                    options={{
+                                        minimap: { enabled: false },
+                                        fontSize: 13,
+                                        fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                                        fontLigatures: true,
+                                        lineNumbers: 'on',
+                                        scrollBeyondLastLine: false,
+                                        automaticLayout: true,
+                                        padding: { top: 12, bottom: 12 },
+                                        renderLineHighlight: 'gutter',
+                                        cursorBlinking: 'smooth',
                                     }}
-                                    onMouseEnter={e => { if (!savingSolution) { e.currentTarget.style.boxShadow = '0 6px 20px rgba(124,58,237,0.5)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
-                                    onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(124,58,237,0.35)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                                >
-                                    {savingSolution ? (
-                                        <>
-                                            <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            Saving...
-                                        </>
-                                    ) : (
-                                        <><CheckCircle size={15} /> Save {solutionLang === 'cpp' ? 'C++' : solutionLang === 'javascript' ? 'JS' : solutionLang.toUpperCase()} Solution</>
-                                    )}
-                                </button>
+                                />
+                            </div>
+
+                            {/* ── Footer ── */}
+                            <div style={{ padding: '16px 24px', borderTop: '1px solid #e5e7eb', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                                <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>
+                                    💡 This solution is executed server-side and never shown to students. Only the output is compared.
+                                </p>
+                                <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
+                                    <button
+                                        onClick={() => setShowSolutionModal(false)}
+                                        style={{ padding: '9px 18px', borderRadius: '10px', border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e5e7eb'; }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSaveSolution}
+                                        disabled={savingSolution}
+                                        style={{
+                                            padding: '9px 20px', borderRadius: '10px', border: 'none',
+                                            background: savingSolution ? '#a78bfa' : 'linear-gradient(135deg,#7c3aed,#6d28d9)',
+                                            color: '#fff', fontSize: '13px', fontWeight: 700,
+                                            cursor: savingSolution ? 'not-allowed' : 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: '8px',
+                                            boxShadow: '0 4px 14px rgba(124,58,237,0.35)',
+                                            transition: 'all 0.15s'
+                                        }}
+                                        onMouseEnter={e => { if (!savingSolution) { e.currentTarget.style.boxShadow = '0 6px 20px rgba(124,58,237,0.5)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                                        onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(124,58,237,0.35)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                                    >
+                                        {savingSolution ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <><CheckCircle size={15} /> Save {solutionLang === 'cpp' ? 'C++' : solutionLang === 'javascript' ? 'JS' : solutionLang.toUpperCase()} Solution</>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
         </div>
     );
 };

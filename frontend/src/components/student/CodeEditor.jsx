@@ -498,6 +498,11 @@ const CodeEditor = () => {
         return saved ? JSON.parse(saved) : { fontSize: 14, theme: 'vs-light', fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace' };
     });
 
+    // ── quiz / material ──
+    const [quizAnswers, setQuizAnswers] = useState({});
+    const [quizSubmitted, setQuizSubmitted] = useState(false);
+    const [isSubmittingNonCoding, setIsSubmittingNonCoding] = useState(false);
+
     // ── custom test cases ──
     // Standard cases are 'case-0', 'case-1'...
     // Custom users are 'custom-1'...
@@ -509,6 +514,9 @@ const CodeEditor = () => {
     useEffect(() => {
         setCustomTestCases([]);
         setActiveTestCaseId('case-0');
+        setQuizAnswers({});
+        setQuizSubmitted(false);
+        setIsSubmittingNonCoding(false);
     }, [problemId]);
 
     const handleAddCustomCase = () => {
@@ -591,6 +599,13 @@ const CodeEditor = () => {
                 if (!mounted) return;
                 setProblem(data.problem);
                 setHasViewedEditorial(data.hasViewedEditorial || false);
+
+                if (data.problem.type === 'quiz' && data.problem.isSolved) {
+                    setQuizSubmitted(true);
+                    if (data.problem.savedAnswers) {
+                        setQuizAnswers(data.problem.savedAnswers);
+                    }
+                }
 
                 // Show all non-hidden test cases
                 const allCases = data.problem.testCases || [];
@@ -1128,6 +1143,65 @@ const CodeEditor = () => {
     const runTotalCases = testCases.length + customTestCases.length || 1;
     const totalTestCasesForProgress = problem?.testCases?.length || testCases.length || 3;
 
+    // ── Handlers for Quiz and Material ──
+    const handleCompleteNonCoding = async (answers = null) => {
+        setIsSubmittingNonCoding(true);
+        try {
+            const data = await submissionService.markProblemComplete(problemId, answers);
+            toast.success("Marked as complete!", { icon: '✅' });
+            setProblem(p => ({ ...p, isSolved: true, savedAnswers: answers || null }));
+            window.dispatchEvent(new CustomEvent('problemSolved', { detail: { problemId } }));
+
+            // Update the problem cache so navigating away and back preserves solved state
+            if (PROBLEM_CACHE[problemId]) {
+                PROBLEM_CACHE[problemId].problem = {
+                    ...PROBLEM_CACHE[problemId].problem,
+                    isSolved: true,
+                    savedAnswers: answers || null
+                };
+            }
+
+            // Only show coin celebration for non-material types (material = editorial, no coins)
+            if (data.isFirstSolve && data.coinsEarned > 0) {
+                setSuccessResult({
+                    coinsEarned: data.coinsEarned,
+                    isFirstSolve: true
+                });
+                setShowSuccessPop(true);
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to mark as complete');
+        } finally {
+            setIsSubmittingNonCoding(false);
+        }
+    };
+
+    const handleQuizSubmit = () => {
+        if (!problem.quizQuestions || problem.quizQuestions.length === 0) return;
+
+        const total = problem.quizQuestions.length;
+        if (Object.keys(quizAnswers).length < total) {
+            toast.error('Please answer all questions before submitting.');
+            return;
+        }
+
+        let correctCount = 0;
+        problem.quizQuestions.forEach((q, idx) => {
+            // Support both field names: correctOptionIndex (from admin form) and correctAnswer (from JSON import)
+            const correctIdx = q.correctOptionIndex !== undefined ? q.correctOptionIndex : q.correctAnswer;
+            if (quizAnswers[idx] === correctIdx) {
+                correctCount++;
+            }
+        });
+
+        setQuizSubmitted(true);
+        toast.success(`You scored ${correctCount}/${total}! Quiz Completed.`);
+
+        if (!problem.isSolved) {
+            handleCompleteNonCoding(quizAnswers);
+        }
+    };
+
     return (
         <div
             ref={containerRef}
@@ -1184,873 +1258,1000 @@ const CodeEditor = () => {
 
                 {showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
 
-                {/* ─ Col 2: Description / Editorial / Submissions ─ */}
-                <div style={{ width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] transition-colors">
-                    {/* Problem Header (Title & Meta) */}
-                    <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] shrink-0 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight truncate mr-2" title={problem.title}>
-                                {problem.title}
-                            </h1>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <DiffBadge d={problem.difficulty} />
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: '#92400e', background: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '1px solid #fcd34d', padding: '2px 7px', borderRadius: 20 }} className="dark:opacity-90">
-                                <Coins size={10} color="#f59e0b" />{problem.points} pts
-                            </span>
-                        </div>
-                    </div>
+                {(!problem?.type || problem.type === 'problem') && (
+                    <>
+                        {/* ─ Col 2: Description / Editorial / Submissions ─ */}
+                        <div style={{ width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] transition-colors">
+                            {/* Problem Header (Title & Meta) */}
+                            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] shrink-0 transition-colors">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight truncate mr-2" title={problem.title}>
+                                        {problem.title}
+                                    </h1>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <DiffBadge d={problem.difficulty} />
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: '#92400e', background: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '1px solid #fcd34d', padding: '2px 7px', borderRadius: 20 }} className="dark:opacity-90">
+                                        <Coins size={10} color="#f59e0b" />{problem.points} pts
+                                    </span>
+                                </div>
+                            </div>
 
-                    {/* Tabs */}
-                    <div className="flex items-center h-10 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] shrink-0 transition-colors">
-                        {[
-                            { id: 'description', label: 'Description', Icon: FileText },
-                            { id: 'editorial', label: 'Editorial', Icon: BookOpenIcon },
-                            { id: 'submissions', label: 'Submissions', Icon: CheckSquare },
-                        ].map(({ id, label, Icon }) => (
-                            <button
-                                key={id}
-                                onClick={() => setLeftTab(id)}
-                                className={`flex items-center gap-1.5 px-4 h-full text-xs font-medium transition-colors border-b-2
+                            {/* Tabs */}
+                            <div className="flex items-center h-10 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] shrink-0 transition-colors">
+                                {[
+                                    { id: 'description', label: 'Description', Icon: FileText },
+                                    { id: 'editorial', label: 'Editorial', Icon: BookOpenIcon },
+                                    { id: 'submissions', label: 'Submissions', Icon: CheckSquare },
+                                ].map(({ id, label, Icon }) => (
+                                    <button
+                                        key={id}
+                                        onClick={() => setLeftTab(id)}
+                                        className={`flex items-center gap-1.5 px-4 h-full text-xs font-medium transition-colors border-b-2
                                     ${leftTab === id
-                                        ? 'border-purple-600 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]'
-                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
-                                    }`}
-                            >
-                                <Icon size={12} />{label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Tab content */}
-                    <div className="flex-1 overflow-y-auto relative custom-scrollbar bg-white dark:bg-[#0a0f1a] transition-colors">
-                        {loading && (
-                            <div className="absolute inset-0 bg-white/80 dark:bg-[#0a0f1a]/80 backdrop-blur-sm z-10 flex justify-center items-center transition-colors">
-                                <Loader2 className="animate-spin text-primary-500" size={24} />
-                            </div>
-                        )}
-
-                        {/* ── Description ── */}
-                        {leftTab === 'description' && (
-                            <div className="p-6 space-y-6 relative">
-                                {user?.role === 'admin' && !isEditingDesc && (
-                                    <button
-                                        onClick={() => {
-                                            setTempDesc(problem.description);
-                                            setIsEditingDesc(true);
-                                        }}
-                                        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/40 rounded-md transition-colors"
+                                                ? 'border-purple-600 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]'
+                                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
+                                            }`}
                                     >
-                                        <Edit3 size={14} /> Edit Description
+                                        <Icon size={12} />{label}
                                     </button>
-                                )}
-
-                                {isEditingDesc ? (
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">Edit Problem Description</h3>
-                                            <div className="text-xs text-gray-500 dark:text-gray-400">Supports Markdown & Images `![alt](url)`</div>
-                                        </div>
-                                        <textarea
-                                            value={tempDesc}
-                                            onChange={(e) => setTempDesc(e.target.value)}
-                                            className="w-full h-80 p-4 font-mono text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#0a0f1a] border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y transition-colors"
-                                            placeholder="Update problem description here using Markdown..."
-                                        />
-                                        <div className="flex items-center gap-2 justify-end">
-                                            <button
-                                                onClick={() => setIsEditingDesc(false)}
-                                                className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-[#0a0f1a] hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={async () => {
-                                                    setIsSavingDesc(true);
-                                                    try {
-                                                        await problemService.updateProblem(problemId, { description: tempDesc });
-                                                        setProblem(prev => ({ ...prev, description: tempDesc }));
-                                                        toast.success('Description updated successfully');
-                                                        setIsEditingDesc(false);
-                                                    } catch (error) {
-                                                        toast.error(error.message || 'Failed to update description');
-                                                    } finally {
-                                                        setIsSavingDesc(false);
-                                                    }
-                                                }}
-                                                disabled={isSavingDesc}
-                                                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
-                                            >
-                                                {isSavingDesc ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                                                Save Description
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 font-problem prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed prose-code:text-primary-700 dark:prose-code:text-primary-400 prose-code:bg-primary-50 dark:prose-code:bg-primary-900/20 prose-code:px-1 prose-code:rounded">
-                                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
-                                            {cleanDescription(problem.description)}
-                                        </ReactMarkdown>
-                                    </div>
-                                )}
-
-                                {problem.constraints?.length > 0 && (
-                                    <div>
-                                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Constraints</h3>
-                                        <ul className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-1 transition-colors">
-                                            {problem.constraints.map((c, i) => (
-                                                <li key={i} className="text-xs font-mono text-gray-700 dark:text-gray-300 list-disc list-inside">{c}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-
-                                {problem.inputFormat && (
-                                    <div>
-                                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Input Format</h3>
-                                        <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300 prose dark:prose-invert prose-sm max-w-none transition-colors">
-                                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
-                                                {problem.inputFormat}
-                                            </ReactMarkdown>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {problem.outputFormat && (
-                                    <div>
-                                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Output Format</h3>
-                                        <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300 prose dark:prose-invert prose-sm max-w-none transition-colors">
-                                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
-                                                {problem.outputFormat}
-                                            </ReactMarkdown>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {problem.examples?.map((ex, i) => (
-                                    <div key={i} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-                                        <div className="bg-gray-50 dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                                            Example {i + 1}
-                                        </div>
-                                        <div className="p-4 space-y-3 bg-white dark:bg-[#0a0f1a]">
-                                            <div>
-                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Input</p>
-                                                <pre className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded p-2 text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap transition-colors">{ex.input}</pre>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Expected Output</p>
-                                                <pre className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded p-2 text-xs font-mono text-gray-600 dark:text-white whitespace-pre-wrap opacity-80 select-text transition-colors">{ex.output}</pre>
-                                            </div>
-                                            {ex.explanation && (
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Explanation</p>
-                                                    <p className="text-xs text-gray-600 dark:text-gray-300 bg-primary-50 dark:bg-primary-900/20 rounded p-2 border border-primary-100 dark:border-primary-900/50 transition-colors">{ex.explanation}</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
                                 ))}
+                            </div>
 
-                                {problem.edgeCases?.length > 0 && (
-                                    <div>
-                                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Edge Cases</h3>
-                                        <ul className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-1 transition-colors">
-                                            {problem.edgeCases.map((c, i) => (
-                                                <li key={i} className="text-xs font-mono text-gray-700 dark:text-gray-300 list-disc list-inside">{c}</li>
-                                            ))}
-                                        </ul>
+                            {/* Tab content */}
+                            <div className="flex-1 overflow-y-auto relative custom-scrollbar bg-white dark:bg-[#0a0f1a] transition-colors">
+                                {loading && (
+                                    <div className="absolute inset-0 bg-white/80 dark:bg-[#0a0f1a]/80 backdrop-blur-sm z-10 flex justify-center items-center transition-colors">
+                                        <Loader2 className="animate-spin text-primary-500" size={24} />
                                     </div>
                                 )}
 
-                                {(problem.timeComplexity || problem.spaceComplexity) && (
-                                    <div>
-                                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Complexity</h3>
-                                        <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2 transition-colors">
-                                            {problem.timeComplexity && (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Time:</span>
-                                                    <span className="text-sm font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded shadow-sm">{problem.timeComplexity}</span>
-                                                </div>
-                                            )}
-                                            {problem.spaceComplexity && (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Space:</span>
-                                                    <span className="text-sm font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded shadow-sm">{problem.spaceComplexity}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* ── Editorial ── */}
-                        {leftTab === 'editorial' && (
-                            <EditorialRenderer
-                                problem={problem}
-                                isAdmin={user?.role === 'admin'}
-                                hasViewedEditorial={hasViewedEditorial}
-                                onUnlockEditorial={() => setHasViewedEditorial(true)}
-                                onUpdateLinks={async (editorialLink, videoUrl) => {
-                                    await problemService.updateProblem(problemId, { editorialLink, videoUrl });
-                                    // Refresh problem data
-                                    const data = await problemService.getProblemById(problemId);
-                                    if (data?.problem) setProblem(data.problem);
-                                }}
-                            />
-                        )}
-
-                        {/* ── Submissions ── */}
-                        {leftTab === 'submissions' && <SubmissionsTab problemId={problemId} />}
-                    </div>
-                </div>
-
-                {/* drag handle between desc and editor */}
-                <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />
-
-                {/* ─ Col 3: Editor + Test Cases (vertical split) ─ */}
-                <div style={{
-                    width: showSidebar ? `calc(${100 - sidebarW - descW}%)` : `calc(100% - ${COLLAPSED_SIDEBAR_WIDTH}px - ${descW}%)`,
-                    transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
-                }} className="flex flex-col overflow-hidden bg-white dark:bg-[#0a0f1a] transition-colors">
-
-                    {/* ── Code Editor ── */}
-                    <div
-
-                        style={{
-                            height: `${editorTopH}%`,
-                            transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)'
-                        }}
-                        className="flex flex-col overflow-hidden"
-                    >
-                        {showSettings && (
-                            <SettingsModal
-                                settings={editorSettings}
-                                onClose={() => setShowSettings(false)}
-                                onSave={(newSettings) => {
-                                    setEditorSettings(newSettings);
-                                    localStorage.setItem('editor_settings', JSON.stringify(newSettings));
-                                }}
-                            />
-                        )}
-                        {/* editor toolbar (Language + Timer + Actions) */}
-                        <div className="h-12 bg-white dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3 shrink-0 transition-colors">
-                            {/* Left: Language & Timer */}
-                            <div className="flex items-center gap-3">
-                                <div className="w-44">
-                                    <CustomDropdown
-                                        options={LANGUAGE_OPTIONS}
-                                        value={language}
-                                        onChange={(val) => handleLangChange({ target: { value: val } })}
-                                        size="small"
-                                    />
-                                </div>
-                                <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 transition-colors" />
-                                <ProblemTimer />
-                            </div>
-
-                            {/* Right: Actions */}
-                            <div className="flex items-center gap-2">
-
-
-                                <button
-                                    onClick={() => setShowSettings(true)}
-                                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-md transition-colors"
-                                    title="Editor Settings"
-                                >
-                                    <Settings size={16} />
-                                </button>
-
-
-                                <div className="flex items-center bg-gray-100 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 transition-colors">
-                                    <button
-                                        onClick={handleRun}
-                                        disabled={isExecuting}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 rounded-md hover:bg-white dark:hover:bg-[#141b2b] hover:shadow-sm transition-all disabled:opacity-50"
-                                        title="Run Sample Cases"
-                                    >
-                                        {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} className="fill-current" />}
-                                        <span className="hidden sm:inline">Run</span>
-                                    </button>
-                                    <button
-                                        onClick={handleSubmit}
-                                        disabled={isExecuting}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 ml-0.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-sm transition-all disabled:opacity-50"
-                                        title="Submit Code"
-                                    >
-                                        {submitting ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
-                                        <span className="hidden sm:inline">Submit</span>
-                                    </button>
-                                </div>
-
-                                {/* Fullscreen button removed as requested */}
-                            </div>
-                        </div>
-
-                        {/* monaco */}
-                        <div className="flex-1 overflow-hidden">
-                            <Editor
-                                height="100%"
-                                language={LANGUAGE_OPTIONS.find(l => l.value === language)?.monacoLang}
-                                value={code}
-                                onChange={v => setCode(v || '')}
-                                onMount={(editor, monaco) => {
-                                    editorRef.current = editor;
-                                    monacoRef.current = monaco;
-
-                                    // ── Internal-only clipboard ───────────────────────────────
-                                    // Only text copied within THIS editor can be pasted back.
-                                    // External clipboard content is blocked entirely.
-                                    const internalClip = { text: '' };
-
-                                    // Ctrl+C: save selected text internally, also copy to system clipboard
-                                    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC, () => {
-                                        const sel = editor.getSelection();
-                                        if (sel && !sel.isEmpty()) {
-                                            internalClip.text = editor.getModel().getValueInRange(sel);
-                                        }
-                                        editor.trigger('keyboard', 'editor.action.clipboardCopyAction', null);
-                                    });
-                                    // Ctrl+X: cut, save internally
-                                    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX, () => {
-                                        const sel = editor.getSelection();
-                                        if (sel && !sel.isEmpty()) {
-                                            internalClip.text = editor.getModel().getValueInRange(sel);
-                                        }
-                                        editor.trigger('keyboard', 'editor.action.clipboardCutAction', null);
-                                    });
-                                    // Ctrl+V: paste ONLY from internal clipboard
-                                    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
-                                        if (!internalClip.text) {
-                                            toast.error('Paste from external sources is disabled', { icon: '🚫', id: 'paste-blocked' });
-                                            return;
-                                        }
-                                        const sel = editor.getSelection();
-                                        editor.executeEdits('internal-paste', [{
-                                            range: sel,
-                                            text: internalClip.text,
-                                            forceMoveMarkers: true
-                                        }]);
-                                    });
-                                    // Shift+Insert (alternate paste shortcut)
-                                    editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Insert, () => {
-                                        if (!internalClip.text) return;
-                                        const sel = editor.getSelection();
-                                        editor.executeEdits('internal-paste', [{
-                                            range: sel,
-                                            text: internalClip.text,
-                                            forceMoveMarkers: true
-                                        }]);
-                                    });
-                                    // Block DOM-level paste (right-click context menu / drag from outside)
-                                    const editorDomNode = editor.getDomNode();
-                                    if (editorDomNode) {
-                                        editorDomNode.addEventListener('paste', (e) => {
-                                            e.stopPropagation();
-                                            e.preventDefault();
-                                        }, true);
-                                    }
-                                }}
-                                theme={isDark ? 'vs-dark' : editorSettings.theme}
-                                options={{
-                                    minimap: { enabled: false },
-                                    fontSize: editorSettings.fontSize,
-                                    fontFamily: editorSettings.fontFamily || 'Menlo, Monaco, Consolas, "Courier New", monospace',
-                                    fontLigatures: true,
-                                    lineNumbers: 'on',
-                                    renderLineHighlight: 'all',
-                                    scrollBeyondLastLine: false,
-                                    automaticLayout: true,
-                                    padding: { top: 16, bottom: 16 },
-                                }}
-                            />
-                        </div>
-                    </div>
-
-                    <DragHandleV onMouseDown={(e) => startDrag('editorH', e)} />
-
-                    {/* ── Bottom: Test Cases / Results ── */}
-                    <div
-                        key={resultsAnimKey}
-                        style={{ height: `${100 - editorTopH}%`, transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
-                        className="flex flex-col overflow-hidden border-t border-gray-100 dark:border-gray-700 transition-colors"
-                        data-results-panel
-                    >
-                        {/* bottom tabs */}
-                        <div className="flex items-center h-9 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] shrink-0 px-1 transition-colors">
-                            <button
-                                onClick={() => setBottomTab('testcases')}
-                                className={`flex items-center gap-1.5 px-4 h-full text-xs font-medium transition-colors border-b-2
-                                    ${bottomTab === 'testcases' ? 'border-purple-600 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:bg-[#0a0f1a]'}`}
-                            >
-                                <List size={12} /> Test Cases
-                            </button>
-
-                            <button
-                                onClick={() => setBottomTab('results')}
-                                className={`flex items-center gap-1.5 px-4 h-full text-xs font-medium transition-colors border-b-2
-                                    ${bottomTab === 'results' ? 'border-purple-600 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#141b2b]'}`}
-                            >
-                                {isCompileErr ? (
-                                    <span className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
-                                        <AlertTriangle size={12} /> Compilation Error
-                                    </span>
-                                ) : displayResult && !isExecuting ? (
-                                    <span className={`flex items-center gap-1.5 ${displayResult.verdict === 'Accepted' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                        {displayResult.verdict === 'Accepted'
-                                            ? <CheckCircle size={12} />
-                                            : <XCircle size={12} />
-                                        }
-                                        {displayResult.isSubmitMode ? 'Submission Result' : 'Run Result'}
-                                    </span>
-                                ) : (
-                                    <>
-                                        <Terminal size={12} /> Results
-                                    </>
-                                )}
-                            </button>
-                        </div>
-
-                        {/* bottom content */}
-                        <div className="flex-1 overflow-hidden bg-white dark:bg-[#0a0f1a] transition-colors">
-
-                            {/* ── Test Cases tab ── */}
-                            {bottomTab === 'testcases' && (
-                                <div className="flex flex-col h-full font-problem bg-white dark:bg-[#0a0f1a] transition-colors">
-                                    {/* Tabs */}
-                                    <div className="flex items-center gap-0.5 px-2 py-2 border-b border-gray-100 dark:border-gray-700 overflow-x-auto scrollbar-hide shrink-0 bg-white dark:bg-[#0a0f1a]">
-                                        {/* Standard Cases */}
-                                        {testCases.map((_, i) => (
+                                {/* ── Description ── */}
+                                {leftTab === 'description' && (
+                                    <div className="p-6 space-y-6 relative">
+                                        {user?.role === 'admin' && !isEditingDesc && (
                                             <button
-                                                key={`case-${i}`}
-                                                onClick={() => setActiveTestCaseId(`case-${i}`)}
-                                                className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
-                                                    ${activeTestCaseId === `case-${i}`
-                                                        ? 'bg-gray-100 dark:bg-[#0a0f1a] border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold shadow-sm'
-                                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
-                                                    }`}
+                                                onClick={() => {
+                                                    setTempDesc(problem.description);
+                                                    setIsEditingDesc(true);
+                                                }}
+                                                className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/40 rounded-md transition-colors"
                                             >
-                                                Case {i + 1}
+                                                <Edit3 size={14} /> Edit Description
                                             </button>
-                                        ))}
+                                        )}
 
-                                        {/* Custom Cases */}
-                                        {customTestCases.map((c) => (
-                                            <div key={c.id} className="relative group">
-                                                <button
-                                                    onClick={() => setActiveTestCaseId(`custom-${c.id}`)}
-                                                    className={`pl-3 pr-7 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border flex items-center gap-1
-                                                        ${activeTestCaseId === `custom-${c.id}`
-                                                            ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400 font-semibold shadow-sm'
-                                                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
-                                                        }`}
-                                                >
-                                                    Case {testCases.length + customTestCases.indexOf(c) + 1}
-                                                </button>
-                                                <button
-                                                    onClick={(e) => handleRemoveCustomCase(c.id, e)}
-                                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <X size={10} strokeWidth={3} />
-                                                </button>
+                                        {isEditingDesc ? (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">Edit Problem Description</h3>
+                                                    <div className="text-xs text-gray-500 dark:text-gray-400">Supports Markdown & Images `![alt](url)`</div>
+                                                </div>
+                                                <textarea
+                                                    value={tempDesc}
+                                                    onChange={(e) => setTempDesc(e.target.value)}
+                                                    className="w-full h-80 p-4 font-mono text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#0a0f1a] border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y transition-colors"
+                                                    placeholder="Update problem description here using Markdown..."
+                                                />
+                                                <div className="flex items-center gap-2 justify-end">
+                                                    <button
+                                                        onClick={() => setIsEditingDesc(false)}
+                                                        className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-[#0a0f1a] hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            setIsSavingDesc(true);
+                                                            try {
+                                                                await problemService.updateProblem(problemId, { description: tempDesc });
+                                                                setProblem(prev => ({ ...prev, description: tempDesc }));
+                                                                toast.success('Description updated successfully');
+                                                                setIsEditingDesc(false);
+                                                            } catch (error) {
+                                                                toast.error(error.message || 'Failed to update description');
+                                                            } finally {
+                                                                setIsSavingDesc(false);
+                                                            }
+                                                        }}
+                                                        disabled={isSavingDesc}
+                                                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
+                                                    >
+                                                        {isSavingDesc ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                                        Save Description
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 font-problem prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed prose-code:text-primary-700 dark:prose-code:text-primary-400 prose-code:bg-primary-50 dark:prose-code:bg-primary-900/20 prose-code:px-1 prose-code:rounded">
+                                                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
+                                                    {cleanDescription(problem.description)}
+                                                </ReactMarkdown>
+                                            </div>
+                                        )}
+
+                                        {problem.constraints?.length > 0 && (
+                                            <div>
+                                                <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Constraints</h3>
+                                                <ul className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-1 transition-colors">
+                                                    {problem.constraints.map((c, i) => (
+                                                        <li key={i} className="text-xs font-mono text-gray-700 dark:text-gray-300 list-disc list-inside">{c}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {problem.inputFormat && (
+                                            <div>
+                                                <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Input Format</h3>
+                                                <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300 prose dark:prose-invert prose-sm max-w-none transition-colors">
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
+                                                        {problem.inputFormat}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {problem.outputFormat && (
+                                            <div>
+                                                <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Output Format</h3>
+                                                <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300 prose dark:prose-invert prose-sm max-w-none transition-colors">
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
+                                                        {problem.outputFormat}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {problem.examples?.map((ex, i) => (
+                                            <div key={i} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
+                                                <div className="bg-gray-50 dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+                                                    Example {i + 1}
+                                                </div>
+                                                <div className="p-4 space-y-3 bg-white dark:bg-[#0a0f1a]">
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Input</p>
+                                                        <pre className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded p-2 text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap transition-colors">{ex.input}</pre>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Expected Output</p>
+                                                        <pre className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded p-2 text-xs font-mono text-gray-600 dark:text-white whitespace-pre-wrap opacity-80 select-text transition-colors">{ex.output}</pre>
+                                                    </div>
+                                                    {ex.explanation && (
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Explanation</p>
+                                                            <p className="text-xs text-gray-600 dark:text-gray-300 bg-primary-50 dark:bg-primary-900/20 rounded p-2 border border-primary-100 dark:border-primary-900/50 transition-colors">{ex.explanation}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
 
-                                        {/* Add Button */}
-                                        <button
-                                            onClick={handleAddCustomCase}
-                                            className="ml-1 p-1.5 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                                            title="Add Custom Test Case"
-                                        >
-                                            <Plus size={14} strokeWidth={3} />
-                                        </button>
-                                    </div>
+                                        {problem.edgeCases?.length > 0 && (
+                                            <div>
+                                                <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Edge Cases</h3>
+                                                <ul className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-1 transition-colors">
+                                                    {problem.edgeCases.map((c, i) => (
+                                                        <li key={i} className="text-xs font-mono text-gray-700 dark:text-gray-300 list-disc list-inside">{c}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
 
-                                    {/* Inputs Area */}
-                                    <div className="flex-1 p-4 overflow-y-auto bg-white dark:bg-[#0a0f1a]">
-                                        {activeTestCaseId.startsWith('case-') ? (
-                                            // Standard Case View
-                                            (() => {
-                                                const idx = parseInt(activeTestCaseId.split('-')[1]);
-                                                const tc = testCases[idx];
-                                                if (!tc) return null;
-                                                return (
-                                                    <div className="space-y-4 max-w-2xl">
-                                                        <div>
-                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Input</p>
-                                                            <div className="w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap select-text transition-colors">
-                                                                {tc.input}
-                                                            </div>
+                                        {(problem.timeComplexity || problem.spaceComplexity) && (
+                                            <div>
+                                                <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Complexity</h3>
+                                                <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2 transition-colors">
+                                                    {problem.timeComplexity && (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Time:</span>
+                                                            <span className="text-sm font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded shadow-sm">{problem.timeComplexity}</span>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
-                                                            <div className="w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-600 dark:text-gray-200 whitespace-pre-wrap opacity-80 select-text transition-colors">
-                                                                {tc.output}
-                                                            </div>
+                                                    )}
+                                                    {problem.spaceComplexity && (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Space:</span>
+                                                            <span className="text-sm font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded shadow-sm">{problem.spaceComplexity}</span>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })()
-                                        ) : (
-                                            // Custom Case View
-                                            (() => {
-                                                const cCase = customTestCases.find(c => `custom-${c.id}` === activeTestCaseId);
-                                                if (!cCase) return <div className="text-gray-400 text-sm">Case not found.</div>;
-                                                return (
-                                                    <div className="space-y-2 h-full flex flex-col">
-                                                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Input</p>
-                                                        <textarea
-                                                            className="flex-1 w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none transition-colors"
-                                                            value={cCase.input}
-                                                            onChange={(e) => updateCustomCase(e.target.value)}
-                                                            placeholder="Enter input here..."
-                                                        />
-                                                    </div>
-                                                );
-                                            })()
+                                                    )}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
+                                )}
+
+                                {/* ── Editorial ── */}
+                                {leftTab === 'editorial' && (
+                                    <EditorialRenderer
+                                        problem={problem}
+                                        isAdmin={user?.role === 'admin'}
+                                        hasViewedEditorial={hasViewedEditorial}
+                                        onUnlockEditorial={() => setHasViewedEditorial(true)}
+                                        onUpdateLinks={async (editorialLink, videoUrl) => {
+                                            await problemService.updateProblem(problemId, { editorialLink, videoUrl });
+                                            // Refresh problem data
+                                            const data = await problemService.getProblemById(problemId);
+                                            if (data?.problem) setProblem(data.problem);
+                                        }}
+                                    />
+                                )}
+
+                                {/* ── Submissions ── */}
+                                {leftTab === 'submissions' && <SubmissionsTab problemId={problemId} />}
+                            </div>
+                        </div>
+
+                        {/* drag handle between desc and editor */}
+                        <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />
+
+                        {/* ─ Col 3: Editor + Test Cases (vertical split) ─ */}
+                        <div style={{
+                            width: showSidebar ? `calc(${100 - sidebarW - descW}%)` : `calc(100% - ${COLLAPSED_SIDEBAR_WIDTH}px - ${descW}%)`,
+                            transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
+                        }} className="flex flex-col overflow-hidden bg-white dark:bg-[#0a0f1a] transition-colors">
+
+                            {/* ── Code Editor ── */}
+                            <div
+
+                                style={{
+                                    height: `${editorTopH}%`,
+                                    transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)'
+                                }}
+                                className="flex flex-col overflow-hidden"
+                            >
+                                {showSettings && (
+                                    <SettingsModal
+                                        settings={editorSettings}
+                                        onClose={() => setShowSettings(false)}
+                                        onSave={(newSettings) => {
+                                            setEditorSettings(newSettings);
+                                            localStorage.setItem('editor_settings', JSON.stringify(newSettings));
+                                        }}
+                                    />
+                                )}
+                                {/* editor toolbar (Language + Timer + Actions) */}
+                                <div className="h-12 bg-white dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3 shrink-0 transition-colors">
+                                    {/* Left: Language & Timer */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-44">
+                                            <CustomDropdown
+                                                options={LANGUAGE_OPTIONS}
+                                                value={language}
+                                                onChange={(val) => handleLangChange({ target: { value: val } })}
+                                                size="small"
+                                            />
+                                        </div>
+                                        <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 transition-colors" />
+                                        <ProblemTimer />
+                                    </div>
+
+                                    {/* Right: Actions */}
+                                    <div className="flex items-center gap-2">
+
+
+                                        <button
+                                            onClick={() => setShowSettings(true)}
+                                            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-md transition-colors"
+                                            title="Editor Settings"
+                                        >
+                                            <Settings size={16} />
+                                        </button>
+
+
+                                        <div className="flex items-center bg-gray-100 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 transition-colors">
+                                            <button
+                                                onClick={handleRun}
+                                                disabled={isExecuting}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 rounded-md hover:bg-white dark:hover:bg-[#141b2b] hover:shadow-sm transition-all disabled:opacity-50"
+                                                title="Run Sample Cases"
+                                            >
+                                                {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} className="fill-current" />}
+                                                <span className="hidden sm:inline">Run</span>
+                                            </button>
+                                            <button
+                                                onClick={handleSubmit}
+                                                disabled={isExecuting}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 ml-0.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-sm transition-all disabled:opacity-50"
+                                                title="Submit Code"
+                                            >
+                                                {submitting ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
+                                                <span className="hidden sm:inline">Submit</span>
+                                            </button>
+                                        </div>
+
+                                        {/* Fullscreen button removed as requested */}
+                                    </div>
                                 </div>
-                            )}
 
-                            {/* ── Results tab ── */}
-                            {bottomTab === 'results' && (
-                                <div className="h-full overflow-y-auto flex flex-col bg-white dark:bg-[#0a0f1a] transition-colors" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
+                                {/* monaco */}
+                                <div className="flex-1 overflow-hidden">
+                                    <Editor
+                                        height="100%"
+                                        language={LANGUAGE_OPTIONS.find(l => l.value === language)?.monacoLang}
+                                        value={code}
+                                        onChange={v => setCode(v || '')}
+                                        onMount={(editor, monaco) => {
+                                            editorRef.current = editor;
+                                            monacoRef.current = monaco;
 
-                                    {/* ── Network Error (Priority check) ── */}
-                                    {!isExecuting && isOffline && (
-                                        <div className="flex flex-col bg-red-50/30 dark:bg-red-900/10 transition-colors">
-                                            <div className="bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/30 px-4 py-3 flex items-center gap-2 shrink-0 transition-colors">
-                                                <div className="bg-red-100 dark:bg-red-900/40 p-1.5 rounded-full">
-                                                    <XCircle size={16} className="text-red-600 dark:text-red-400" />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <h3 className="text-red-800 dark:text-red-200 font-bold text-sm">Network Error</h3>
-                                                    <p className="text-xs text-red-600 dark:text-red-400">No internet connection. Please check your network and try again.</p>
-                                                </div>
+                                            // ── Internal-only clipboard ───────────────────────────────
+                                            // Only text copied within THIS editor can be pasted back.
+                                            // External clipboard content is blocked entirely.
+                                            const internalClip = { text: '' };
+
+                                            // Ctrl+C: save selected text internally, also copy to system clipboard
+                                            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC, () => {
+                                                const sel = editor.getSelection();
+                                                if (sel && !sel.isEmpty()) {
+                                                    internalClip.text = editor.getModel().getValueInRange(sel);
+                                                }
+                                                editor.trigger('keyboard', 'editor.action.clipboardCopyAction', null);
+                                            });
+                                            // Ctrl+X: cut, save internally
+                                            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX, () => {
+                                                const sel = editor.getSelection();
+                                                if (sel && !sel.isEmpty()) {
+                                                    internalClip.text = editor.getModel().getValueInRange(sel);
+                                                }
+                                                editor.trigger('keyboard', 'editor.action.clipboardCutAction', null);
+                                            });
+                                            // Ctrl+V: paste ONLY from internal clipboard
+                                            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
+                                                if (!internalClip.text) {
+                                                    toast.error('Paste from external sources is disabled', { icon: '🚫', id: 'paste-blocked' });
+                                                    return;
+                                                }
+                                                const sel = editor.getSelection();
+                                                editor.executeEdits('internal-paste', [{
+                                                    range: sel,
+                                                    text: internalClip.text,
+                                                    forceMoveMarkers: true
+                                                }]);
+                                            });
+                                            // Shift+Insert (alternate paste shortcut)
+                                            editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Insert, () => {
+                                                if (!internalClip.text) return;
+                                                const sel = editor.getSelection();
+                                                editor.executeEdits('internal-paste', [{
+                                                    range: sel,
+                                                    text: internalClip.text,
+                                                    forceMoveMarkers: true
+                                                }]);
+                                            });
+                                            // Block DOM-level paste (right-click context menu / drag from outside)
+                                            const editorDomNode = editor.getDomNode();
+                                            if (editorDomNode) {
+                                                editorDomNode.addEventListener('paste', (e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                }, true);
+                                            }
+                                        }}
+                                        theme={isDark ? 'vs-dark' : editorSettings.theme}
+                                        options={{
+                                            minimap: { enabled: false },
+                                            fontSize: editorSettings.fontSize,
+                                            fontFamily: editorSettings.fontFamily || 'Menlo, Monaco, Consolas, "Courier New", monospace',
+                                            fontLigatures: true,
+                                            lineNumbers: 'on',
+                                            renderLineHighlight: 'all',
+                                            scrollBeyondLastLine: false,
+                                            automaticLayout: true,
+                                            padding: { top: 16, bottom: 16 },
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            <DragHandleV onMouseDown={(e) => startDrag('editorH', e)} />
+
+                            {/* ── Bottom: Test Cases / Results ── */}
+                            <div
+                                key={resultsAnimKey}
+                                style={{ height: `${100 - editorTopH}%`, transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
+                                className="flex flex-col overflow-hidden border-t border-gray-100 dark:border-gray-700 transition-colors"
+                                data-results-panel
+                            >
+                                {/* bottom tabs */}
+                                <div className="flex items-center h-9 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] shrink-0 px-1 transition-colors">
+                                    <button
+                                        onClick={() => setBottomTab('testcases')}
+                                        className={`flex items-center gap-1.5 px-4 h-full text-xs font-medium transition-colors border-b-2
+                                    ${bottomTab === 'testcases' ? 'border-purple-600 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:bg-[#0a0f1a]'}`}
+                                    >
+                                        <List size={12} /> Test Cases
+                                    </button>
+
+                                    <button
+                                        onClick={() => setBottomTab('results')}
+                                        className={`flex items-center gap-1.5 px-4 h-full text-xs font-medium transition-colors border-b-2
+                                    ${bottomTab === 'results' ? 'border-purple-600 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#0a0f1a]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#141b2b]'}`}
+                                    >
+                                        {isCompileErr ? (
+                                            <span className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
+                                                <AlertTriangle size={12} /> Compilation Error
+                                            </span>
+                                        ) : displayResult && !isExecuting ? (
+                                            <span className={`flex items-center gap-1.5 ${displayResult.verdict === 'Accepted' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                {displayResult.verdict === 'Accepted'
+                                                    ? <CheckCircle size={12} />
+                                                    : <XCircle size={12} />
+                                                }
+                                                {displayResult.isSubmitMode ? 'Submission Result' : 'Run Result'}
+                                            </span>
+                                        ) : (
+                                            <>
+                                                <Terminal size={12} /> Results
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {/* bottom content */}
+                                <div className="flex-1 overflow-hidden bg-white dark:bg-[#0a0f1a] transition-colors">
+
+                                    {/* ── Test Cases tab ── */}
+                                    {bottomTab === 'testcases' && (
+                                        <div className="flex flex-col h-full font-problem bg-white dark:bg-[#0a0f1a] transition-colors">
+                                            {/* Tabs */}
+                                            <div className="flex items-center gap-0.5 px-2 py-2 border-b border-gray-100 dark:border-gray-700 overflow-x-auto scrollbar-hide shrink-0 bg-white dark:bg-[#0a0f1a]">
+                                                {/* Standard Cases */}
+                                                {testCases.map((_, i) => (
+                                                    <button
+                                                        key={`case-${i}`}
+                                                        onClick={() => setActiveTestCaseId(`case-${i}`)}
+                                                        className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
+                                                    ${activeTestCaseId === `case-${i}`
+                                                                ? 'bg-gray-100 dark:bg-[#0a0f1a] border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold shadow-sm'
+                                                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
+                                                            }`}
+                                                    >
+                                                        Case {i + 1}
+                                                    </button>
+                                                ))}
+
+                                                {/* Custom Cases */}
+                                                {customTestCases.map((c) => (
+                                                    <div key={c.id} className="relative group">
+                                                        <button
+                                                            onClick={() => setActiveTestCaseId(`custom-${c.id}`)}
+                                                            className={`pl-3 pr-7 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border flex items-center gap-1
+                                                        ${activeTestCaseId === `custom-${c.id}`
+                                                                    ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400 font-semibold shadow-sm'
+                                                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
+                                                                }`}
+                                                        >
+                                                            Case {testCases.length + customTestCases.indexOf(c) + 1}
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleRemoveCustomCase(c.id, e)}
+                                                            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <X size={10} strokeWidth={3} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+
+                                                {/* Add Button */}
                                                 <button
-                                                    onClick={() => bottomTab === 'testcases' ? handleRun() : handleSubmit()}
-                                                    className="px-3 py-1 bg-white dark:bg-[#0a0f1a] border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 rounded-md text-[10px] font-bold hover:bg-red-50 dark:hover:bg-gray-700 transition-colors"
+                                                    onClick={handleAddCustomCase}
+                                                    className="ml-1 p-1.5 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                                                    title="Add Custom Test Case"
                                                 >
-                                                    Retry
+                                                    <Plus size={14} strokeWidth={3} />
                                                 </button>
                                             </div>
-                                            <div className="p-8 text-center animate-in fade-in duration-500">
-                                                <div className="w-16 h-16 rounded-full bg-red-100/50 dark:bg-red-900/30 flex items-center justify-center mb-4 mx-auto transition-colors">
-                                                    <XCircle size={32} className="text-red-500 dark:text-red-400" />
-                                                </div>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto mb-4">
-                                                    We couldn't reach the execution server. Please check your internet connection and try again.
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
 
-                                    {/* ── Executing (live progress) ── */}
-                                    {isExecuting && (
-                                        <ExecutionProgress
-                                            isRunning={running}
-                                            isSubmitting={submitting}
-                                            total={submitting ? totalTestCasesForProgress : runTotalCases}
-                                        />
-                                    )}
-
-                                    {/* ── Compilation Error ── */}
-                                    {!isExecuting && !isOffline && isCompileErr && (
-                                        <div className="flex flex-col bg-orange-50/30 dark:bg-orange-900/10 transition-colors">
-                                            <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-900/30 px-4 py-3 flex items-center gap-2 shrink-0 transition-colors">
-                                                <div className="bg-orange-100 dark:bg-orange-900/40 p-1.5 rounded-full">
-                                                    <AlertTriangle className="text-orange-600 dark:text-orange-400" size={16} />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-orange-800 dark:text-orange-200 font-bold text-sm">Compilation Error</h3>
-                                                    <p className="text-xs text-orange-600 dark:text-orange-400">Check your code for syntax errors</p>
-                                                </div>
-                                            </div>
-                                            <div className="p-4">
-                                                <pre className="font-mono text-xs text-orange-700 dark:text-orange-300 bg-orange-50/50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30 rounded-lg p-3 whitespace-pre-wrap leading-relaxed shadow-sm transition-colors">
-                                                    {compileErrMsg || 'Unknown error'}
-                                                </pre>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* ── Has results ── */}
-                                    {!isExecuting && !isCompileErr && displayResult && (
-                                        <div className="flex flex-col h-full font-problem">
-                                            {/* ── Verdict Header ── */}
-                                            {(() => {
-                                                const vc = getVerdictColor(displayResult.verdict);
-                                                const isAccepted = displayResult.verdict === 'Accepted';
-                                                const isTLE = displayResult.verdict === 'TLE';
-                                                const isSubmit = displayResult.isSubmitMode;
-                                                return (
-                                                    <div className={`px-5 py-4 border-b shrink-0 ${vc.bg} ${vc.border} transition-colors`}>
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : isTLE ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'} transition-colors`}>
-                                                                    {isAccepted ? <CheckCircle size={20} /> : isTLE ? <Clock size={20} /> : <XCircle size={20} />}
-                                                                </div>
-                                                                <div>
-                                                                    <h2 className={`text-lg font-bold ${vc.text}`}>
-                                                                        {displayResult.verdict}
-                                                                    </h2>
-                                                                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                                                        <span className={`text-sm font-medium ${vc.text}`}>
-                                                                            {displayResult.testCasesPassed} / {displayResult.totalTestCases} testcases passed
-                                                                        </span>
-                                                                        {isSubmit && (
-                                                                            <span className="text-xs text-gray-500 dark:text-gray-400">All Test Cases</span>
-                                                                        )}
-                                                                        {/* Show custom case count badge if custom cases were run */}
-                                                                        {!isSubmit && displayResult.results?.some(r => r.isCustom) && (
-                                                                            <span className="text-xs bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium transition-colors">
-                                                                                {displayResult.results.filter(r => r.isCustom).length} custom
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Coins earned badge (submit only) */}
-                                                            {isSubmit && displayResult.coinsEarned > 0 && (
-                                                                <div className="flex flex-col items-end gap-1">
-                                                                    <span className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-500 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">
-                                                                        <Coins size={14} />
-                                                                        +{displayResult.coinsEarned} Alpha Coins
-                                                                    </span>
-                                                                    {displayResult.totalCoins > 0 && (
-                                                                        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">
-                                                                            Total: {displayResult.totalCoins} coins
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-
-                                            {/* ── SUBMIT MODE: Clean summary only, no per-case details ── */}
-                                            {displayResult.isSubmitMode && (
-                                                <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 py-8">
-                                                    {/* Big status circle */}
-                                                    {(() => {
-                                                        const v = displayResult.verdict;
-                                                        const isAC = v === 'Accepted';
-                                                        const isTLE = v === 'TLE';
-                                                        const isWA = v === 'Wrong Answer';
-                                                        const isRE = v === 'Runtime Error';
-                                                        const pct = displayResult.totalTestCases > 0
-                                                            ? Math.round((displayResult.testCasesPassed / displayResult.totalTestCases) * 100)
-                                                            : 0;
-                                                        const circleColor = isAC ? '#22c55e' : isTLE ? '#eab308' : '#ef4444';
-                                                        const bgColor = isAC ? '#f0fdf4' : isTLE ? '#fefce8' : '#fef2f2';
-                                                        const radius = 52;
-                                                        const circ = 2 * Math.PI * radius;
-                                                        const dash = (pct / 100) * circ;
-                                                        return (
-                                                            <div className="flex flex-col items-center gap-4">
-                                                                {/* Circular progress */}
-                                                                <div style={{ position: 'relative', width: 140, height: 140 }}>
-                                                                    <svg width="140" height="140" style={{ transform: 'rotate(-90deg)' }}>
-                                                                        <circle cx="70" cy="70" r={radius} fill="none" stroke={useTheme().isDark ? '#374151' : '#e5e7eb'} strokeWidth="10" />
-                                                                        <circle
-                                                                            cx="70" cy="70" r={radius}
-                                                                            fill="none"
-                                                                            stroke={circleColor}
-                                                                            strokeWidth="10"
-                                                                            strokeDasharray={`${dash} ${circ - dash}`}
-                                                                            strokeLinecap="round"
-                                                                            style={{ transition: 'stroke-dasharray 0.6s ease' }}
-                                                                        />
-                                                                    </svg>
-                                                                    <div style={{
-                                                                        position: 'absolute', inset: 0,
-                                                                        display: 'flex', flexDirection: 'column',
-                                                                        alignItems: 'center', justifyContent: 'center'
-                                                                    }}>
-                                                                        <span style={{ fontSize: 22, fontWeight: 800, color: circleColor, lineHeight: 1 }}>
-                                                                            {displayResult.testCasesPassed}
-                                                                        </span>
-                                                                        <span style={{ fontSize: 11, color: useTheme().isDark ? '#9ca3af' : '#9ca3af', fontWeight: 600 }}>
-                                                                            / {displayResult.totalTestCases}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Verdict chips */}
-                                                                <div className="flex flex-col items-center gap-2">
-                                                                    <span style={{
-                                                                        background: useTheme().isDark ? `${circleColor}20` : bgColor, color: circleColor,
-                                                                        border: `1.5px solid ${circleColor}30`,
-                                                                        borderRadius: 99, padding: '4px 18px',
-                                                                        fontWeight: 700, fontSize: 13, letterSpacing: '0.02em'
-                                                                    }}>
-                                                                        {v}
-                                                                    </span>
-                                                                    <p className="text-xs text-gray-400 dark:text-gray-500 font-medium text-center">
-                                                                        {isAC && 'Great job! All test cases passed.'}
-                                                                        {isTLE && `${displayResult.testCasesPassed} cases passed before time limit was exceeded.`}
-                                                                        {isWA && `${displayResult.testCasesPassed} / ${displayResult.totalTestCases} cases correct.`}
-                                                                        {isRE && 'Your code crashed on a test case.'}
-                                                                        {v === 'Compilation Error' && 'Fix your compile errors and resubmit.'}
-                                                                    </p>
-                                                                </div>
-
-                                                                {/* Runtime error message */}
-                                                                {displayResult.error && !isAC && (
-                                                                    <div className="w-full max-w-sm">
-                                                                        <p className="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase mb-1">Error</p>
-                                                                        <pre className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap transition-colors text-center">
-                                                                            {displayResult.error}
-                                                                        </pre>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                </div>
-                                            )}
-
-
-                                            {/* ── Test Case Tabs (LeetCode style) ── */}
-                                            {visibleResults.length > 0 && (
-                                                <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 dark:border-gray-700 overflow-x-auto scrollbar-hide shrink-0 bg-white dark:bg-[#0a0f1a] transition-colors">
-                                                    {visibleResults.map((r, i) => {
-                                                        const label = `Case ${i + 1}`;
-                                                        return (
-                                                            <button
-                                                                key={i}
-                                                                onClick={() => setActiveResultCase(i)}
-                                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
-                                                                        ${activeResultCase === i
-                                                                        ? `${r.passed
-                                                                            ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-900/50 text-green-700 dark:text-green-400'
-                                                                            : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-900/50 text-red-700 dark:text-red-400'
-                                                                        } font-semibold`
-                                                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
-                                                                    }`}
-                                                            >
-                                                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                                {label}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-
-                                            {/* ── Result Details ── */}
+                                            {/* Inputs Area */}
                                             <div className="flex-1 p-4 overflow-y-auto bg-white dark:bg-[#0a0f1a]">
-                                                {visibleResults[activeResultCase] ? (
-                                                    <div className="space-y-4 max-w-3xl">
-                                                        {/* Hidden test case placeholder */}
-                                                        {visibleResults[activeResultCase].isHidden ? (
-                                                            <div className={`p-10 text-center border-2 border-dashed rounded-xl transition-colors ${visibleResults[activeResultCase].passed ? 'border-green-200 dark:border-green-900/30 bg-green-50/50 dark:bg-green-900/10' : 'border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10'}`}>
-                                                                <Lock size={24} className={`mx-auto mb-3 ${visibleResults[activeResultCase].passed ? 'text-green-400' : 'text-red-400'}`} />
-                                                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Hidden Test Case</p>
-                                                                <p className={`text-sm font-semibold mt-2 ${visibleResults[activeResultCase].passed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                                    {visibleResults[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}
-                                                                </p>
-                                                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Input and expected output are hidden</p>
-                                                            </div>
-                                                        ) : (
-                                                            <>
-                                                                {/* Pass / Fail badge */}
-                                                                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors ${visibleResults[activeResultCase].passed ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
-                                                                    {visibleResults[activeResultCase].passed
-                                                                        ? <><CheckCircle size={12} /> Passed</>
-                                                                        : <><XCircle size={12} /> {visibleResults[activeResultCase].verdict || 'Failed'}</>
-                                                                    }
-                                                                </div>
-
-                                                                {/* Input */}
+                                                {activeTestCaseId.startsWith('case-') ? (
+                                                    // Standard Case View
+                                                    (() => {
+                                                        const idx = parseInt(activeTestCaseId.split('-')[1]);
+                                                        const tc = testCases[idx];
+                                                        if (!tc) return null;
+                                                        return (
+                                                            <div className="space-y-4 max-w-2xl">
                                                                 <div>
                                                                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Input</p>
-                                                                    <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap min-h-[48px] transition-colors">
-                                                                        {visibleResults[activeResultCase].input ?? <span className="text-gray-400 dark:text-gray-500 italic">N/A</span>}
+                                                                    <div className="w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap select-text transition-colors">
+                                                                        {tc.input}
                                                                     </div>
                                                                 </div>
-
-                                                                {/* Your Output + Expected side by side */}
-                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                    {/* Your Output */}
-                                                                    <div>
-                                                                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Your Output</p>
-                                                                        <div className={`rounded-lg p-3 text-sm font-mono whitespace-pre-wrap border min-h-[48px] transition-colors
-                                                                            ${visibleResults[activeResultCase].passed
-                                                                                ? 'bg-green-50/40 dark:bg-green-900/10 border-green-200 dark:border-green-900/30 text-gray-900 dark:text-gray-200'
-                                                                                : 'bg-red-50/40 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 text-gray-900 dark:text-gray-200'
-                                                                            }`}
-                                                                        >
-                                                                            {visibleResults[activeResultCase].actualOutput || <span className="text-gray-400 dark:text-gray-500 italic">No output</span>}
-                                                                        </div>
+                                                                <div>
+                                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
+                                                                    <div className="w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-600 dark:text-gray-200 whitespace-pre-wrap opacity-80 select-text transition-colors">
+                                                                        {tc.output}
                                                                     </div>
-                                                                    {/* Expected Output */}
-                                                                    {/* Show expected output whenever it's available (standard cases always have it, custom cases have it if solution ran) */}
-                                                                    {visibleResults[activeResultCase].expectedOutput &&
-                                                                        visibleResults[activeResultCase].expectedOutput !== '(No reference solution available)' ? (
-                                                                        <div>
-                                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
-                                                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-600 dark:text-white whitespace-pre-wrap min-h-[48px] transition-colors">
-                                                                                {visibleResults[activeResultCase].expectedOutput}
-                                                                            </div>
-                                                                        </div>
-                                                                    ) : visibleResults[activeResultCase].isCustom ? (
-                                                                        <div>
-                                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
-                                                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-400 dark:text-gray-500 whitespace-pre-wrap min-h-[48px] italic transition-colors">
-                                                                                No reference solution available for custom input
-                                                                            </div>
-                                                                        </div>
-                                                                    ) : null}
                                                                 </div>
-
-                                                                {/* Runtime error / stderr */}
-                                                                {visibleResults[activeResultCase].error && (
-                                                                    <div>
-                                                                        <p className="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase mb-1.5">Error / Traceback</p>
-                                                                        <pre className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap transition-colors">
-                                                                            {visibleResults[activeResultCase].error}
-                                                                        </pre>
-                                                                    </div>
-                                                                )}
-                                                            </>
-                                                        )}
-                                                    </div>
+                                                            </div>
+                                                        );
+                                                    })()
                                                 ) : (
-                                                    <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500 text-xs">
-                                                        {/* No result data for this case. */}
-                                                    </div>
+                                                    // Custom Case View
+                                                    (() => {
+                                                        const cCase = customTestCases.find(c => `custom-${c.id}` === activeTestCaseId);
+                                                        if (!cCase) return <div className="text-gray-400 text-sm">Case not found.</div>;
+                                                        return (
+                                                            <div className="space-y-2 h-full flex flex-col">
+                                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Input</p>
+                                                                <textarea
+                                                                    className="flex-1 w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none transition-colors"
+                                                                    value={cCase.input}
+                                                                    onChange={(e) => updateCustomCase(e.target.value)}
+                                                                    placeholder="Enter input here..."
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })()
                                                 )}
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* ── No results yet ── */}
-                                    {!isExecuting && !displayResult && !execError && (
-                                        <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 gap-3 transition-colors">
-                                            <div className="w-12 h-12 rounded-full bg-gray-50 dark:bg-[#0a0f1a] flex items-center justify-center transition-colors">
-                                                <Play size={20} className="ml-1 text-gray-300 dark:text-gray-600" />
-                                            </div>
-                                            <p className="text-sm font-medium">Run code to view results</p>
-                                        </div>
-                                    )}
+                                    {/* ── Results tab ── */}
+                                    {bottomTab === 'results' && (
+                                        <div className="h-full overflow-y-auto flex flex-col bg-white dark:bg-[#0a0f1a] transition-colors" style={{ animation: 'slide-up-results 0.28s cubic-bezier(0.16,1,0.3,1) both' }}>
 
-                                    {/* ── Generic error (no results) ── */}
-                                    {!isExecuting && !isOffline && execError && !displayResult && !isCompileErr && (
-                                        <div className="p-4 transition-colors">
-                                            <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg p-4">
-                                                <p className="text-xs font-bold text-red-600 dark:text-red-400 mb-2">Error</p>
-                                                <p className="text-xs text-red-700 dark:text-red-300">{execError}</p>
-                                            </div>
+                                            {/* ── Network Error (Priority check) ── */}
+                                            {!isExecuting && isOffline && (
+                                                <div className="flex flex-col bg-red-50/30 dark:bg-red-900/10 transition-colors">
+                                                    <div className="bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/30 px-4 py-3 flex items-center gap-2 shrink-0 transition-colors">
+                                                        <div className="bg-red-100 dark:bg-red-900/40 p-1.5 rounded-full">
+                                                            <XCircle size={16} className="text-red-600 dark:text-red-400" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h3 className="text-red-800 dark:text-red-200 font-bold text-sm">Network Error</h3>
+                                                            <p className="text-xs text-red-600 dark:text-red-400">No internet connection. Please check your network and try again.</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => bottomTab === 'testcases' ? handleRun() : handleSubmit()}
+                                                            className="px-3 py-1 bg-white dark:bg-[#0a0f1a] border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 rounded-md text-[10px] font-bold hover:bg-red-50 dark:hover:bg-gray-700 transition-colors"
+                                                        >
+                                                            Retry
+                                                        </button>
+                                                    </div>
+                                                    <div className="p-8 text-center animate-in fade-in duration-500">
+                                                        <div className="w-16 h-16 rounded-full bg-red-100/50 dark:bg-red-900/30 flex items-center justify-center mb-4 mx-auto transition-colors">
+                                                            <XCircle size={32} className="text-red-500 dark:text-red-400" />
+                                                        </div>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto mb-4">
+                                                            We couldn't reach the execution server. Please check your internet connection and try again.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* ── Executing (live progress) ── */}
+                                            {isExecuting && (
+                                                <ExecutionProgress
+                                                    isRunning={running}
+                                                    isSubmitting={submitting}
+                                                    total={submitting ? totalTestCasesForProgress : runTotalCases}
+                                                />
+                                            )}
+
+                                            {/* ── Compilation Error ── */}
+                                            {!isExecuting && !isOffline && isCompileErr && (
+                                                <div className="flex flex-col bg-orange-50/30 dark:bg-orange-900/10 transition-colors">
+                                                    <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-900/30 px-4 py-3 flex items-center gap-2 shrink-0 transition-colors">
+                                                        <div className="bg-orange-100 dark:bg-orange-900/40 p-1.5 rounded-full">
+                                                            <AlertTriangle className="text-orange-600 dark:text-orange-400" size={16} />
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="text-orange-800 dark:text-orange-200 font-bold text-sm">Compilation Error</h3>
+                                                            <p className="text-xs text-orange-600 dark:text-orange-400">Check your code for syntax errors</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="p-4">
+                                                        <pre className="font-mono text-xs text-orange-700 dark:text-orange-300 bg-orange-50/50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30 rounded-lg p-3 whitespace-pre-wrap leading-relaxed shadow-sm transition-colors">
+                                                            {compileErrMsg || 'Unknown error'}
+                                                        </pre>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* ── Has results ── */}
+                                            {!isExecuting && !isCompileErr && displayResult && (
+                                                <div className="flex flex-col h-full font-problem">
+                                                    {/* ── Verdict Header ── */}
+                                                    {(() => {
+                                                        const vc = getVerdictColor(displayResult.verdict);
+                                                        const isAccepted = displayResult.verdict === 'Accepted';
+                                                        const isTLE = displayResult.verdict === 'TLE';
+                                                        const isSubmit = displayResult.isSubmitMode;
+                                                        return (
+                                                            <div className={`px-5 py-4 border-b shrink-0 ${vc.bg} ${vc.border} transition-colors`}>
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`p-2 rounded-full ${isAccepted ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : isTLE ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'} transition-colors`}>
+                                                                            {isAccepted ? <CheckCircle size={20} /> : isTLE ? <Clock size={20} /> : <XCircle size={20} />}
+                                                                        </div>
+                                                                        <div>
+                                                                            <h2 className={`text-lg font-bold ${vc.text}`}>
+                                                                                {displayResult.verdict}
+                                                                            </h2>
+                                                                            <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                                                                <span className={`text-sm font-medium ${vc.text}`}>
+                                                                                    {displayResult.testCasesPassed} / {displayResult.totalTestCases} testcases passed
+                                                                                </span>
+                                                                                {isSubmit && (
+                                                                                    <span className="text-xs text-gray-500 dark:text-gray-400">All Test Cases</span>
+                                                                                )}
+                                                                                {/* Show custom case count badge if custom cases were run */}
+                                                                                {!isSubmit && displayResult.results?.some(r => r.isCustom) && (
+                                                                                    <span className="text-xs bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium transition-colors">
+                                                                                        {displayResult.results.filter(r => r.isCustom).length} custom
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Coins earned badge (submit only) */}
+                                                                    {isSubmit && displayResult.coinsEarned > 0 && (
+                                                                        <div className="flex flex-col items-end gap-1">
+                                                                            <span className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-500 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">
+                                                                                <Coins size={14} />
+                                                                                +{displayResult.coinsEarned} Alpha Coins
+                                                                            </span>
+                                                                            {displayResult.totalCoins > 0 && (
+                                                                                <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">
+                                                                                    Total: {displayResult.totalCoins} coins
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
+
+                                                    {/* ── SUBMIT MODE: Clean summary only, no per-case details ── */}
+                                                    {displayResult.isSubmitMode && (
+                                                        <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 py-8">
+                                                            {/* Big status circle */}
+                                                            {(() => {
+                                                                const v = displayResult.verdict;
+                                                                const isAC = v === 'Accepted';
+                                                                const isTLE = v === 'TLE';
+                                                                const isWA = v === 'Wrong Answer';
+                                                                const isRE = v === 'Runtime Error';
+                                                                const pct = displayResult.totalTestCases > 0
+                                                                    ? Math.round((displayResult.testCasesPassed / displayResult.totalTestCases) * 100)
+                                                                    : 0;
+                                                                const circleColor = isAC ? '#22c55e' : isTLE ? '#eab308' : '#ef4444';
+                                                                const bgColor = isAC ? '#f0fdf4' : isTLE ? '#fefce8' : '#fef2f2';
+                                                                const radius = 52;
+                                                                const circ = 2 * Math.PI * radius;
+                                                                const dash = (pct / 100) * circ;
+                                                                return (
+                                                                    <div className="flex flex-col items-center gap-4">
+                                                                        {/* Circular progress */}
+                                                                        <div style={{ position: 'relative', width: 140, height: 140 }}>
+                                                                            <svg width="140" height="140" style={{ transform: 'rotate(-90deg)' }}>
+                                                                                <circle cx="70" cy="70" r={radius} fill="none" stroke={useTheme().isDark ? '#374151' : '#e5e7eb'} strokeWidth="10" />
+                                                                                <circle
+                                                                                    cx="70" cy="70" r={radius}
+                                                                                    fill="none"
+                                                                                    stroke={circleColor}
+                                                                                    strokeWidth="10"
+                                                                                    strokeDasharray={`${dash} ${circ - dash}`}
+                                                                                    strokeLinecap="round"
+                                                                                    style={{ transition: 'stroke-dasharray 0.6s ease' }}
+                                                                                />
+                                                                            </svg>
+                                                                            <div style={{
+                                                                                position: 'absolute', inset: 0,
+                                                                                display: 'flex', flexDirection: 'column',
+                                                                                alignItems: 'center', justifyContent: 'center'
+                                                                            }}>
+                                                                                <span style={{ fontSize: 22, fontWeight: 800, color: circleColor, lineHeight: 1 }}>
+                                                                                    {displayResult.testCasesPassed}
+                                                                                </span>
+                                                                                <span style={{ fontSize: 11, color: useTheme().isDark ? '#9ca3af' : '#9ca3af', fontWeight: 600 }}>
+                                                                                    / {displayResult.totalTestCases}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Verdict chips */}
+                                                                        <div className="flex flex-col items-center gap-2">
+                                                                            <span style={{
+                                                                                background: useTheme().isDark ? `${circleColor}20` : bgColor, color: circleColor,
+                                                                                border: `1.5px solid ${circleColor}30`,
+                                                                                borderRadius: 99, padding: '4px 18px',
+                                                                                fontWeight: 700, fontSize: 13, letterSpacing: '0.02em'
+                                                                            }}>
+                                                                                {v}
+                                                                            </span>
+                                                                            <p className="text-xs text-gray-400 dark:text-gray-500 font-medium text-center">
+                                                                                {isAC && 'Great job! All test cases passed.'}
+                                                                                {isTLE && `${displayResult.testCasesPassed} cases passed before time limit was exceeded.`}
+                                                                                {isWA && `${displayResult.testCasesPassed} / ${displayResult.totalTestCases} cases correct.`}
+                                                                                {isRE && 'Your code crashed on a test case.'}
+                                                                                {v === 'Compilation Error' && 'Fix your compile errors and resubmit.'}
+                                                                            </p>
+                                                                        </div>
+
+                                                                        {/* Runtime error message */}
+                                                                        {displayResult.error && !isAC && (
+                                                                            <div className="w-full max-w-sm">
+                                                                                <p className="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase mb-1">Error</p>
+                                                                                <pre className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-lg text-sm font-mono whitespace-pre-wrap transition-colors text-center">
+                                                                                    {displayResult.error}
+                                                                                </pre>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    )}
+
+
+                                                    {/* ── Test Case Tabs (LeetCode style) ── */}
+                                                    {visibleResults.length > 0 && (
+                                                        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-100 dark:border-gray-700 overflow-x-auto scrollbar-hide shrink-0 bg-white dark:bg-[#0a0f1a] transition-colors">
+                                                            {visibleResults.map((r, i) => {
+                                                                const label = `Case ${i + 1}`;
+                                                                return (
+                                                                    <button
+                                                                        key={i}
+                                                                        onClick={() => setActiveResultCase(i)}
+                                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border
+                                                                        ${activeResultCase === i
+                                                                                ? `${r.passed
+                                                                                    ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-900/50 text-green-700 dark:text-green-400'
+                                                                                    : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-900/50 text-red-700 dark:text-red-400'
+                                                                                } font-semibold`
+                                                                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'
+                                                                            }`}
+                                                                    >
+                                                                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.passed ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                                        {label}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+
+                                                    {/* ── Result Details ── */}
+                                                    <div className="flex-1 p-4 overflow-y-auto bg-white dark:bg-[#0a0f1a]">
+                                                        {visibleResults[activeResultCase] ? (
+                                                            <div className="space-y-4 max-w-3xl">
+                                                                {/* Hidden test case placeholder */}
+                                                                {visibleResults[activeResultCase].isHidden ? (
+                                                                    <div className={`p-10 text-center border-2 border-dashed rounded-xl transition-colors ${visibleResults[activeResultCase].passed ? 'border-green-200 dark:border-green-900/30 bg-green-50/50 dark:bg-green-900/10' : 'border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10'}`}>
+                                                                        <Lock size={24} className={`mx-auto mb-3 ${visibleResults[activeResultCase].passed ? 'text-green-400' : 'text-red-400'}`} />
+                                                                        <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Hidden Test Case</p>
+                                                                        <p className={`text-sm font-semibold mt-2 ${visibleResults[activeResultCase].passed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                                            {visibleResults[activeResultCase].passed ? '✓ Passed' : '✗ Failed'}
+                                                                        </p>
+                                                                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Input and expected output are hidden</p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <>
+                                                                        {/* Pass / Fail badge */}
+                                                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors ${visibleResults[activeResultCase].passed ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
+                                                                            {visibleResults[activeResultCase].passed
+                                                                                ? <><CheckCircle size={12} /> Passed</>
+                                                                                : <><XCircle size={12} /> {visibleResults[activeResultCase].verdict || 'Failed'}</>
+                                                                            }
+                                                                        </div>
+
+                                                                        {/* Input */}
+                                                                        <div>
+                                                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Input</p>
+                                                                            <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap min-h-[48px] transition-colors">
+                                                                                {visibleResults[activeResultCase].input ?? <span className="text-gray-400 dark:text-gray-500 italic">N/A</span>}
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Your Output + Expected side by side */}
+                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                            {/* Your Output */}
+                                                                            <div>
+                                                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Your Output</p>
+                                                                                <div className={`rounded-lg p-3 text-sm font-mono whitespace-pre-wrap border min-h-[48px] transition-colors
+                                                                            ${visibleResults[activeResultCase].passed
+                                                                                        ? 'bg-green-50/40 dark:bg-green-900/10 border-green-200 dark:border-green-900/30 text-gray-900 dark:text-gray-200'
+                                                                                        : 'bg-red-50/40 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 text-gray-900 dark:text-gray-200'
+                                                                                    }`}
+                                                                                >
+                                                                                    {visibleResults[activeResultCase].actualOutput || <span className="text-gray-400 dark:text-gray-500 italic">No output</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                            {/* Expected Output */}
+                                                                            {/* Show expected output whenever it's available (standard cases always have it, custom cases have it if solution ran) */}
+                                                                            {visibleResults[activeResultCase].expectedOutput &&
+                                                                                visibleResults[activeResultCase].expectedOutput !== '(No reference solution available)' ? (
+                                                                                <div>
+                                                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
+                                                                                    <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-600 dark:text-white whitespace-pre-wrap min-h-[48px] transition-colors">
+                                                                                        {visibleResults[activeResultCase].expectedOutput}
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : visibleResults[activeResultCase].isCustom ? (
+                                                                                <div>
+                                                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Expected Output</p>
+                                                                                    <div className="bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm font-mono text-gray-400 dark:text-gray-500 whitespace-pre-wrap min-h-[48px] italic transition-colors">
+                                                                                        No reference solution available for custom input
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : null}
+                                                                        </div>
+
+                                                                        {/* Runtime error / stderr */}
+                                                                        {visibleResults[activeResultCase].error && (
+                                                                            <div>
+                                                                                <p className="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase mb-1.5">Error / Traceback</p>
+                                                                                <pre className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-lg text-xs font-mono whitespace-pre-wrap transition-colors">
+                                                                                    {visibleResults[activeResultCase].error}
+                                                                                </pre>
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500 text-xs">
+                                                                {/* No result data for this case. */}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* ── No results yet ── */}
+                                            {!isExecuting && !displayResult && !execError && (
+                                                <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 gap-3 transition-colors">
+                                                    <div className="w-12 h-12 rounded-full bg-gray-50 dark:bg-[#0a0f1a] flex items-center justify-center transition-colors">
+                                                        <Play size={20} className="ml-1 text-gray-300 dark:text-gray-600" />
+                                                    </div>
+                                                    <p className="text-sm font-medium">Run code to view results</p>
+                                                </div>
+                                            )}
+
+                                            {/* ── Generic error (no results) ── */}
+                                            {!isExecuting && !isOffline && execError && !displayResult && !isCompileErr && (
+                                                <div className="p-4 transition-colors">
+                                                    <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg p-4">
+                                                        <p className="text-xs font-bold text-red-600 dark:text-red-400 mb-2">Error</p>
+                                                        <p className="text-xs text-red-700 dark:text-red-300">{execError}</p>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {problem?.type && problem.type !== 'problem' && (
+                    <div className="flex-1 bg-white dark:bg-[#0a0f1a] overflow-y-auto custom-scrollbar">
+                        <div className={`${problem.type === 'material' ? 'w-full max-w-none xl:px-12' : 'max-w-4xl'} mx-auto p-4 md:p-8`}>
+                            <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] p-6 rounded-2xl shadow-sm transition-colors object-contain">
+                                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{problem.title}</h1>
+                                <div className="flex items-center gap-3">
+                                    {problem.type === 'problem' && (
+                                        <span className="inline-flex items-center gap-1 font-bold text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400 px-3 py-1.5 rounded-full text-xs border border-purple-200 dark:border-purple-800">
+                                            <Coins size={14} className="text-purple-500" /> {problem.points} pts
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {problem.type === 'material' && (
+                                <div className="bg-white dark:bg-[#111827] rounded-3xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 sm:p-10 transition-colors">
+                                    <EditorialRenderer
+                                        problem={problem}
+                                        isAdmin={user?.role === 'admin'}
+                                        hasViewedEditorial={true}
+                                        onUnlockEditorial={() => setHasViewedEditorial(true)}
+                                        onUpdateLinks={async (editorialLink, videoUrl) => {
+                                            await problemService.updateProblem(problemId, { editorialLink, videoUrl });
+                                            const data = await problemService.getProblemById(problemId);
+                                            if (data?.problem) setProblem(data.problem);
+                                        }}
+                                    />
+                                    <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700 flex justify-center">
+                                        <button
+                                            disabled={isSubmittingNonCoding || problem.isSolved}
+                                            onClick={() => handleCompleteNonCoding(null)}
+                                            className="flex items-center justify-center gap-2.5 min-w-[200px] px-10 py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl transition-all shadow-[0_8px_20px_-6px_rgba(147,51,234,0.4)] active:scale-95 disabled:opacity-50 disabled:shadow-none text-lg"
+                                        >
+                                            {isSubmittingNonCoding ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
+                                            {problem.isSolved ? 'Completed' : 'Mark as Read'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {problem.type === 'quiz' && (
+                                <div className="space-y-6">
+                                    {problem.quizQuestions?.map((q, idx) => (
+                                        <div key={idx} className="bg-white dark:bg-[#111827] rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
+                                            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-6 flex items-start gap-3">
+                                                <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold border border-purple-200 dark:border-purple-800">{idx + 1}</span>
+                                                <span className="pt-1.5 leading-relaxed">{q.question || q.questionText}</span>
+                                            </h3>
+                                            <div className="space-y-3 pl-0 md:pl-11">
+                                                {q.options?.map((opt, oIdx) => {
+                                                    const isSelected = quizAnswers[idx] === oIdx;
+                                                    const correctIdx = q.correctOptionIndex !== undefined ? q.correctOptionIndex : q.correctAnswer;
+                                                    const isCorrectOpt = correctIdx === oIdx;
+
+                                                    let borderClass = isSelected ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/10' : 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-[#0a0f1a] hover:border-purple-300 dark:hover:border-purple-700';
+                                                    let radioClass = isSelected ? 'border-purple-600' : 'border-gray-300 dark:border-gray-600 group-hover:border-purple-400';
+                                                    let radioDotClass = 'bg-purple-600';
+                                                    let textClass = isSelected ? 'text-purple-900 dark:text-purple-200' : 'text-gray-700 dark:text-gray-300';
+
+                                                    if (quizSubmitted) {
+                                                        if (isCorrectOpt) {
+                                                            borderClass = 'border-green-500 bg-green-50/50 dark:bg-green-900/20';
+                                                            radioClass = 'border-green-600';
+                                                            radioDotClass = 'bg-green-600';
+                                                            textClass = 'text-green-800 dark:text-green-300';
+                                                        } else if (isSelected && !isCorrectOpt) {
+                                                            borderClass = 'border-red-400 bg-red-50/50 dark:bg-red-900/20';
+                                                            radioClass = 'border-red-500';
+                                                            radioDotClass = 'bg-red-500';
+                                                            textClass = 'text-red-800 dark:text-red-300';
+                                                        } else {
+                                                            borderClass = 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-[#0a0f1a] opacity-60';
+                                                            radioClass = 'border-gray-300 dark:border-gray-700';
+                                                            textClass = 'text-gray-500 dark:text-gray-500';
+                                                        }
+                                                    }
+
+                                                    return (
+                                                        <label key={oIdx} className={`flex items-start gap-4 p-4 rounded-xl border-2 ${borderClass} ${!quizSubmitted ? 'cursor-pointer' : 'cursor-default'} transition-colors group`}>
+                                                            <div className={`mt-0.5 flex shrink-0 items-center justify-center w-5 h-5 rounded-full border-2 ${radioClass}`}>
+                                                                {isSelected && <div className={`w-2.5 h-2.5 rounded-full ${radioDotClass}`} />}
+                                                            </div>
+                                                            <input
+                                                                type="radio"
+                                                                name={`question-${idx}`}
+                                                                checked={isSelected}
+                                                                onChange={() => { if (!quizSubmitted) setQuizAnswers(prev => ({ ...prev, [idx]: oIdx })); }}
+                                                                disabled={quizSubmitted}
+                                                                className="hidden"
+                                                            />
+                                                            <span className={`font-medium ${textClass}`}>{opt}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                            {quizSubmitted && (() => {
+                                                const correctIdx = q.correctOptionIndex !== undefined ? q.correctOptionIndex : q.correctAnswer;
+                                                const isCorrect = quizAnswers[idx] === correctIdx;
+                                                return (
+                                                    <div className={`mt-6 md:ml-11 p-4 rounded-xl text-sm font-bold flex items-center gap-2 border ${isCorrect ? 'bg-green-50 dark:bg-green-900/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900/30' : 'bg-red-50 dark:bg-red-900/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/30'}`}>
+                                                        {isCorrect ? <CheckCircle size={18} className="shrink-0" /> : <XCircle size={18} className="shrink-0" />}
+                                                        {isCorrect ? 'Correct!' : `Incorrect selected option.`}
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+                                    ))}
+                                    <div className="pt-8 flex justify-center">
+                                        <button
+                                            disabled={isSubmittingNonCoding || problem.isSolved}
+                                            onClick={handleQuizSubmit}
+                                            className="flex items-center justify-center gap-2.5 min-w-[200px] px-10 py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl transition-all shadow-[0_8px_20px_-6px_rgba(147,51,234,0.4)] active:scale-95 disabled:opacity-50 disabled:shadow-none text-lg"
+                                        >
+                                            {isSubmittingNonCoding ? <Loader2 size={24} className="animate-spin" /> : <CheckCircle size={24} />}
+                                            {problem.isSolved ? 'Passed' : 'Submit Quiz'}
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* ── Success Pop Overlay (first solve only) ── */}

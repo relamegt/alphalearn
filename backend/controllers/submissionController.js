@@ -451,11 +451,88 @@ const getSubmissionStatistics = async (req, res) => {
     }
 };
 
+// Mark a non-coding problem (quiz or material) as complete
+const markProblemComplete = async (req, res) => {
+    try {
+        const { problemId } = req.params;
+        const { answers } = req.body;
+        const studentId = req.user.userId;
+
+        const problem = await Problem.findById(problemId);
+        if (!problem) {
+            return res.status(404).json({ success: false, message: 'Problem not found' });
+        }
+
+        if (!problem.type || problem.type === 'problem') {
+            return res.status(400).json({ success: false, message: 'Coding problems must be submitted with code' });
+        }
+
+        const Submission = require('../models/Submission');
+        const Progress = require('../models/Progress');
+        const User = require('../models/User');
+
+        const alreadySolved = await Submission.isProblemSolved(studentId, problem._id);
+
+        let isFirstSolve = false;
+        let coinsEarned = 0;
+
+        if (!alreadySolved) {
+            isFirstSolve = true;
+            // No coins for quiz or material types — these are non-coding content
+            // Coins are only awarded for coding problems via the submit endpoint
+        }
+
+        res.json({
+            success: true,
+            message: 'Problem marked as complete',
+            isFirstSolve,
+            coinsEarned,
+            verdict: 'Accepted'
+        });
+
+        // Background logic
+        Promise.resolve().then(async () => {
+            try {
+                // Create a dummy submission to track it. Store quiz answers if provided.
+                await Submission.create({
+                    studentId,
+                    problemId: problem._id,
+                    code: answers ? JSON.stringify(answers) : `// ${problem.type} completed`,
+                    language: answers ? 'json' : 'text',
+                    verdict: 'Accepted',
+                    testCasesPassed: problem.type === 'quiz' ? (problem.quizQuestions?.length || 1) : 1,
+                    totalTestCases: problem.type === 'quiz' ? (problem.quizQuestions?.length || 1) : 1
+                });
+
+                if (isFirstSolve) {
+                    if (coinsEarned > 0) {
+                        await User.addCoins(studentId, coinsEarned);
+                    }
+                    await Progress.updateProblemsSolved(studentId, problem._id);
+                    await Promise.all([
+                        Progress.recalculateSectionProgress(studentId),
+                        Progress.updateStreak(studentId)
+                    ]);
+                    const { addScoreJob } = require('../config/queue');
+                    await addScoreJob(studentId);
+                }
+            } catch (bgErr) {
+                console.error('Background mark complete error:', bgErr.message);
+            }
+        });
+
+    } catch (error) {
+        console.error('Mark problem complete error:', error);
+        res.status(500).json({ success: false, message: 'Failed to mark problem complete', error: error.message });
+    }
+};
+
 module.exports = {
     runCode,
     submitCode,
     getSubmissionById,
     getStudentSubmissions,
     getRecentSubmissions,
-    getSubmissionStatistics
+    getSubmissionStatistics,
+    markProblemComplete
 };

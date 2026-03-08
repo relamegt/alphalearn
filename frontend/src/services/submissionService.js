@@ -35,6 +35,16 @@ const submissionService = {
         }
     },
 
+    // Mark problem complete (quiz/material) → POST /student/code/:problemId/complete
+    markProblemComplete: async (problemId, answers = null) => {
+        try {
+            const response = await apiClient.post(`/student/code/${problemId}/complete`, { answers });
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to mark problem as complete' };
+        }
+    },
+
     // Get Submission by ID → GET /student/submissions/:submissionId
     getSubmissionById: async (submissionId) => {
         try {
