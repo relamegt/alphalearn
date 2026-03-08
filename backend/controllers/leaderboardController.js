@@ -65,9 +65,17 @@ const getBatchLeaderboard = async (req, res) => {
             contestId: { $in: batchContestIdsArray }
         }, { projection: { studentId: 1, contestId: 1, verdict: 1, problemId: 1, submittedAt: 1 } });
 
+        const problemIdsSet = new Set();
+        allContests.forEach(c => {
+            if (c.problems && Array.isArray(c.problems)) {
+                c.problems.forEach(pid => problemIdsSet.add(pid.toString()));
+            }
+        });
+        const problemIdsArray = Array.from(problemIdsSet).map(id => new ObjectId(id));
+
         const allContestProblems = await collections.problems.find({
-            contestId: { $in: batchContestIdsArray }
-        }, { projection: { _id: 1, points: 1, contestId: 1 } }).toArray();
+            _id: { $in: problemIdsArray }
+        }, { projection: { _id: 1, points: 1 } }).toArray();
 
         const problemPointsMap = new Map();
         allContestProblems.forEach(p => problemPointsMap.set(p._id.toString(), p.points || 0));
@@ -248,6 +256,7 @@ const getBatchLeaderboard = async (req, res) => {
             return {
                 id: c._id,
                 title: c.title,
+                slug: c.slug,
                 startTime: c.startTime,
                 endTime: c.endTime,
                 maxScore: maxScore
@@ -385,7 +394,7 @@ const getInternalContestLeaderboard = async (req, res) => {
         const currentUserId = req.user?.userId || req.user?._id;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 50;
-        const { leaderboard, total, totalPages } = await ContestSubmission.getLeaderboard(contestId, currentUserId, false, page, limit);
+        const { leaderboard, total, totalPages } = await ContestSubmission.getLeaderboard(contest._id, currentUserId, false, page, limit);
 
         let problems = [];
         if (contest.problems && contest.problems.length > 0) {

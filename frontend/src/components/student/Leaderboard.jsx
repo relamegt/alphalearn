@@ -807,7 +807,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
     if (initialLoading) {
         return (
-            <div className="flex justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors">
+            <div className="flex justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#111117] transition-colors">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 dark:border-primary-400 mx-auto mb-4"></div>
                     <p className="text-gray-600 dark:text-gray-400">Loading leaderboard data...</p>
@@ -817,17 +817,16 @@ const Leaderboard = ({ batchId, isBatchView }) => {
     }
 
     return (
-        <div className="min-h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] pb-12 transition-colors">
+        <div className="min-h-screen bg-[#F7F5FF] dark:bg-[#111117] pb-12 transition-colors">
 
             {/* Fixed Dropdown Portal –" renders outside sticky header stacking context */}
             {isBatchView && showOptions && (
                 <div
                     ref={optionsRef}
-                    className="fixed w-64 bg-white dark:bg-[#0a0f1a] rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden z-[9999]"
+                    className="fixed w-64 bg-white/95 dark:bg-[#1a1a24]/95 backdrop-blur-xl rounded-2xl border border-gray-100 dark:border-gray-700/50 overflow-hidden z-[9999]"
                     style={{
                         top: dropdownPos.top,
                         right: dropdownPos.right,
-                        boxShadow: isDark ? '0 20px 60px -10px rgba(0,0,0,0.5), 0 4px 20px -4px rgba(0,0,0,0.3)' : '0 20px 60px -10px rgba(0,0,0,0.25), 0 4px 20px -4px rgba(0,0,0,0.12)',
                     }}
                 >
                     {/* Header */}
@@ -836,7 +835,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                     </div>
 
                     {/* Timeline Filters */}
-                    <div className="px-3 py-3 border-b border-gray-100">
+                    {/* <div className="px-3 py-3 border-b border-gray-100">
                         <p className="text-xs font-semibold text-gray-400 uppercase mb-2 px-1">Timeline</p>
                         <div className="space-y-0.5">
                             {[
@@ -847,7 +846,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                 <button
                                     key={t}
                                     onClick={() => { setFilters({ ...filters, timeline: t }); setShowOptions(false); }}
-                                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${filters.timeline === t ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${filters.timeline === t ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#23232e]'}`}
                                 >
                                     <span>{label}</span>
                                     {filters.timeline === t && (
@@ -858,7 +857,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                 </button>
                             ))}
                         </div>
-                    </div>
+                    </div> */}
 
                     {/* View Mode Toggle */}
                     <div className="px-4 py-3 border-b border-gray-100">
@@ -869,7 +868,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                             </div>
                             <button
                                 onClick={() => setViewMode(viewMode === 'summary' ? 'detailed' : 'summary')}
-                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${viewMode === 'detailed' ? 'bg-primary-600' : 'bg-gray-200'}`}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${viewMode === 'detailed' ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}
                             >
                                 <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${viewMode === 'detailed' ? 'translate-x-5' : 'translate-x-0'}`} />
                             </button>
@@ -902,7 +901,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
             {/* Header Section */}
             {isBatchView ? (
-                <div className="bg-white/95 dark:bg-[#0a0f1a] backdrop-blur-md border-b border-gray-100 dark:border-gray-700 shadow-sm sticky top-0 z-30 transition-colors">
+                <div className="bg-white/95 dark:bg-[#111117] backdrop-blur-md border-b border-gray-100 dark:border-gray-700 shadow-sm sticky top-0 z-30 transition-colors">
                     <div className="w-full mx-auto px-6 h-16 flex items-center justify-between relative">
                         {/* Left: Logo */}
                         <div className="flex items-center gap-2">
@@ -919,11 +918,11 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                             <div className="text-base font-semibold text-gray-800 dark:text-gray-100">
                                 {batchName || user?.education?.batch || 'Batch Leaderboard'}
                             </div>
-                            {filters.timeline && (
+                            {/* {filters.timeline && (
                                 <div className="text-[10px] text-primary-500 dark:text-primary-400 font-medium mt-0.5 uppercase tracking-wider">
                                     {filters.timeline === 'month' ? 'This Month' : 'This Week'}
                                 </div>
-                            )}
+                            )} */}
                         </div>
 
                         {/* Right: Options Kebab */}
@@ -931,7 +930,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                             <button
                                 ref={kebabBtnRef}
                                 onClick={handleToggleOptions}
-                                className={`p-1.5 rounded-full transition-colors focus:outline-none ${showOptions ? 'bg-gray-100 dark:bg-[#0a0f1a] text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#141b2b]'}`}
+                                className={`p-1.5 rounded-full transition-colors focus:outline-none ${showOptions ? 'bg-gray-100 dark:bg-[#111117] text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#23232e]'}`}
                                 title="Options"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -952,32 +951,32 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 
                                 {/* Timeline Filters */}
-                                <div className="bg-white dark:bg-[#0a0f1a] p-1 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm flex items-center transition-colors">
+                                {/* <div className="bg-white dark:bg-[#111117] p-1 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm flex items-center transition-colors">
                                     <button
                                         onClick={() => setFilters({ ...filters, timeline: '' })}
-                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${!filters.timeline ? 'bg-gray-100 dark:bg-[#0a0f1a] text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'}`}
+                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${!filters.timeline ? 'bg-white dark:bg-[#23232e] text-indigo-600 dark:text-indigo-300 shadow-sm ring-1 ring-gray-200 dark:ring-gray-600' : 'text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-gray-50 dark:hover:bg-[#23232e]'}`}
                                     >
                                         All Time
                                     </button>
                                     <button
                                         onClick={() => setFilters({ ...filters, timeline: 'month' })}
-                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${filters.timeline === 'month' ? 'bg-gray-100 dark:bg-[#0a0f1a] text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'}`}
+                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${filters.timeline === 'month' ? 'bg-white dark:bg-[#23232e] text-indigo-600 dark:text-indigo-300 shadow-sm ring-1 ring-gray-200 dark:ring-gray-600' : 'text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-gray-50 dark:hover:bg-[#23232e]'}`}
                                     >
                                         This Month
                                     </button>
                                     <button
                                         onClick={() => setFilters({ ...filters, timeline: 'week' })}
-                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${filters.timeline === 'week' ? 'bg-gray-100 dark:bg-[#0a0f1a] text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#141b2b]'}`}
+                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${filters.timeline === 'week' ? 'bg-white dark:bg-[#23232e] text-indigo-600 dark:text-indigo-300 shadow-sm ring-1 ring-gray-200 dark:ring-gray-600' : 'text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-gray-50 dark:hover:bg-[#23232e]'}`}
                                     >
                                         This Week
                                     </button>
-                                </div>
+                                </div> */}
 
                                 {/* View Mode Toggle & Refresh */}
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => setViewMode(viewMode === 'summary' ? 'detailed' : 'summary')}
-                                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-all ${viewMode === 'detailed' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-900/50' : 'bg-white dark:bg-[#0a0f1a] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#141b2b]'}`}
+                                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-all ${viewMode === 'detailed' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-900/50' : 'bg-white dark:bg-[#111117] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#23232e]'}`}
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l4 4a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" />
@@ -987,7 +986,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
                                     <button
                                         onClick={handleRefreshPractice}
-                                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] transition-all"
+                                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] transition-all"
                                         title="Refresh Data"
                                         disabled={practiceLoading}
                                     >
@@ -1009,13 +1008,13 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                 </span>
                                 <input
                                     type="text"
-                                    className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-[#0a0f1a] text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 transition-all shadow-sm"
+                                    className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-[#111117] text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 transition-all shadow-sm"
                                     placeholder="Search student..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-                            {(searchQuery || filters.branch || filters.section || filters.timeline) && (
+                            {(searchQuery || filters.branch || filters.section) && (
                                 <button
                                     onClick={handleResetFilters}
                                     className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-colors whitespace-nowrap"
@@ -1040,10 +1039,10 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full text-sm border-separate border-spacing-0">
-                                        <thead className="bg-gray-50 dark:bg-[#0a0f1a] transition-colors sticky top-0 z-[100]">
+                                        <thead className="bg-gray-50 dark:bg-[#111117] transition-colors sticky top-0 z-[100]">
                                             <tr className="border-b border-gray-200 dark:border-gray-700">
                                                 <th
-                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 sticky left-0 bg-white dark:bg-[#0a0f1a] z-[120] w-[90px] min-w-[90px] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#141b2b]"
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 sticky left-0 bg-white dark:bg-[#111117] z-[120] w-[90px] min-w-[90px] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#23232e]"
                                                     onClick={() => handleSort('rank')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
@@ -1055,14 +1054,14 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     </div>
                                                 </th>
                                                 <th
-                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 sticky left-[90px] bg-white dark:bg-[#0a0f1a] z-[120] w-[130px] min-w-[130px] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#141b2b]"
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 sticky left-[90px] bg-white dark:bg-[#111117] z-[120] w-[130px] min-w-[130px] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#23232e]"
                                                     onClick={() => handleSort('rollNumber')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
                                                     Roll No {sortConfig.key === 'rollNumber' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
                                                 <th
-                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 sticky left-[220px] bg-white dark:bg-[#0a0f1a] z-[120] w-[260px] min-w-[260px] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#141b2b]"
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 sticky left-[220px] bg-white dark:bg-[#111117] z-[120] w-[260px] min-w-[260px] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#23232e]"
                                                     onClick={() => handleSort('name')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
@@ -1080,7 +1079,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     </div>
                                                     {/* Dynamic Branch Filter Dropdown */}
                                                     {activeFilter === 'branch' && (
-                                                        <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 p-2 max-h-60 overflow-y-auto transition-colors">
+                                                        <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 p-2 max-h-60 overflow-y-auto transition-colors">
                                                             <div className="space-y-0.5">
                                                                 <button
                                                                     onClick={() => { setFilters({ ...filters, branch: '' }); setActiveFilter(null); }}
@@ -1106,7 +1105,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                 </th>
                                                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 hidden lg:table-cell min-w-[120px]" rowSpan={viewMode === 'detailed' ? 2 : 1}>Username</th>
                                                 <th
-                                                    className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#141b2b] min-w-[180px]"
+                                                    className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#23232e] min-w-[180px]"
                                                     onClick={() => handleSort('alphaCoins')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
@@ -1121,17 +1120,17 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     <>
                                                         {/* HackerRank - Single Column even in Detailed */}
                                                         <th
-                                                            className="px-4 py-3 text-center text-xs font-bold text-gray-700 dark:text-emerald-300 uppercase bg-gray-50 dark:bg-[#0d1f17] cursor-pointer hover:bg-gray-100 dark:hover:bg-[#122a1e] border-r border-gray-200 dark:border-gray-700 min-w-[120px]"
+                                                            className="px-4 py-3 text-center text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase bg-[#f0fdf4] dark:bg-[#061a11] cursor-pointer hover:bg-emerald-100 dark:hover:bg-[#082217] border-r border-emerald-200 dark:border-gray-700 min-w-[120px]"
                                                             rowSpan={2}
                                                             onClick={() => handleSort('externalScores.hackerrank')}
                                                         >
                                                             <div>HackerRank</div>
-                                                            <div className="text-[10px] font-normal text-gray-500 dark:text-gray-400 mt-1 normal-case">(DS+Algo)</div>
+                                                            <div className="text-[10px] font-normal text-emerald-600 dark:text-emerald-500/70 mt-1 normal-case">(DS+Algo)</div>
                                                         </th>
 
                                                         {/* LeetCode */}
                                                         <th
-                                                            className="px-2 py-2 text-center text-xs font-bold text-gray-700 dark:text-amber-300 uppercase bg-yellow-50 dark:bg-[#1a1505] cursor-pointer hover:bg-yellow-100 dark:hover:bg-[#251e08]"
+                                                            className="px-2 py-2 text-center text-xs font-bold text-amber-800 dark:text-amber-400 uppercase bg-[#fffbeb] dark:bg-[#1a1205] cursor-pointer hover:bg-amber-100 dark:hover:bg-[#251b08] border-r border-amber-200 dark:border-gray-700"
                                                             colSpan="4"
                                                             onClick={() => handleSort('externalScores.leetcode')}
                                                         >
@@ -1140,7 +1139,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
                                                         {/* InterviewBit */}
                                                         <th
-                                                            className="px-2 py-2 text-center text-xs font-bold text-gray-700 dark:text-sky-300 uppercase bg-primary-50 dark:bg-[#091828] cursor-pointer hover:bg-primary-100 dark:hover:bg-[#0e2236]"
+                                                            className="px-2 py-2 text-center text-xs font-bold text-blue-800 dark:text-sky-400 uppercase bg-[#f0f9ff] dark:bg-[#05121a] cursor-pointer hover:bg-blue-100 dark:hover:bg-[#081b25] border-r border-blue-200 dark:border-gray-700"
                                                             colSpan="3"
                                                             onClick={() => handleSort('externalScores.interviewbit')}
                                                         >
@@ -1149,7 +1148,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
                                                         {/* CodeChef */}
                                                         <th
-                                                            className="px-2 py-2 text-center text-xs font-bold text-gray-700 dark:text-orange-300 uppercase bg-orange-50 dark:bg-[#1a1005] cursor-pointer hover:bg-orange-100 dark:hover:bg-[#251808]"
+                                                            className="px-2 py-2 text-center text-xs font-bold text-orange-800 dark:text-orange-400 uppercase bg-[#fff7ed] dark:bg-[#1a0f05] cursor-pointer hover:bg-orange-100 dark:hover:bg-[#251608] border-r border-orange-200 dark:border-gray-700"
                                                             colSpan="4"
                                                             onClick={() => handleSort('externalScores.codechef')}
                                                         >
@@ -1158,7 +1157,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
                                                         {/* Codeforces */}
                                                         <th
-                                                            className="px-2 py-2 text-center text-xs font-bold text-gray-700 dark:text-red-300 uppercase bg-red-50 dark:bg-[#1c0a10] cursor-pointer hover:bg-red-100 dark:hover:bg-[#261016]"
+                                                            className="px-2 py-2 text-center text-xs font-bold text-rose-800 dark:text-rose-400 uppercase bg-[#fff1f2] dark:bg-[#1a0508] cursor-pointer hover:bg-rose-100 dark:hover:bg-[#25080c] border-r border-rose-200 dark:border-gray-700"
                                                             colSpan="4"
                                                             onClick={() => handleSort('externalScores.codeforces')}
                                                         >
@@ -1168,23 +1167,23 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                 ) : (
                                                     // Summary Platform Columns - Full Names as requested
                                                     <>
-                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider cursor-pointer border-r border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#141b2b] min-w-[120px] whitespace-nowrap transition-colors" onClick={() => handleSort('externalScores.hackerrank')}>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider cursor-pointer border-r border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#23232e] min-w-[120px] whitespace-nowrap transition-colors" onClick={() => handleSort('externalScores.hackerrank')}>
                                                             <div>HackerRank</div>
                                                             <div className="text-[10px] font-normal text-gray-400 dark:text-gray-500 mt-1 normal-case leading-tight text-wrap max-w-[120px] mx-auto">(DS+Algo)</div>
                                                         </th>
-                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider cursor-pointer border-r border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#141b2b] min-w-[180px] whitespace-nowrap transition-colors" onClick={() => handleSort('externalScores.leetcode')}>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider cursor-pointer border-r border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#23232e] min-w-[180px] whitespace-nowrap transition-colors" onClick={() => handleSort('externalScores.leetcode')}>
                                                             <div>LeetCode</div>
                                                             <div className="text-[10px] font-normal text-gray-400 dark:text-gray-500 mt-1 normal-case leading-tight text-wrap max-w-[170px] mx-auto">(LCPS*10 + (LCR-1300)²/10 + LCNC*50)</div>
                                                         </th>
-                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider cursor-pointer border-r border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#141b2b] min-w-[120px] whitespace-nowrap transition-colors" onClick={() => handleSort('externalScores.interviewbit')}>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider cursor-pointer border-r border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#23232e] min-w-[120px] whitespace-nowrap transition-colors" onClick={() => handleSort('externalScores.interviewbit')}>
                                                             <div>InterviewBit</div>
                                                             <div className="text-[10px] font-normal text-gray-400 dark:text-gray-500 mt-1 normal-case leading-tight text-wrap max-w-[110px] mx-auto">(Score / 5)</div>
                                                         </th>
-                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider cursor-pointer border-r border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#141b2b] min-w-[180px] whitespace-nowrap transition-colors" onClick={() => handleSort('externalScores.codechef')}>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider cursor-pointer border-r border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#23232e] min-w-[180px] whitespace-nowrap transition-colors" onClick={() => handleSort('externalScores.codechef')}>
                                                             <div>CodeChef</div>
                                                             <div className="text-[10px] font-normal text-gray-400 dark:text-gray-500 mt-1 normal-case leading-tight text-wrap max-w-[170px] mx-auto">(CCPS*2 + (CCR-1200)²/10 + CCNC*50)</div>
                                                         </th>
-                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider cursor-pointer border-r border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#141b2b] min-w-[180px] whitespace-nowrap transition-colors" onClick={() => handleSort('externalScores.codeforces')}>
+                                                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider cursor-pointer border-r border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#23232e] min-w-[180px] whitespace-nowrap transition-colors" onClick={() => handleSort('externalScores.codeforces')}>
                                                             <div>Codeforces</div>
                                                             <div className="text-[10px] font-normal text-gray-400 dark:text-gray-500 mt-1 normal-case leading-tight text-wrap max-w-[170px] mx-auto">(CFPS*2 + (CFR-800)²/10 + CFNC*50)</div>
                                                         </th>
@@ -1211,7 +1210,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                 {/* Contest link row */}
                                                                 <div className="flex items-center gap-1">
                                                                     <a
-                                                                        href={`/contests/${contest.id}/leaderboard`}
+                                                                        href={`/contests/${contest.slug || contest.id}/leaderboard`}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         onClick={e => e.stopPropagation()}
@@ -1244,11 +1243,11 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                 })}
 
                                                 <th
-                                                    className="px-4 py-3 text-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-l-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#0a0f1a] sticky right-0 z-[120] cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] min-w-[100px]"
+                                                    className="px-4 py-3 text-center text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider border-l-2 border-gray-200 dark:border-indigo-900/50 bg-[#f8faff] dark:bg-[#111117] sticky right-0 z-[120] cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/40 min-w-[100px] transition-colors"
                                                     onClick={() => handleSort('overallScore')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
-                                                    Total Points
+                                                    Total Score
                                                 </th>
                                             </tr>
 
@@ -1258,51 +1257,51 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     {/* No static columns here as they are rowSpanned */}
 
                                                     {/* LC Sub-cols */}
-                                                    <th className="px-1 py-1 text-center bg-yellow-50/30 dark:bg-[#151208]">Problems</th>
-                                                    <th className="px-1 py-1 text-center bg-yellow-50/30 dark:bg-[#151208]">Rating</th>
-                                                    <th className="px-1 py-1 text-center bg-yellow-50/30 dark:bg-[#151208]">Contests</th>
-                                                    <th className="px-1 py-1 text-center font-bold bg-yellow-100 dark:bg-[#1a1505] min-w-[200px]">
+                                                    <th className="px-1 py-1 text-center bg-[#fffbeb] dark:bg-[#151208] text-amber-800 dark:text-amber-500/80 border-r border-amber-100 dark:border-amber-900/20">Problems</th>
+                                                    <th className="px-1 py-1 text-center bg-[#fffbeb] dark:bg-[#151208] text-amber-800 dark:text-amber-500/80 border-r border-amber-100 dark:border-amber-900/20">Rating</th>
+                                                    <th className="px-1 py-1 text-center bg-[#fffbeb] dark:bg-[#151208] text-amber-800 dark:text-amber-500/80 border-r border-amber-100 dark:border-amber-900/20">Contests</th>
+                                                    <th className="px-1 py-1 text-center font-bold bg-[#fef3c7] dark:bg-[#1a1205] text-amber-900 dark:text-amber-400 min-w-[200px]">
                                                         <div>Total</div>
-                                                        <div className="text-[9px] font-normal text-gray-500 dark:text-gray-400 mt-0.5 normal-case leading-tight">
+                                                        <div className="text-[9px] font-normal text-amber-700/70 dark:text-amber-500/50 mt-0.5 normal-case leading-tight">
                                                             (LCPS*10 + (LCR-1300)²/10 + LCNC*50)
                                                         </div>
                                                     </th>
 
                                                     {/* IB Sub-cols */}
-                                                    <th className="px-1 py-1 text-center bg-primary-50/30 dark:bg-[#0a1420]">Problems</th>
-                                                    <th className="px-1 py-1 text-center bg-primary-50/30 dark:bg-[#0a1420]">Score</th>
-                                                    <th className="px-1 py-1 text-center font-bold bg-primary-100 dark:bg-[#091828] min-w-[100px]">
+                                                    <th className="px-1 py-1 text-center bg-[#f0f9ff] dark:bg-[#0a1420] text-blue-800 dark:text-sky-500/80 border-r border-blue-100 dark:border-blue-900/20">Problems</th>
+                                                    <th className="px-1 py-1 text-center bg-[#f0f9ff] dark:bg-[#0a1420] text-blue-800 dark:text-sky-500/80 border-r border-blue-100 dark:border-blue-900/20">Score</th>
+                                                    <th className="px-1 py-1 text-center font-bold bg-[#e0f2fe] dark:bg-[#05121a] text-blue-900 dark:text-sky-400 min-w-[100px]">
                                                         <div>Total</div>
-                                                        <div className="text-[9px] font-normal text-gray-500 dark:text-gray-400 mt-0.5 normal-case leading-tight">
+                                                        <div className="text-[9px] font-normal text-blue-700/70 dark:text-sky-500/50 mt-0.5 normal-case leading-tight">
                                                             (Score / 5)
                                                         </div>
                                                     </th>
 
                                                     {/* CC Sub-cols */}
-                                                    <th className="px-1 py-1 text-center bg-orange-50/30 dark:bg-[#150e08]">Problems</th>
-                                                    <th className="px-1 py-1 text-center bg-orange-50/30 dark:bg-[#150e08]">Rating</th>
-                                                    <th className="px-1 py-1 text-center bg-orange-50/30 dark:bg-[#150e08]">Contests</th>
-                                                    <th className="px-1 py-1 text-center font-bold bg-orange-100 dark:bg-[#1a1005] min-w-[200px]">
+                                                    <th className="px-1 py-1 text-center bg-[#fff7ed] dark:bg-[#150e08] text-orange-800 dark:text-orange-500/80 border-r border-orange-100 dark:border-orange-900/20">Problems</th>
+                                                    <th className="px-1 py-1 text-center bg-[#fff7ed] dark:bg-[#150e08] text-orange-800 dark:text-orange-500/80 border-r border-orange-100 dark:border-orange-900/20">Rating</th>
+                                                    <th className="px-1 py-1 text-center bg-[#fff7ed] dark:bg-[#150e08] text-orange-800 dark:text-orange-500/80 border-r border-orange-100 dark:border-orange-900/20">Contests</th>
+                                                    <th className="px-1 py-1 text-center font-bold bg-[#ffedd5] dark:bg-[#1a0f05] text-orange-900 dark:text-orange-400 min-w-[200px]">
                                                         <div>Total</div>
-                                                        <div className="text-[9px] font-normal text-gray-500 dark:text-gray-400 mt-0.5 normal-case leading-tight">
+                                                        <div className="text-[9px] font-normal text-orange-700/70 dark:text-orange-500/50 mt-0.5 normal-case leading-tight">
                                                             (CCPS*2 + (CCR-1200)²/10 + CCNC*50)
                                                         </div>
                                                     </th>
 
                                                     {/* CF Sub-cols */}
-                                                    <th className="px-1 py-1 text-center bg-red-50/30 dark:bg-[#160a0e]">Problems</th>
-                                                    <th className="px-1 py-1 text-center bg-red-50/30 dark:bg-[#160a0e]">Rating</th>
-                                                    <th className="px-1 py-1 text-center bg-red-50/30 dark:bg-[#160a0e]">Contests</th>
-                                                    <th className="px-1 py-1 text-center font-bold bg-red-100 dark:bg-[#1c0a10] min-w-[200px]">
+                                                    <th className="px-1 py-1 text-center bg-[#fff1f2] dark:bg-[#160a0e] text-rose-800 dark:text-rose-500/80 border-r border-rose-100 dark:border-rose-900/20">Problems</th>
+                                                    <th className="px-1 py-1 text-center bg-[#fff1f2] dark:bg-[#160a0e] text-rose-800 dark:text-rose-500/80 border-r border-rose-100 dark:border-rose-900/20">Rating</th>
+                                                    <th className="px-1 py-1 text-center bg-[#fff1f2] dark:bg-[#160a0e] text-rose-800 dark:text-rose-500/80 border-r border-rose-100 dark:border-rose-900/20">Contests</th>
+                                                    <th className="px-1 py-1 text-center font-bold bg-[#ffe4e6] dark:bg-[#1a0508] text-rose-900 dark:text-rose-400 min-w-[200px]">
                                                         <div>Total</div>
-                                                        <div className="text-[9px] font-normal text-gray-500 dark:text-gray-400 mt-0.5 normal-case leading-tight">
+                                                        <div className="text-[9px] font-normal text-rose-700/70 dark:text-rose-500/50 mt-0.5 normal-case leading-tight">
                                                             (CFPS*2 + (CFR-800)²/10 + CFNC*50)
                                                         </div>
                                                     </th>
                                                 </tr>
                                             )}
                                         </thead>
-                                        <tbody className="bg-white dark:bg-[#0a0f1a]">
+                                        <tbody className="bg-white dark:bg-[#111117]">
                                             {filteredPracticeLeaderboard.map((entry, index) => {
                                                 const actualUserId = user?._id || user?.id || tokenUserId || localUserData?._id || localUserData?.id;
 
@@ -1319,12 +1318,12 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         style={currentUserBg}
                                                         className={`group transition-colors ${isCurrentUser
                                                             ? ''
-                                                            : 'bg-white dark:bg-[#0a0f1a] hover:bg-gray-50 dark:hover:bg-[#141b2b]'
+                                                            : 'bg-white dark:bg-[#111117] hover:bg-gray-50 dark:hover:bg-[#23232e]'
                                                             }`}
                                                     >
                                                         <td
                                                             style={currentUserBg}
-                                                            className={`px-4 py-3 whitespace-nowrap font-bold sticky left-0 z-40 text-center border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[90px] min-w-[90px] ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]'}`}
+                                                            className={`px-4 py-3 whitespace-nowrap font-bold sticky left-0 z-40 text-center border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[90px] min-w-[90px] ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]'}`}
                                                         >
                                                             <div className="flex flex-col items-center justify-center mx-auto rounded-full font-bold text-sm">
                                                                 <div>
@@ -1343,21 +1342,21 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         </td>
                                                         <td
                                                             style={currentUserBg}
-                                                            className={`px-4 py-3 whitespace-nowrap sticky left-[90px] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[130px] min-w-[130px] ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]'}`}
+                                                            className={`px-4 py-3 whitespace-nowrap sticky left-[90px] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[130px] min-w-[130px] ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]'}`}
                                                         >
                                                             <span className="text-gray-900 dark:text-gray-100">{entry.rollNumber}</span>
                                                         </td>
                                                         <td
                                                             style={currentUserBg}
-                                                            className={`px-4 py-3 whitespace-nowrap font-bold sticky left-[220px] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[260px] min-w-[260px] truncate ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]'}`}
+                                                            className={`px-4 py-3 whitespace-nowrap font-bold sticky left-[220px] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[260px] min-w-[260px] truncate ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]'}`}
                                                             title={entry.name}
                                                         >
                                                             <span className="text-gray-900 dark:text-gray-100">{entry.name}</span>
                                                         </td>
-                                                        <td style={currentUserBg} className={`px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a]'}`}>
+                                                        <td style={currentUserBg} className={`px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117]'}`}>
                                                             {entry.branch}
                                                         </td>
-                                                        <td style={currentUserBg} className={`px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 hidden lg:table-cell ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a]'}`}>
+                                                        <td style={currentUserBg} className={`px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 hidden lg:table-cell ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117]'}`}>
                                                             {entry.username && entry.username !== 'N/A' ? (
                                                                 <a href={`/profile/${entry.username}`} target="_blank" rel="noreferrer" className="text-purple-600 dark:text-purple-400 font-medium hover:text-purple-800 dark:hover:text-purple-300 hover:underline transition-colors flex items-center gap-1">
                                                                     {entry.username}
@@ -1366,7 +1365,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                 <span className="text-gray-400 dark:text-gray-500">N/A</span>
                                                             )}
                                                         </td>
-                                                        <td style={currentUserBg} className={`px-4 py-3 whitespace-nowrap font-medium text-gray-600 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700 border-b border-gray-100 dark:border-gray-700 text-center ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a]'}`}>
+                                                        <td style={currentUserBg} className={`px-4 py-3 whitespace-nowrap font-medium text-gray-600 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700 border-b border-gray-100 dark:border-gray-700 text-center ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117]'}`}>
                                                             {entry.alphaCoins || 0}
                                                         </td>
 
@@ -1374,48 +1373,48 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         {viewMode === 'detailed' ? (
                                                             <>
                                                                 {/* HR - Single Column */}
-                                                                <td style={currentUserBgLight} className={`px-2 py-2 text-center border-r border-gray-200 dark:border-gray-700 border-b border-gray-100 dark:border-gray-700 font-medium text-gray-700 dark:text-gray-300 ${isCurrentUser ? '' : 'bg-gray-50 dark:bg-[#0d1f17]'}`}>
+                                                                <td style={currentUserBgLight} className={`px-2 py-2 text-center border-r border-gray-200 dark:border-gray-700 border-b border-gray-100 dark:border-gray-700 font-medium text-emerald-800 dark:text-emerald-400 ${isCurrentUser ? '' : 'bg-emerald-50/30 dark:bg-[#061a11]/40'}`}>
                                                                     {entry.externalScores?.hackerrank || 0}
                                                                 </td>
 
                                                                 {/* LC */}
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-yellow-50/30 dark:bg-[#151208]'}`}>{entry.detailedStats?.leetcode?.problemsSolved || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-yellow-50/30 dark:bg-[#151208]'}`}>{entry.detailedStats?.leetcode?.rating || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-yellow-50/30 dark:bg-[#151208]'}`}>{entry.detailedStats?.leetcode?.totalContests || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center font-medium text-yellow-800 dark:text-amber-300 border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-yellow-50 dark:bg-[#1a1505]'}`}>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-amber-50/20 dark:bg-[#1a1205]/30'}`}>{entry.detailedStats?.leetcode?.problemsSolved || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-amber-50/20 dark:bg-[#1a1205]/30'}`}>{entry.detailedStats?.leetcode?.rating || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-amber-50/20 dark:bg-[#1a1205]/30'}`}>{entry.detailedStats?.leetcode?.totalContests || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center font-bold text-amber-800 dark:text-amber-400 border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-amber-50/50 dark:bg-[#1a1205]/60'}`}>
                                                                     {entry.externalScores?.leetcode || 0}
                                                                 </td>
 
                                                                 {/* IB */}
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-primary-50/30 dark:bg-[#0a1420]'}`}>{entry.detailedStats?.interviewbit?.problemsSolved || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-primary-50/30 dark:bg-[#0a1420]'}`}>{entry.detailedStats?.interviewbit?.rating || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center font-medium text-primary-800 dark:text-sky-300 border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-primary-50 dark:bg-[#091828]'}`}>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-blue-50/20 dark:bg-[#05121a]/30'}`}>{entry.detailedStats?.interviewbit?.problemsSolved || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-blue-50/20 dark:bg-[#05121a]/30'}`}>{entry.detailedStats?.interviewbit?.rating || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center font-bold text-blue-800 dark:text-sky-400 border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-blue-50/50 dark:bg-[#05121a]/60'}`}>
                                                                     {entry.externalScores?.interviewbit || 0}
                                                                 </td>
 
                                                                 {/* CC */}
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-orange-50/30 dark:bg-[#150e08]'}`}>{entry.detailedStats?.codechef?.problemsSolved || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-orange-50/30 dark:bg-[#150e08]'}`}>{entry.detailedStats?.codechef?.rating || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-orange-50/30 dark:bg-[#150e08]'}`}>{entry.detailedStats?.codechef?.totalContests || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center font-medium text-orange-800 dark:text-orange-300 border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-orange-50 dark:bg-[#1a1005]'}`}>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-orange-50/20 dark:bg-[#1a0f05]/30'}`}>{entry.detailedStats?.codechef?.problemsSolved || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-orange-50/20 dark:bg-[#1a0f05]/30'}`}>{entry.detailedStats?.codechef?.rating || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-orange-50/20 dark:bg-[#1a0f05]/30'}`}>{entry.detailedStats?.codechef?.totalContests || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center font-bold text-orange-800 dark:text-orange-400 border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-orange-50/50 dark:bg-[#1a0f05]/60'}`}>
                                                                     {entry.externalScores?.codechef || 0}
                                                                 </td>
 
                                                                 {/* CF */}
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-red-50/30 dark:bg-[#160a0e]'}`}>{entry.detailedStats?.codeforces?.problemsSolved || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-red-50/30 dark:bg-[#160a0e]'}`}>{entry.detailedStats?.codeforces?.rating || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-red-50/30 dark:bg-[#160a0e]'}`}>{entry.detailedStats?.codeforces?.totalContests || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center font-medium text-red-800 dark:text-red-300 border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-red-50 dark:bg-[#1c0a10]'}`}>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-rose-50/20 dark:bg-[#1a0508]/30'}`}>{entry.detailedStats?.codeforces?.problemsSolved || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-rose-50/20 dark:bg-[#1a0508]/30'}`}>{entry.detailedStats?.codeforces?.rating || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center border-b border-gray-100 dark:border-gray-700 text-xs dark:text-gray-300 ${isCurrentUser ? '' : 'bg-rose-50/20 dark:bg-[#1a0508]/30'}`}>{entry.detailedStats?.codeforces?.totalContests || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-1 py-1 text-center font-bold text-rose-800 dark:text-rose-400 border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-rose-50/50 dark:bg-[#1a0508]/60'}`}>
                                                                     {entry.externalScores?.codeforces || 0}
                                                                 </td>
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <td style={currentUserBgLight} className={`px-2 py-1.5 whitespace-nowrap text-center text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a]'}`}>{entry.externalScores?.hackerrank || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-2 py-1.5 whitespace-nowrap text-center text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a]'}`}>{entry.externalScores?.leetcode || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-2 py-1.5 whitespace-nowrap text-center text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a]'}`}>{entry.externalScores?.interviewbit || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-2 py-1.5 whitespace-nowrap text-center text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a]'}`}>{entry.externalScores?.codechef || 0}</td>
-                                                                <td style={currentUserBgLight} className={`px-2 py-1.5 whitespace-nowrap text-center text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a]'}`}>{entry.externalScores?.codeforces || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-2 py-1.5 whitespace-nowrap text-center text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117]'}`}>{entry.externalScores?.hackerrank || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-2 py-1.5 whitespace-nowrap text-center text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117]'}`}>{entry.externalScores?.leetcode || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-2 py-1.5 whitespace-nowrap text-center text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117]'}`}>{entry.externalScores?.interviewbit || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-2 py-1.5 whitespace-nowrap text-center text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117]'}`}>{entry.externalScores?.codechef || 0}</td>
+                                                                <td style={currentUserBgLight} className={`px-2 py-1.5 whitespace-nowrap text-center text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117]'}`}>{entry.externalScores?.codeforces || 0}</td>
                                                             </>
                                                         )}
 
@@ -1424,7 +1423,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                             const score = entry.internalContests?.[contest.id];
                                                             const participated = score !== undefined;
                                                             return (
-                                                                <td key={contest.id} style={currentUserBgLight} className={`px-3 py-2 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 border-l border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a]'}`}>
+                                                                <td key={contest.id} style={currentUserBgLight} className={`px-3 py-2 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 border-l border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117]'}`}>
                                                                     {participated ? (
                                                                         <span className={`font-semibold ${score > 0 ? 'text-primary-700 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500'}`}>
                                                                             {score}
@@ -1439,7 +1438,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
 
                                                         <td
                                                             style={currentUserBg}
-                                                            className={`px-2 py-1.5 whitespace-nowrap font-bold text-lg text-primary-600 dark:text-primary-400 border-l-2 border-gray-200 dark:border-gray-700 sticky right-0 z-40 text-center border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#0a0f1a]'}`}
+                                                            className={`px-2 py-1.5 whitespace-nowrap font-extrabold text-lg text-indigo-700 dark:text-indigo-300 border-l-2 border-gray-200 dark:border-indigo-900/40 sticky right-0 z-40 text-center border-b border-gray-100 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-[#f8faff] dark:bg-[#111117]'}`}
                                                         >
                                                             {entry.overallScore}
                                                         </td>
@@ -1525,23 +1524,23 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                         ) : (
                                             <div className="overflow-x-auto">
                                                 <table className="min-w-full divide-y divide-gray-200">
-                                                    <thead className="bg-gray-50 dark:bg-[#0a0f1a] transition-colors border-b border-gray-200 dark:border-gray-800 sticky top-0 z-[100]">
+                                                    <thead className="bg-gray-50 dark:bg-[#111117] transition-colors border-b border-gray-200 dark:border-gray-800 sticky top-0 z-[100]">
                                                         <tr>
-                                                            <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight sticky left-0 z-[110] bg-gray-50 dark:bg-[#0a0f1a] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[80px] min-w-[80px]">Rank</th>
-                                                            <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight sticky left-[80px] z-[110] bg-gray-50 dark:bg-[#0a0f1a] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[140px] min-w-[140px]">Roll Number</th>
-                                                            <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight sticky left-[220px] z-[110] bg-gray-50 dark:bg-[#0a0f1a] shadow-[4px_0_10px_-4px_rgba(0,0,0,0.2)] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] w-[180px] min-w-[180px]">Username</th>
+                                                            <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight sticky left-0 z-[110] bg-gray-50 dark:bg-[#111117] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[80px] min-w-[80px]">Rank</th>
+                                                            <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight sticky left-[80px] z-[110] bg-gray-50 dark:bg-[#111117] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[140px] min-w-[140px]">Roll Number</th>
+                                                            <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight sticky left-[220px] z-[110] bg-gray-50 dark:bg-[#111117] shadow-[4px_0_10px_-4px_rgba(0,0,0,0.2)] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] w-[180px] min-w-[180px]">Username</th>
                                                             <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight">Branch</th>
                                                             <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight">Rating</th>
                                                             <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight">Problems Solved</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="bg-white dark:bg-[#0a0f1a] divide-y divide-gray-200">
+                                                    <tbody className="bg-white dark:bg-[#111117] divide-y divide-gray-200">
                                                         {externalLeaderboard.map((entry, index) => {
                                                             const actualUserId = user?._id || user?.id || tokenUserId || localUserData?._id || localUserData?.id;
                                                             const isCurrentUser = Boolean(entry.studentId && actualUserId && String(entry.studentId) === String(actualUserId));
                                                             return (
-                                                                <tr key={`${entry.rollNumber}-${index}`} className={`border-b border-gray-100 dark:border-gray-700 transition-colors ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#0a0f1a] hover:bg-gray-50 dark:hover:bg-[#141b2b]'}`}>
-                                                                    <td className={`px-3 py-2 whitespace-nowrap font-bold sticky left-0 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[80px] min-w-[80px] ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#0a0f1a]'}`}>
+                                                                <tr key={`${entry.rollNumber}-${index}`} className={`border-b border-gray-100 dark:border-gray-700 transition-colors ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#111117] hover:bg-gray-50 dark:hover:bg-[#23232e]'}`}>
+                                                                    <td className={`px-3 py-2 whitespace-nowrap font-bold sticky left-0 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[80px] min-w-[80px] ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#111117]'}`}>
                                                                         <div className="flex flex-col items-center justify-center font-extrabold text-sm w-full">
                                                                             <div>
                                                                                 {entry.rank === 1 ? (
@@ -1556,8 +1555,8 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                             </div>
                                                                         </div>
                                                                     </td>
-                                                                    <td className={`px-3 py-2 whitespace-nowrap text-gray-900 dark:text-gray-100 sticky left-[80px] z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] font-mono w-[140px] min-w-[140px] ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#0a0f1a]'}`}>{entry.rollNumber}</td>
-                                                                    <td className={`px-3 py-2 whitespace-nowrap font-bold text-gray-900 dark:text-gray-100 sticky left-[220px] z-40 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.2)] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] w-[180px] min-w-[180px] truncate ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#0a0f1a]'}`}>{entry.username}</td>
+                                                                    <td className={`px-3 py-2 whitespace-nowrap text-gray-900 dark:text-gray-100 sticky left-[80px] z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] font-mono w-[140px] min-w-[140px] ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#111117]'}`}>{entry.rollNumber}</td>
+                                                                    <td className={`px-3 py-2 whitespace-nowrap font-bold text-gray-900 dark:text-gray-100 sticky left-[220px] z-40 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.2)] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] w-[180px] min-w-[180px] truncate ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#111117]'}`}>{entry.username}</td>
                                                                     <td className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">{entry.branch}</td>
                                                                     <td className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 font-bold">{entry.rating}</td>
                                                                     <td className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">{entry.problemsSolved}</td>
@@ -1683,7 +1682,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         onClick={() => { setInternalPageSize(size); setInternalPage(1); }}
                                                         className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors ${internalPageSize === size
                                                             ? 'bg-purple-600 text-white border-purple-600'
-                                                            : 'bg-white dark:bg-[#0a0f1a] text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 hover:border-purple-400 hover:text-purple-600'
+                                                            : 'bg-white dark:bg-[#111117] text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 hover:border-purple-400 hover:text-purple-600'
                                                             }`}
                                                     >
                                                         {size}
@@ -1694,7 +1693,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                 <button
                                                     onClick={() => setInternalPage(p => Math.max(1, p - 1))}
                                                     disabled={internalPage === 1}
-                                                    className="px-3 py-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                                                    className="px-3 py-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111117] hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-700 dark:text-gray-300 transition-colors"
                                                 >
                                                     ← Prev
                                                 </button>
@@ -1705,209 +1704,334 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                 <button
                                                     onClick={() => setInternalPage(p => Math.min(internalTotalPages, p + 1))}
                                                     disabled={internalPage === internalTotalPages}
-                                                    className="px-3 py-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0a0f1a] hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                                                    className="px-3 py-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111117] hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-700 dark:text-gray-300 transition-colors"
                                                 >
                                                     Next →
                                                 </button>
                                             </div>
                                         </div>
                                         <div className="overflow-x-auto pb-4 custom-scrollbar">
-                                            <table className="min-w-max w-full divide-y divide-gray-200 dark:divide-gray-800 border-collapse">
-                                                <thead className="bg-[#f8fafc] dark:bg-[#0a0f1a] sticky top-0 z-10 shadow-sm transition-colors">
+                                            <table className="min-w-max w-full border-separate border-spacing-0">
+                                                <thead className="bg-[#f8fafc] dark:bg-[#111117] sticky top-0 z-10 shadow-sm transition-colors">
                                                     <tr>
-                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] sticky left-0 bg-white dark:bg-[#0a0f1a] z-[120] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] min-w-[60px]" onClick={() => handleInternalSort('rank')}>
+                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] sticky left-0 bg-white dark:bg-[#111117] z-[120] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] min-w-[60px] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700" onClick={() => handleInternalSort('rank')}>
                                                             Rank {internalSortConfig.key === 'rank' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
-                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] sticky left-[60px] bg-white dark:bg-[#0a0f1a] z-[120] border-r border-gray-200 dark:border-gray-700 min-w-[110px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)]" onClick={() => handleInternalSort('rollNumber')}>
+                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] sticky left-[60px] bg-white dark:bg-[#111117] z-[120] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 min-w-[110px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)]" onClick={() => handleInternalSort('rollNumber')}>
                                                             Roll No {internalSortConfig.key === 'rollNumber' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
-                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] sticky left-[170px] bg-white dark:bg-[#0a0f1a] z-[120] shadow-[4px_0_10px_-4px_rgba(0,0,0,0.2)] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] border-r border-gray-200 dark:border-gray-700 min-w-[140px]" onClick={() => handleInternalSort('username')}>
-                                                            User {internalSortConfig.key === 'username' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] sticky left-[170px] bg-white dark:bg-[#111117] z-[120] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 min-w-[140px]" onClick={() => handleInternalSort('username')}>
+                                                            Username {internalSortConfig.key === 'username' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
-                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] min-w-[120px]" onClick={() => handleInternalSort('fullName')}>
+                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] min-w-[120px] border-b border-gray-200 dark:border-gray-700" onClick={() => handleInternalSort('fullName')}>
                                                             Full Name {internalSortConfig.key === 'fullName' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
-                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b]" onClick={() => handleInternalSort('branch')}>
+                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] border-b border-gray-200 dark:border-gray-700" onClick={() => handleInternalSort('branch')}>
                                                             Branch {internalSortConfig.key === 'branch' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
 
                                                         {contestInfo?.problems?.map((prob, i) => (
-                                                            <th key={prob._id} className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap min-w-[160px] border-l border-gray-200 dark:border-gray-700">
+                                                            <th key={prob._id} className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap min-w-[160px] border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">
                                                                 P{i + 1}: {prob.title}
                                                             </th>
                                                         ))}
-                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] whitespace-nowrap" onClick={() => handleInternalSort('time')}>Time</th>
-                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] whitespace-nowrap" onClick={() => handleInternalSort('problemsSolved')}>Solved</th>
-                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap">Switches</th>
-                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap">FS Exits</th>
-                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap">Violations</th>
-                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap">Status</th>
-                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#141b2b] whitespace-nowrap sticky right-0 bg-white dark:bg-[#0a0f1a] z-[120] shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.3)] dark:shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.7)] min-w-[70px]" onClick={() => handleInternalSort('score')}>
+                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700" onClick={() => handleInternalSort('time')}>Time</th>
+                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700" onClick={() => handleInternalSort('problemsSolved')}>Solved</th>
+                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">Switches</th>
+                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">FS Exits</th>
+                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">Violations</th>
+                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">Status</th>
+                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] whitespace-nowrap sticky right-0 bg-white dark:bg-[#111117] z-[120] dark:shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.7)] min-w-[70px] border-b border-gray-200 dark:border-gray-700 border-l-2 border-gray-200 dark:border-gray-700" onClick={() => handleInternalSort('score')}>
                                                             Score {internalSortConfig.key === 'score' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="bg-white dark:bg-[#0a0f1a] divide-y divide-gray-200 dark:divide-gray-800">
-                                                    {paginatedInternalData.map((entry, index) => {
+                                                <tbody className="bg-white dark:bg-[#111117]">
+                                                    {(() => {
                                                         const actualUserId = user?._id || user?.id || tokenUserId || localUserData?._id || localUserData?.id;
-
-                                                        const isCurrentUser = Boolean(entry.studentId && actualUserId && String(entry.studentId) === String(actualUserId));
+                                                        const currentUserEntry = sortedInternalData.find(entry => entry.studentId && actualUserId && String(entry.studentId) === String(actualUserId));
+                                                        const pinnedBg = isDark ? { backgroundColor: '#1e1b4b' } : { backgroundColor: '#faf5ff' };
 
                                                         return (
-                                                            <tr
-                                                                key={`${entry.studentId || entry.rollNumber}-${index}`}
-                                                                className={`hover:bg-gray-50 dark:hover:bg-[#141b2b] transition-colors ${isCurrentUser
-                                                                    ? 'bg-purple-100 dark:bg-[#1e1b4b]'
-                                                                    : 'bg-white dark:bg-[#0a0f1a]'
-                                                                    }`}
-                                                            >
-                                                                <td className={`px-3 py-4 whitespace-nowrap sticky left-0 z-40 border-r border-gray-100 dark:border-gray-700 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[60px] min-w-[60px] ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]'}`}>
-                                                                    <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm mx-auto">
-                                                                        {entry.rank === 1 ? (
-                                                                            <span className="text-2xl">🥇</span>
-                                                                        ) : entry.rank === 2 ? (
-                                                                            <span className="text-2xl">🥈</span>
-                                                                        ) : entry.rank === 3 ? (
-                                                                            <span className="text-2xl">🥉</span>
-                                                                        ) : (
-                                                                            <span className="text-gray-500">#{entry.rank}</span>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-                                                                {/* Roll No - sticky */}
-                                                                <td className={`px-3 py-4 whitespace-nowrap text-sm font-mono sticky left-[60px] z-40 border-r border-gray-100 dark:border-gray-700 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[110px] min-w-[110px] ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b] text-purple-900 dark:text-purple-300' : 'bg-white dark:bg-[#0a0f1a] text-gray-700 dark:text-gray-300 group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]'}`}>{entry.rollNumber}</td>
-                                                                {/* Username Column */}
-                                                                <td className={`px-3 py-4 text-sm font-bold max-w-[140px] min-w-[140px] truncate sticky left-[170px] z-40 border-r border-gray-100 dark:border-gray-700 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.2)] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] transition-colors ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]'} ${isCurrentUser ? 'text-purple-900 dark:text-purple-200' : 'text-gray-900 dark:text-gray-100'}`} title={(entry.isSpotUser || entry.username?.startsWith('spot_')) ? '' : (entry.username !== 'N/A' && entry.username ? entry.username : entry.fullName)}>
-                                                                    {(entry.isSpotUser || entry.username?.startsWith('spot_')) ? (
-                                                                        <span className="text-gray-400 font-medium">-</span>
-                                                                    ) : entry.username !== 'N/A' && entry.username ? (
-                                                                        <a href={`/profile/${entry.username}`} target="_blank" rel="noreferrer" className="text-primary-600 font-medium hover:text-primary-800 hover:underline transition-colors flex items-center gap-1">
-                                                                            {entry.username}
-                                                                        </a>
-                                                                    ) : (
-                                                                        <span className="text-gray-500 italic">No Username</span>
-                                                                    )}
-                                                                </td>
-                                                                {/* Full Name */}
-                                                                <td className="px-3 py-3 text-sm text-gray-500 max-w-[120px] truncate" title={entry.fullName}>{entry.fullName}</td>
-                                                                {/* Branch */}
-                                                                <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">{entry.branch}</td>
+                                                            <>
+                                                                {/* Pinned Current User Row */}
+                                                                {currentUserEntry && (
+                                                                    <tr
+                                                                        key="pinned-current-user"
+                                                                        style={pinnedBg}
+                                                                        className="dark:ring-2 dark:ring-purple-600 sticky top-[48px] z-40 dark:shadow-md transition-colors"
+                                                                    >
+                                                                        <td style={pinnedBg} className="px-3 py-4 whitespace-nowrap sticky left-0 z-40 dark:border-b dark:border-gray-700 dark:border-r dark:border-gray-700 transition-colors dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[60px] min-w-[60px]">
+                                                                            <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm mx-auto bg-purple-600 text-white shadow">
+                                                                                #{currentUserEntry.rank}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td style={pinnedBg} className="px-3 py-4 whitespace-nowrap text-sm font-mono sticky left-[60px] z-40 dark:border-b dark:border-gray-700 dark:border-r dark:border-gray-700 transition-colors dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[110px] min-w-[110px] text-purple-900 dark:text-purple-300">{currentUserEntry.rollNumber}</td>
+                                                                        <td style={pinnedBg} className="px-3 py-4 text-sm font-bold max-w-[140px] min-w-[140px] truncate sticky left-[170px] z-40 dark:border-b dark:border-gray-700 dark:border-r dark:border-gray-700 dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] transition-colors text-purple-900 dark:text-purple-200" title={(currentUserEntry.isSpotUser || currentUserEntry.username?.startsWith('spot_')) ? '' : (currentUserEntry.username !== 'N/A' && currentUserEntry.username ? currentUserEntry.username : currentUserEntry.fullName)}>
+                                                                            {(currentUserEntry.isSpotUser || currentUserEntry.username?.startsWith('spot_')) ? (
+                                                                                <span className="text-gray-400 font-medium">-</span>
+                                                                            ) : currentUserEntry.username && currentUserEntry.username !== 'N/A' ? (
+                                                                                <a href={`/profile/${currentUserEntry.username}`} target="_blank" rel="noreferrer" className="text-purple-600 dark:text-purple-400 font-medium hover:text-purple-800 dark:hover:text-purple-300 hover:underline transition-colors flex items-center gap-1">
+                                                                                    {currentUserEntry.username}
+                                                                                </a>
+                                                                            ) : (
+                                                                                <span className="text-gray-500 italic">No Username</span>
+                                                                            )} (You)
+                                                                        </td>
+                                                                        <td style={pinnedBg} className="px-3 py-3 text-sm max-w-[120px] truncate dark:border-b dark:border-gray-700 text-purple-900 dark:text-purple-200" title={currentUserEntry.fullName}>{currentUserEntry.fullName}</td>
+                                                                        <td style={pinnedBg} className="px-3 py-3 whitespace-nowrap text-sm dark:border-b dark:border-gray-700 text-purple-900 dark:text-purple-200">{currentUserEntry.branch}</td>
 
-                                                                {/* Per-Problem Cells: status badge + tries + submission time */}
-                                                                {contestInfo?.problems?.map(prob => {
-                                                                    const pData = entry.problems?.[prob._id];
-                                                                    const status = pData?.status || 'Not Attempted';
-                                                                    const rawTime = pData?.submittedAt;
-                                                                    let formattedSubTime = (rawTime !== undefined && rawTime !== null)
-                                                                        ? `${(rawTime / 60).toFixed(2)} hrs`
-                                                                        : null;
+                                                                        {contestInfo?.problems?.map(prob => {
+                                                                            const pData = currentUserEntry.problems?.[prob._id];
+                                                                            const status = pData?.status || 'Not Attempted';
+                                                                            const rawTime = pData?.submittedAt;
+                                                                            let formattedSubTime = (rawTime !== undefined && rawTime !== null)
+                                                                                ? `${(rawTime / 60).toFixed(2)} hrs`
+                                                                                : null;
 
-                                                                    let bgClass = 'bg-gray-50 dark:bg-[#0a0f1a]/40 border-gray-200 dark:border-gray-700';
-                                                                    let textClass = 'text-gray-400 dark:text-gray-500';
-                                                                    let statusText = 'Not Tried';
-                                                                    let statusIcon = '—';
+                                                                            let bgClass = 'bg-gray-50 dark:bg-[#111117]/40 border-gray-200 dark:border-gray-700';
+                                                                            let textClass = 'text-gray-400 dark:text-gray-500';
+                                                                            let statusText = 'Not Tried';
+                                                                            let statusIcon = '—';
 
-                                                                    if (status === 'Accepted') {
-                                                                        bgClass = 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800';
-                                                                        textClass = 'text-green-700 dark:text-green-400';
-                                                                        statusText = 'Accepted';
-                                                                        statusIcon = '✓';
-                                                                    } else if (status === 'Wrong Answer') {
-                                                                        bgClass = 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
-                                                                        textClass = 'text-red-600 dark:text-red-400';
-                                                                        statusText = 'Wrong Ans';
-                                                                        statusIcon = '✗';
-                                                                    }
+                                                                            if (status === 'Accepted') {
+                                                                                bgClass = 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800';
+                                                                                textClass = 'text-green-700 dark:text-green-400';
+                                                                                statusText = 'Accepted';
+                                                                                statusIcon = '✓';
+                                                                            } else if (status === 'Wrong Answer') {
+                                                                                bgClass = 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
+                                                                                textClass = 'text-red-600 dark:text-red-400';
+                                                                                statusText = 'Wrong Ans';
+                                                                                statusIcon = '✗';
+                                                                            }
 
-                                                                    return (
-                                                                        <td key={prob._id} className="px-2 py-2 text-center border-l border-gray-100 min-w-[160px]">
-                                                                            <div className={`rounded border inline-flex flex-col items-center gap-0.5 px-3 py-1.5 min-w-[130px] ${bgClass}`}>
-                                                                                <span className={`text-xs font-bold ${textClass}`}>
-                                                                                    {statusIcon} {statusText}
-                                                                                </span>
-                                                                                {(pData?.tries > 0 || formattedSubTime) && (
-                                                                                    <span className="text-[11px] text-gray-500 font-medium">
-                                                                                        {pData.tries > 0 ? `${pData.tries} ${pData.tries === 1 ? 'try' : 'tries'}` : ''}
-                                                                                        {pData.tries > 0 && formattedSubTime ? ` · ${formattedSubTime}` : formattedSubTime}
+                                                                            return (
+                                                                                <td key={prob._id} style={pinnedBg} className="px-2 py-2 text-center dark:border-b dark:border-gray-700 dark:border-l dark:border-gray-700 min-w-[160px]">
+                                                                                    <div className={`rounded border inline-flex flex-col items-center gap-0.5 px-3 py-1.5 min-w-[130px] ${bgClass}`}>
+                                                                                        <span className={`text-xs font-bold ${textClass}`}>
+                                                                                            {statusIcon} {statusText}
+                                                                                        </span>
+                                                                                        {(pData?.tries > 0 || formattedSubTime) && (
+                                                                                            <span className="text-[11px] text-gray-500 font-medium">
+                                                                                                {pData.tries > 0 ? `${pData.tries} ${pData.tries === 1 ? 'try' : 'tries'}` : ''}
+                                                                                                {pData.tries > 0 && formattedSubTime ? ` · ${formattedSubTime}` : formattedSubTime}
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </td>
+                                                                            );
+                                                                        })}
+
+                                                                        <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-sm text-center text-purple-900 dark:text-purple-400 font-mono dark:border-b dark:border-gray-700 dark:border-l dark:border-gray-700">
+                                                                            {(currentUserEntry.time / 60).toFixed(2)} hrs
+                                                                        </td>
+                                                                        <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-center dark:border-b dark:border-gray-700 dark:border-l dark:border-gray-700">
+                                                                            <span className="inline-block bg-purple-200 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded-full text-xs font-bold border border-purple-300 dark:border-purple-700">
+                                                                                {currentUserEntry.problemsSolved}/{contestInfo?.totalProblems || contestInfo?.problems?.length || 0}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-sm text-center dark:border-b dark:border-gray-700 dark:border-l dark:border-gray-700">
+                                                                            <span className={currentUserEntry.tabSwitchCount > 0 ? 'text-red-600 font-bold' : 'text-purple-900 dark:text-purple-200'}>
+                                                                                {currentUserEntry.tabSwitchCount || 0}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-sm text-center dark:border-b dark:border-gray-700 dark:border-l dark:border-gray-700">
+                                                                            <span className={currentUserEntry.fullscreenExits > 0 ? 'text-red-600 font-bold' : 'text-purple-900 dark:text-purple-200'}>
+                                                                                {currentUserEntry.fullscreenExits || 0}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-sm text-center dark:border-b dark:border-gray-700 dark:border-l dark:border-gray-700">
+                                                                            {(() => {
+                                                                                const total = (currentUserEntry.tabSwitchCount || 0) + (currentUserEntry.fullscreenExits || 0);
+                                                                                return (
+                                                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block border ${total === 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800/50'
+                                                                                        : total < 3 ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800/50'
+                                                                                            : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800/50'
+                                                                                        }`}>
+                                                                                        {total}
+                                                                                    </span>
+                                                                                );
+                                                                            })()}
+                                                                        </td>
+                                                                        <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-sm text-center dark:border-b dark:border-gray-700 dark:border-l dark:border-gray-700">
+                                                                            <div className="flex flex-col items-center gap-1">
+                                                                                {currentUserEntry.isCompleted ? (
+                                                                                    <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium border border-green-200 dark:border-green-800/50 inline-block transition-colors">
+                                                                                        Finished
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <span className="px-2 py-1 bg-amber-500 text-black rounded-full text-xs font-black shadow-[0_0_10px_rgba(245,158,11,0.5)]">
+                                                                                        In Progress
                                                                                     </span>
                                                                                 )}
                                                                             </div>
                                                                         </td>
+                                                                        <td style={pinnedBg} className="px-3 py-4 whitespace-nowrap text-center sticky right-0 z-[120] dark:border-l-2 dark:border-gray-700 dark:border-b dark:border-gray-700 dark:shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.6)] transition-colors">
+                                                                            <span className="font-bold text-lg text-primary-600 dark:text-primary-400">{currentUserEntry.score}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+
+                                                                {paginatedInternalData.map((entry, index) => {
+                                                                    const isCurrentUser = Boolean(entry.studentId && actualUserId && String(entry.studentId) === String(actualUserId));
+                                                                    if (isCurrentUser) return null;
+
+                                                                    return (
+                                                                        <tr
+                                                                            key={`${entry.studentId || entry.rollNumber}-${index}`}
+                                                                            className="group transition-colors bg-white dark:bg-[#111117] hover:bg-gray-50 dark:hover:bg-[#23232e]"
+                                                                        >
+                                                                            <td className="px-3 py-4 whitespace-nowrap sticky left-0 z-40 border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[60px] min-w-[60px] bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">
+                                                                                <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm mx-auto">
+                                                                                    {entry.rank === 1 ? (
+                                                                                        <span className="text-2xl">🥇</span>
+                                                                                    ) : entry.rank === 2 ? (
+                                                                                        <span className="text-2xl">🥈</span>
+                                                                                    ) : entry.rank === 3 ? (
+                                                                                        <span className="text-2xl">🥉</span>
+                                                                                    ) : (
+                                                                                        <span className="text-gray-500">#{entry.rank}</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </td>
+                                                                            {/* Roll No - sticky */}
+                                                                            <td className="px-3 py-4 whitespace-nowrap text-sm font-mono sticky left-[60px] z-40 border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[110px] min-w-[110px] bg-white dark:bg-[#111117] text-gray-700 dark:text-gray-300 group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">{entry.rollNumber}</td>
+                                                                            {/* Username Column */}
+                                                                            <td className="px-3 py-4 text-sm font-bold max-w-[140px] min-w-[140px] truncate sticky left-[170px] z-40 border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] transition-colors bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e] text-gray-900 dark:text-gray-100" title={(entry.isSpotUser || entry.username?.startsWith('spot_')) ? '' : (entry.username !== 'N/A' && entry.username ? entry.username : entry.fullName)}>
+                                                                                {(entry.isSpotUser || entry.username?.startsWith('spot_')) ? (
+                                                                                    <span className="text-gray-400 font-medium">-</span>
+                                                                                ) : entry.username && entry.username !== 'N/A' ? (
+                                                                                    <a href={`/profile/${entry.username}`} target="_blank" rel="noreferrer" className="text-purple-600 dark:text-purple-400 font-medium hover:text-purple-800 dark:hover:text-purple-300 hover:underline transition-colors flex items-center gap-1">
+                                                                                        {entry.username}
+                                                                                    </a>
+                                                                                ) : (
+                                                                                    <span className="text-gray-500 italic">No Username</span>
+                                                                                )}
+                                                                            </td>
+                                                                            {/* Full Name */}
+                                                                            <td className="px-3 py-3 text-sm max-w-[120px] truncate border-b border-gray-200 dark:border-gray-700 text-gray-500" title={entry.fullName}>{entry.fullName}</td>
+                                                                            {/* Branch */}
+                                                                            <td className="px-3 py-3 whitespace-nowrap text-sm border-b border-gray-200 dark:border-gray-700 text-gray-500">{entry.branch}</td>
+
+                                                                            {/* Per-Problem Cells: status badge + tries + submission time */}
+                                                                            {contestInfo?.problems?.map(prob => {
+                                                                                const pData = entry.problems?.[prob._id];
+                                                                                const status = pData?.status || 'Not Attempted';
+                                                                                const rawTime = pData?.submittedAt;
+                                                                                let formattedSubTime = (rawTime !== undefined && rawTime !== null)
+                                                                                    ? `${(rawTime / 60).toFixed(2)} hrs`
+                                                                                    : null;
+
+                                                                                let bgClass = 'bg-gray-50 dark:bg-[#111117]/40 border-gray-200 dark:border-gray-700';
+                                                                                let textClass = 'text-gray-400 dark:text-gray-500';
+                                                                                let statusText = 'Not Tried';
+                                                                                let statusIcon = '—';
+
+                                                                                if (status === 'Accepted') {
+                                                                                    bgClass = 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800';
+                                                                                    textClass = 'text-green-700 dark:text-green-400';
+                                                                                    statusText = 'Accepted';
+                                                                                    statusIcon = '✓';
+                                                                                } else if (status === 'Wrong Answer') {
+                                                                                    bgClass = 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
+                                                                                    textClass = 'text-red-600 dark:text-red-400';
+                                                                                    statusText = 'Wrong Ans';
+                                                                                    statusIcon = '✗';
+                                                                                }
+
+                                                                                return (
+                                                                                    <td key={prob._id} className="px-2 py-2 text-center border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700 min-w-[160px]">
+                                                                                        <div className={`rounded border inline-flex flex-col items-center gap-0.5 px-3 py-1.5 min-w-[130px] ${bgClass}`}>
+                                                                                            <span className={`text-xs font-bold ${textClass}`}>
+                                                                                                {statusIcon} {statusText}
+                                                                                            </span>
+                                                                                            {(pData?.tries > 0 || formattedSubTime) && (
+                                                                                                <span className="text-[11px] text-gray-500 font-medium">
+                                                                                                    {pData.tries > 0 ? `${pData.tries} ${pData.tries === 1 ? 'try' : 'tries'}` : ''}
+                                                                                                    {pData.tries > 0 && formattedSubTime ? ` · ${formattedSubTime}` : formattedSubTime}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </td>
+                                                                                );
+                                                                            })}
+
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 dark:text-gray-400 font-mono border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">
+                                                                                {(entry.time / 60).toFixed(2)} hrs
+                                                                            </td>
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-center border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">
+                                                                                <span className="inline-block bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 px-2 py-0.5 rounded-full text-xs font-bold border border-primary-100 dark:border-primary-900/50">
+                                                                                    {entry.problemsSolved}/{contestInfo?.totalProblems || contestInfo?.problems?.length || 0}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">
+                                                                                <span className={entry.tabSwitchCount > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                                    {entry.tabSwitchCount || 0}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">
+                                                                                <span className={entry.fullscreenExits > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                                                                                    {entry.fullscreenExits || 0}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">
+                                                                                {(() => {
+                                                                                    const total = (entry.tabSwitchCount || 0) + (entry.fullscreenExits || 0);
+                                                                                    return (
+                                                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block border ${total === 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800/50'
+                                                                                            : total < 3 ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800/50'
+                                                                                                : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800/50'
+                                                                                            }`}>
+                                                                                            {total}
+                                                                                        </span>
+                                                                                    );
+                                                                                })()}
+                                                                            </td>
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-center border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">
+                                                                                <div className="flex flex-col items-center gap-1">
+                                                                                    {entry.isCompleted ? (
+                                                                                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium border border-green-200 dark:border-green-800/50 inline-block transition-colors">
+                                                                                            Finished
+                                                                                        </span>
+                                                                                    ) : (
+                                                                                        <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full text-xs font-medium border border-yellow-200 dark:border-yellow-800/50 inline-block transition-colors">
+                                                                                            In Progress
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {canUnlockUsers && entry.isCompleted && (
+                                                                                        <button
+                                                                                            onClick={(e) => { e.stopPropagation(); handleUnlockUser(entry.studentId, entry.fullName || entry.username); }}
+                                                                                            disabled={unlockingStudents.has(String(entry.studentId))}
+                                                                                            className="px-2 py-0.5 text-[11px] font-semibold rounded-md border transition-all duration-200 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                                                                            title="Unlock contest for this student to continue"
+                                                                                        >
+                                                                                            {unlockingStudents.has(String(entry.studentId)) ? (
+                                                                                                <>
+                                                                                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                                                                                                    Unlocking…
+                                                                                                </>
+                                                                                            ) : (
+                                                                                                <>
+                                                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 11V7a4 4 0 018 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                                                                                                    </svg>
+                                                                                                    Unlock
+                                                                                                </>
+                                                                                            )}
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="px-3 py-4 whitespace-nowrap text-center sticky right-0 z-[120] border-l-2 border-gray-200 dark:border-gray-700 border-b border-gray-200 dark:border-gray-700 dark:shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.6)] transition-colors bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">
+                                                                                <span className="font-bold text-lg text-primary-600 dark:text-primary-400">{entry.score}</span>
+                                                                            </td>
+                                                                        </tr>
                                                                     );
                                                                 })}
-
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono">
-                                                                    {(entry.time / 60).toFixed(2)} hrs
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-center">
-                                                                    <span className="inline-block bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 px-2 py-0.5 rounded-full text-xs font-bold border border-primary-100 dark:border-primary-900/50">
-                                                                        {entry.problemsSolved}/{contestInfo?.totalProblems || contestInfo?.problems?.length || 0}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                    <span className={entry.tabSwitchCount > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                        {entry.tabSwitchCount || 0}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                    <span className={entry.fullscreenExits > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                        {entry.fullscreenExits || 0}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                    {(() => {
-                                                                        const total = (entry.tabSwitchCount || 0) + (entry.fullscreenExits || 0);
-                                                                        return (
-                                                                            <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block border ${total === 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800/50'
-                                                                                : total < 3 ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800/50'
-                                                                                    : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800/50'
-                                                                                }`}>
-                                                                                {total}
-                                                                            </span>
-                                                                        );
-                                                                    })()}
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
-                                                                    <div className="flex flex-col items-center gap-1">
-                                                                        {entry.isCompleted ? (
-                                                                            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium border border-green-200 dark:border-green-800/50 inline-block transition-colors">
-                                                                                Finished
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full text-xs font-medium border border-yellow-200 dark:border-yellow-800/50 inline-block transition-colors">
-                                                                                In Progress
-                                                                            </span>
-                                                                        )}
-                                                                        {canUnlockUsers && entry.isCompleted && (
-                                                                            <button
-                                                                                onClick={(e) => { e.stopPropagation(); handleUnlockUser(entry.studentId, entry.fullName || entry.username); }}
-                                                                                disabled={unlockingStudents.has(String(entry.studentId))}
-                                                                                className="px-2 py-0.5 text-[11px] font-semibold rounded-md border transition-all duration-200 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                                                                                title="Unlock contest for this student to continue"
-                                                                            >
-                                                                                {unlockingStudents.has(String(entry.studentId)) ? (
-                                                                                    <>
-                                                                                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                                                                                        Unlocking…
-                                                                                    </>
-                                                                                ) : (
-                                                                                    <>
-                                                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 11V7a4 4 0 018 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                                                                                        </svg>
-                                                                                        Unlock
-                                                                                    </>
-                                                                                )}
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-                                                                <td className={`px-3 py-4 whitespace-nowrap text-center sticky right-0 z-[120] border-l border-gray-100 dark:border-gray-700 shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.3)] dark:shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.6)] transition-colors ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#0a0f1a] group-hover:bg-gray-50 dark:group-hover:bg-[#141b2b]'}`}>
-                                                                    <span className="font-bold text-lg text-primary-600 dark:text-primary-400">{entry.score}</span>
-                                                                </td>
-                                                            </tr>
+                                                            </>
                                                         );
-                                                    })}
+                                                    })()}
                                                 </tbody>
                                             </table>
                                         </div>

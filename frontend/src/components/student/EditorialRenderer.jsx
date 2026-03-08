@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fa';
 import { ChevronDown, ChevronRight, Timer, Code2, Terminal, BookOpen, ExternalLink, Lock } from 'lucide-react';
 import problemService from '../../services/problemService';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -35,7 +36,7 @@ const toRawGithubUrl = (url) => {
 // ──────────────────────────────────────────────────────────────────────────────
 // CODE BLOCK VIEWER
 // ──────────────────────────────────────────────────────────────────────────────
-const CodeBlockViewer = React.memo(({ blocks, id, complexity, activeTabState, onTabChange }) => {
+const CodeBlockViewer = React.memo(({ blocks, id, complexity, activeTabState, onTabChange, isDark }) => {
     const [viewMode, setViewMode] = useState('code');
     const [isComplexityOpen, setIsComplexityOpen] = useState(false);
     const [localCopied, setLocalCopied] = useState(false);
@@ -66,9 +67,9 @@ const CodeBlockViewer = React.memo(({ blocks, id, complexity, activeTabState, on
     };
 
     return (
-        <div className="my-5 w-full rounded-xl border border-zinc-800 bg-[#0a0f1a] overflow-hidden shadow-lg">
+        <div className={`my-5 w-full rounded-xl border border-zinc-800 bg-[#111117] overflow-hidden ${!isDark ? 'shadow-lg' : ''}`}>
             {/* Header */}
-            <div className="flex items-center justify-between h-10 px-3 bg-[#0a0f1a] border-b border-zinc-800 select-none">
+            <div className="flex items-center justify-between h-10 px-3 bg-[#111117] border-b border-zinc-800 select-none">
                 <div className="flex items-center gap-3">
                     <div className="flex gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
@@ -98,7 +99,7 @@ const CodeBlockViewer = React.memo(({ blocks, id, complexity, activeTabState, on
 
             {/* Language Tabs */}
             {viewMode === 'code' && (
-                <div className="bg-[#0a0f1a] border-b border-zinc-800 px-4">
+                <div className="bg-[#111117] border-b border-zinc-800 px-4">
                     <div className="flex gap-x-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                         {languages.map(lang => (
                             <button key={lang} onClick={() => languages.length > 1 && onTabChange(lang)}
@@ -111,7 +112,7 @@ const CodeBlockViewer = React.memo(({ blocks, id, complexity, activeTabState, on
             )}
 
             {/* Content */}
-            <div className="relative bg-[#0a0f1a]">
+            <div className="relative bg-[#111117]">
                 <div style={{ maxHeight: '340px', overflowX: 'auto', overflowY: 'auto', scrollbarWidth: 'none' }}>
                     {viewMode === 'code' && normalizedBlocks.map(block => (
                         <div key={block.language} style={{ display: block.language === currentLang ? 'block' : 'none', minWidth: 'max-content' }}>
@@ -134,7 +135,7 @@ const CodeBlockViewer = React.memo(({ blocks, id, complexity, activeTabState, on
 
             {/* Complexity */}
             {viewMode === 'code' && hasComplexity && (
-                <div className="border-t border-zinc-800 bg-[#0a0f1a]">
+                <div className="border-t border-zinc-800 bg-[#111117]">
                     <button onClick={() => setIsComplexityOpen(v => !v)} className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 transition">
                         <span className="flex items-center gap-2"><Timer className="w-3.5 h-3.5 text-zinc-500" />Complexity Analysis</span>
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isComplexityOpen ? 'rotate-180' : ''}`} />
@@ -172,23 +173,23 @@ const MarkdownComponents = {
     ul: ({ children }) => <ul className="text-gray-700 dark:text-gray-300 text-[13px] list-disc list-outside ml-4 mb-3 space-y-0.5">{children}</ul>,
     ol: ({ children }) => <ol className="text-gray-700 dark:text-gray-300 text-[13px] list-decimal list-outside ml-4 mb-3 space-y-0.5">{children}</ol>,
     li: ({ children }) => <li className="pl-1 leading-6 break-words">{children}</li>,
-    blockquote: ({ children }) => <blockquote className="border-l-4 border-primary-400 pl-4 pr-2 py-1 italic text-gray-500 dark:text-gray-400 text-[13px] my-3 bg-primary-50/50 dark:bg-primary-900/20 rounded-r">{children}</blockquote>,
+    blockquote: ({ children }) => <blockquote className="border-l-4 border-primary-400 dark:border-gray-500 pl-4 pr-2 py-1 italic text-gray-500 dark:text-gray-400 text-[13px] my-3 bg-primary-50/50 dark:bg-[#23232e] rounded-r">{children}</blockquote>,
     a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline break-all">{children}</a>,
     hr: () => <hr className="border-0 border-t border-gray-200 dark:border-gray-800 my-4" />,
     table: (props) => <div className="my-4 w-full overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm"><table className="w-full text-sm border-collapse text-left" {...props} /></div>,
     thead: (props) => <thead className="bg-primary-50 dark:bg-primary-900/30 text-gray-900 dark:text-gray-100" {...props} />,
     tr: (props) => <tr className="border-t border-gray-200 dark:border-gray-800 even:bg-gray-50/50 dark:even:bg-gray-800/30" {...props} />,
-    tbody: (props) => <tbody className="bg-white dark:bg-[#0a0f1a]" {...props} />,
+    tbody: (props) => <tbody className="bg-white dark:bg-[#111117]" {...props} />,
     th: ({ children }) => <th className="px-3 py-2 font-semibold border-r border-primary-100 dark:border-primary-900 last:border-r-0 text-[12px] whitespace-nowrap">{children}</th>,
     td: ({ children }) => <td className="px-3 py-2 border-r border-gray-100 dark:border-gray-800 last:border-r-0 align-top text-gray-700 dark:text-gray-300 text-[12px]">{children}</td>,
     code: ({ inline, className, children }) => {
         const content = String(children).replace(/\n$/, '');
         const match = /language-(\w+)/.exec(className || '');
         if (inline || (!match && !content.includes('\n'))) {
-            return <code className="bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-1.5 py-0.5 rounded text-[12px] font-mono border border-primary-100 dark:border-primary-900/50 inline break-all">{children}</code>;
+            return <code className="bg-primary-50 dark:bg-[#23232e] text-primary-700 dark:text-gray-200 px-1.5 py-0.5 rounded text-[12px] font-mono border border-primary-100 dark:border-gray-700 inline break-all">{children}</code>;
         }
         return (
-            <div className="my-3 rounded-lg overflow-hidden bg-[#0a0f1a] border border-zinc-800">
+            <div className="my-3 rounded-lg overflow-hidden bg-[#111117] border border-zinc-800">
                 <div className="p-3 overflow-x-auto text-[12px] font-mono text-gray-200">{children}</div>
             </div>
         );
@@ -353,6 +354,7 @@ const universalParse = (markdown) => {
 //   onUnlockEditorial  – callback to trigger parent to update state
 // ──────────────────────────────────────────────────────────────────────────────
 const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedEditorial, onUnlockEditorial }) => {
+    const { isDark } = useTheme();
     const [parsedContent, setParsedContent] = useState(null);
     const [fetchError, setFetchError] = useState(null);
     const [fetchLoading, setFetchLoading] = useState(false);
@@ -414,7 +416,7 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedE
                     </div>
                 );
             case 'image':
-                return <img key={block.id} src={block.src} alt="editorial" className="max-w-full rounded-xl border border-gray-200 my-4 shadow-sm" />;
+                return <img key={block.id} src={block.src} alt="editorial" className={`max-w-full rounded-xl border border-gray-200 my-4 ${!isDark ? 'shadow-sm' : ''}`} />;
             case 'code':
                 return (
                     <CodeBlockViewer
@@ -424,6 +426,7 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedE
                         complexity={block.complexity}
                         activeTabState={codeTabStates[block.id]}
                         onTabChange={(val) => setCodeTabStates(prev => ({ ...prev, [block.id]: val }))}
+                        isDark={isDark}
                     />
                 );
             default:
@@ -449,20 +452,20 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedE
                         <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">GitHub Editorial URL</label>
                         <input value={draftEditorialLink} onChange={e => setDraftEditorialLink(e.target.value)}
                             placeholder="https://github.com/user/repo/blob/main/editorial.md"
-                            className="w-full bg-white dark:bg-[#0a0f1a] border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary-400 focus:outline-none font-mono transition-colors" />
+                            className="w-full bg-white dark:bg-[#111117] border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary-400 focus:outline-none font-mono transition-colors" />
                     </div>
                     <div>
                         <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">YouTube Video URL (optional)</label>
                         <input value={draftVideoUrl} onChange={e => setDraftVideoUrl(e.target.value)}
                             placeholder="https://www.youtube.com/watch?v=..."
-                            className="w-full bg-white dark:bg-[#0a0f1a] border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary-400 focus:outline-none font-mono transition-colors" />
+                            className="w-full bg-white dark:bg-[#111117] border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary-400 focus:outline-none font-mono transition-colors" />
                     </div>
                     <div className="flex gap-2">
                         <button onClick={handleAdminSave} disabled={saving}
                             className="px-4 py-1.5 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50 transition">
                             {saving ? 'Saving…' : 'Save'}
                         </button>
-                        <button onClick={() => setEditMode(false)} className="px-4 py-1.5 bg-gray-100 dark:bg-[#0a0f1a] text-gray-700 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                        <button onClick={() => setEditMode(false)} className="px-4 py-1.5 bg-gray-100 dark:bg-[#111117] text-gray-700 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition">
                             Cancel
                         </button>
                     </div>
@@ -506,9 +509,9 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedE
     if (!isAdmin && !hasViewedEditorial) {
         return (
             <div className="p-6 h-full flex flex-col items-center justify-center py-20 animate-fade-in relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary-50/20 to-rose-50/20 dark:from-primary-900/10 dark:to-rose-900/10 pointer-events-none" />
+                {!isDark && <div className="absolute inset-0 bg-gradient-to-br from-primary-50/20 to-rose-50/20 dark:from-primary-900/10 dark:to-rose-900/10 pointer-events-none" />}
                 <div className="relative z-10 flex flex-col items-center max-w-sm text-center">
-                    <div className="w-16 h-16 bg-white dark:bg-[#0a0f1a] border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl flex items-center justify-center mb-5 text-primary-500">
+                    <div className={`w-16 h-16 bg-white dark:bg-[#111117] border border-gray-100 dark:border-gray-700 rounded-2xl flex items-center justify-center mb-5 text-primary-500 ${!isDark ? 'shadow-xl' : ''}`}>
                         <Lock size={28} />
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">View Code Editorial</h2>
@@ -518,7 +521,7 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedE
                     <button
                         onClick={handleUnlock}
                         disabled={unlocking}
-                        className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-[0.98] disabled:opacity-70"
+                        className={`w-full flex items-center justify-center gap-2 py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-70 ${!isDark ? 'shadow-md' : ''}`}
                     >
                         {unlocking ? <FaSpinner className="animate-spin" /> : 'Yes, Reveal Editorial'}
                     </button>
@@ -548,7 +551,7 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedE
 
                         <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Video Explanation</h3>
                     </div>
-                    <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-800">
+                    <div className={`aspect-video bg-black rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 ${!isDark ? 'shadow-lg' : ''}`}>
                         <iframe
                             src={`https://www.youtube.com/embed/${youtubeId}?rel=0`}
                             title="Video Explanation"
@@ -560,9 +563,9 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedE
                     {/* Divider before editorial */}
                     {(editorialLink || problem?.editorial?.approach) && (
                         <div className="flex items-center gap-3 mt-6 mb-2">
-                            <div className="flex-1 h-px bg-gray-200 dark:bg-[#0a0f1a]" />
+                            <div className="flex-1 h-px bg-gray-200 dark:bg-[#111117]" />
                             <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Editorial</span>
-                            <div className="flex-1 h-px bg-gray-200 dark:bg-[#0a0f1a]" />
+                            <div className="flex-1 h-px bg-gray-200 dark:bg-[#111117]" />
                         </div>
                     )}
                 </div>
@@ -579,7 +582,7 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedE
                     )}
 
                     {fetchError && (
-                        <div className="p-4 bg-red-50 dark:bg-[#0a0f1a]/20 border border-red-200 dark:border-red-900/50 rounded-xl text-sm text-red-700 dark:text-red-400 flex items-start gap-2">
+                        <div className="p-4 bg-red-50 dark:bg-[#111117]/20 border border-red-200 dark:border-red-900/50 rounded-xl text-sm text-red-700 dark:text-red-400 flex items-start gap-2">
                             <span className="font-semibold shrink-0">Error:</span>
                             <span>{fetchError}</span>
                             <a href={editorialLink} target="_blank" rel="noopener noreferrer"
@@ -636,12 +639,12 @@ const EditorialRenderer = ({ problem, isAdmin = false, onUpdateLinks, hasViewedE
             {/* ── Fallback: legacy text-only editorial ───────────────────── */}
             {!editorialLink && problem?.editorial?.approach && (
                 <div className="space-y-4">
-                    <div className="bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm transition-colors">
+                    <div className={`bg-white dark:bg-[#111117] border border-gray-200 dark:border-gray-800 rounded-xl p-5 transition-colors ${!isDark ? 'shadow-sm' : ''}`}>
                         <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2 text-sm">Approach</h3>
                         <p className="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{problem.editorial.approach}</p>
                     </div>
                     {problem.editorial.complexity && (
-                        <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 border border-gray-200 dark:border-gray-800 rounded-xl p-4 transition-colors">
+                        <div className="bg-gray-50 dark:bg-[#111117]/50 border border-gray-200 dark:border-gray-800 rounded-xl p-4 transition-colors">
                             <h3 className="text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-1">Complexity</h3>
                             <p className="text-[13px] text-gray-700 dark:text-gray-300">{problem.editorial.complexity}</p>
                         </div>

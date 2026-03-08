@@ -107,7 +107,7 @@ const GlobalRankGraph = ({ externalContestStats, leaderboardStats }) => {
     if (data.length === 0) {
         return (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 h-96 flex flex-col items-center justify-center text-center">
-                <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 rounded-full w-16 h-16 flex items-center justify-center mb-4 text-2xl">
+                <div className="bg-gray-50 dark:bg-[#111117]/50 rounded-full w-16 h-16 flex items-center justify-center mb-4 text-2xl">
                     📊
                 </div>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">Not enough data for global history</p>

@@ -39,7 +39,7 @@ const SecuritySettings = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto card dark:bg-[#0a0f1a] dark:border-gray-800 animate-fade-in transition-colors">
+        <div className="max-w-4xl mx-auto card dark:bg-[#111117] dark:border-gray-800 animate-fade-in transition-colors">
             <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6 pb-2 border-b border-gray-100 dark:border-gray-800">Security Settings</h2>
 
             <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-lg p-4 mb-6 flex items-start transition-colors">
@@ -59,7 +59,7 @@ const SecuritySettings = () => {
                         type="password"
                         value={passwordData.currentPassword}
                         onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                        className="input-field dark:bg-[#0a0f1a] dark:text-gray-100 dark:border-gray-700"
+                        className="input-field dark:bg-[#111117] dark:text-gray-100 dark:border-gray-700"
                         required
                     />
                 </div>
@@ -69,7 +69,7 @@ const SecuritySettings = () => {
                         type="password"
                         value={passwordData.newPassword}
                         onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                        className="input-field dark:bg-[#0a0f1a] dark:text-gray-100 dark:border-gray-700"
+                        className="input-field dark:bg-[#111117] dark:text-gray-100 dark:border-gray-700"
                         required
                         minLength={6}
                     />
@@ -80,7 +80,7 @@ const SecuritySettings = () => {
                         type="password"
                         value={passwordData.confirmPassword}
                         onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                        className="input-field dark:bg-[#0a0f1a] dark:text-gray-100 dark:border-gray-700"
+                        className="input-field dark:bg-[#111117] dark:text-gray-100 dark:border-gray-700"
                         required
                         minLength={6}
                     />

@@ -21,7 +21,7 @@ const ThemeToggle = ({ className = '', size = 'md' }) => {
         <button
             onClick={toggleTheme}
             className={`${sizes[size]} inline-flex items-center justify-center rounded-xl transition-all duration-300 ${isDark
-                ? 'bg-gray-800 hover:bg-gray-700 text-amber-400 border border-gray-700 hover:border-gray-600'
+                ? 'bg-[#111117] hover:bg-[#1a1a24] text-amber-400 border border-gray-800 hover:border-gray-700'
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-200 hover:border-gray-300'
                 } ${className}`}
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}

@@ -71,15 +71,15 @@ export default {
                 success: '#10b981',
                 error: '#ef4444',
                 warning: '#f59e0b',
-                // Dark theme palette (Evolvion-inspired, neutral dark)
+                // Dark theme palette (Antigravity-inspired)
                 dark: {
-                    bg: '#0a0f1a',
-                    card: '#0a0f1a',
-                    surface: '#0a0f1a',
-                    border: '#1f2937',
-                    'border-light': '#374151',
-                    hover: '#141b2b',
-                    input: '#0a0f1a',
+                    bg: '#111117',
+                    card: '#181820',
+                    surface: '#1c1c26',
+                    border: '#282833',
+                    'border-light': '#333342',
+                    hover: '#23232e',
+                    input: '#181820',
                 },
             },
             fontFamily: {

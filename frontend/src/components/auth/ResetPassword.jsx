@@ -73,57 +73,49 @@ const ResetPassword = () => {
     };
 
     return (
-        <div className="min-h-screen flex bg-white font-sans">
-            {/* Left Side - Brand/Illustration */}
-            <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-900 via-blue-900 to-indigo-800 justify-center items-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                    <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-blue-500/30 rounded-full mix-blend-screen filter blur-[100px] animate-pulse"></div>
-                    <div className="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] bg-indigo-500/30 rounded-full mix-blend-screen filter blur-[100px] animate-pulse" style={{ animationDelay: '2s' }}></div>
-                </div>
-
+        <div className="min-h-screen flex bg-[#F7F5FF] dark:bg-[#111117] font-sans">
+            {/* Left Side - Brand/Illustration (Unified Styling) */}
+            <div className="hidden lg:flex lg:w-1/2 justify-center items-center relative overflow-hidden">
                 <div className="relative z-10 text-center px-12 max-w-2xl transform transition-transform duration-700 hover:scale-105">
-                    <div className="inline-flex items-center justify-center p-5 bg-white/10 backdrop-blur-xl rounded-full border border-white/20 shadow-2xl mb-8">
-                        <svg className="w-20 h-20 text-blue-200 drop-shadow-xl" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="inline-flex items-center justify-center p-0 mb-8">
+                        <svg className="w-20 h-20 text-indigo-600 dark:text-indigo-400 filter brightness-110 drop-shadow-xl" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                     </div>
-                    <h1 className="text-4xl lg:text-5xl font-extrabold text-white mb-6 tracking-tight leading-tight">
-                        Secure Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300">Account</span>
+                    <h1 className="text-4xl lg:text-5xl font-extrabold text-[#111827] dark:text-white mb-6 tracking-tight leading-tight">
+                        Secure Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-300 dark:to-blue-300">Account</span>
                     </h1>
-                    <p className="text-lg lg:text-xl text-blue-100/90 leading-relaxed font-light">
-                        Create a strong, unique password to keep your AlphaKnowledge account safe and sound.
-                    </p>
                 </div>
             </div>
 
             {/* Right Side - Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-gray-50/50 relative">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 relative">
                 <div className="max-w-md w-full space-y-8">
                     {/* Mobile Header */}
                     <div className="text-center lg:hidden">
-                        <div className="inline-flex justify-center mb-6 p-4 bg-white rounded-full shadow-md border border-gray-100">
-                            <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="inline-flex justify-center mb-6 p-4 bg-white dark:bg-[#111117] rounded-full shadow-md border border-gray-100 dark:border-gray-800">
+                            <svg className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                         </div>
-                        <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                        <h2 className="text-3xl font-extrabold text-[#111827] dark:text-white tracking-tight">
                             Set New Password
                         </h2>
-                        <p className="mt-2 text-sm text-gray-500 font-medium whitespace-pre-wrap">
-                            Enter the OTP sent to{'\n'}<strong className="text-blue-600">{formData.email}</strong>
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 font-medium whitespace-pre-wrap">
+                            Enter the OTP sent to{'\n'}<strong className="text-indigo-600 dark:text-indigo-400">{formData.email}</strong>
                         </p>
                     </div>
 
                     <div className="hidden lg:block mb-10">
-                        <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Set New Password</h2>
-                        <p className="text-base text-gray-500 font-medium">Enter the OTP sent to <strong className="text-blue-600">{formData.email}</strong></p>
+                        <h2 className="text-4xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight mb-3">Set New Password</h2>
+                        <p className="text-base text-gray-500 dark:text-gray-400 font-medium">Enter the OTP sent to <strong className="text-indigo-600 dark:text-indigo-400">{formData.email}</strong></p>
                     </div>
 
-                    <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+                    <div className="bg-white dark:bg-[#111117] p-8 rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none border border-gray-100 dark:border-gray-800 transition-all duration-300">
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {/* OTP */}
                             <div>
-                                <label htmlFor="otp" className="block text-sm font-semibold text-gray-700 mb-2">
+                                <label htmlFor="otp" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                                     6-Digit OTP
                                 </label>
                                 <div className="relative group">
@@ -134,7 +126,7 @@ const ResetPassword = () => {
                                         maxLength="6"
                                         value={formData.otp}
                                         onChange={handleChange}
-                                        className={`input-field h-14 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-all text-center text-3xl tracking-[0.5em] font-bold text-blue-900 ${errors.otp ? 'border-red-500' : ''
+                                        className={`input-field h-14 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 transition-all text-center text-3xl tracking-[0.5em] font-bold text-indigo-900 dark:text-indigo-400 ${errors.otp ? 'border-red-500' : ''
                                             }`}
                                         placeholder="------"
                                         required
@@ -146,7 +138,7 @@ const ResetPassword = () => {
                             <div className="pt-2">
                                 {/* New Password */}
                                 <div className="mb-5">
-                                    <label htmlFor="newPassword" className="block text-sm font-semibold text-gray-700 mb-2">
+                                    <label htmlFor="newPassword" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                                         New Password
                                     </label>
                                     <div className="relative group">
@@ -161,7 +153,7 @@ const ResetPassword = () => {
                                             type={showPassword ? 'text' : 'password'}
                                             value={formData.newPassword}
                                             onChange={handleChange}
-                                            className={`input-field pl-11 pr-12 h-12 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-all ${errors.newPassword ? 'border-red-500' : ''}`}
+                                            className={`input-field pl-11 pr-12 h-12 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 transition-all ${errors.newPassword ? 'border-red-500' : ''}`}
                                             placeholder="••••••••"
                                             required
                                         />
@@ -189,7 +181,7 @@ const ResetPassword = () => {
 
                                 {/* Confirm Password */}
                                 <div>
-                                    <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
+                                    <label htmlFor="confirmPassword" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                                         Confirm Password
                                     </label>
                                     <div className="relative group">
@@ -204,7 +196,7 @@ const ResetPassword = () => {
                                             type="password"
                                             value={formData.confirmPassword}
                                             onChange={handleChange}
-                                            className={`input-field pl-11 h-12 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-all ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                                            className={`input-field pl-11 h-12 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 transition-all ${errors.confirmPassword ? 'border-red-500' : ''}`}
                                             placeholder="••••••••"
                                             required
                                         />
@@ -218,7 +210,7 @@ const ResetPassword = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full btn-primary h-12 rounded-xl flex justify-center items-center text-base font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all duration-200 mt-8"
+                                className="w-full btn-primary h-12 rounded-xl flex justify-center items-center text-base font-bold shadow-lg shadow-blue-500/30 dark:shadow-none hover:shadow-blue-500/50 dark:hover:shadow-none hover:-translate-y-0.5 transition-all duration-200 mt-8"
                             >
                                 {loading ? (
                                     <>
@@ -236,7 +228,7 @@ const ResetPassword = () => {
                             <div className="text-center mt-6">
                                 <Link
                                     to="/forgot-password"
-                                    className="inline-flex items-center text-sm font-semibold text-gray-500 hover:text-blue-600 transition-colors"
+                                    className="inline-flex items-center text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                 >
                                     <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

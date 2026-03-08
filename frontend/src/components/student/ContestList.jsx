@@ -41,7 +41,7 @@ const ContestList = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] pb-20 transition-colors">
+            <div className="min-h-screen bg-[#F7F5FF] dark:bg-[#111117] pb-20 transition-colors">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
                     {/* Header Skeleton */}
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-200 dark:border-gray-800 pb-6 animate-pulse">
@@ -83,7 +83,7 @@ const ContestList = () => {
     const pastContests = contests.filter(c => getContestStatus(c) === 'past');
 
     return (
-        <div className="min-h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] pb-20 transition-colors">
+        <div className="min-h-screen bg-[#F7F5FF] dark:bg-[#111117] pb-20 transition-colors">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
 
                 {/* Header */}
@@ -109,7 +109,7 @@ const ContestList = () => {
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                             </span>
-                            <h2 className="text-xl font-bold text-gray-900">Live Now</h2>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Live Now</h2>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {activeContests.map(contest => (
@@ -123,7 +123,7 @@ const ContestList = () => {
                 <section>
                     <div className="flex items-center gap-3 mb-6">
                         <div className="w-1.5 h-6 bg-gray-400 rounded-full"></div>
-                        <h2 className="text-xl font-bold text-gray-900">Past Contests</h2>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Past Contests</h2>
                     </div>
                     {pastContests.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -133,8 +133,8 @@ const ContestList = () => {
                         </div>
                     ) : (
                         <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
-                            <Trophy size={48} className="mx-auto text-gray-200 mb-4" />
-                            <p className="text-gray-500">No past contests available.</p>
+                            <Trophy size={48} className="mx-auto text-gray-200 dark:text-gray-800 mb-4" />
+                            <p className="text-gray-500 dark:text-gray-400">No past contests available.</p>
                         </div>
                     )}
                 </section>
@@ -168,9 +168,9 @@ const ContestCard = ({ contest, status }) => {
     };
 
     return (
-        <div className={`group relative bg-white rounded-2xl border transition-all duration-300 overflow-hidden flex flex-col h-full ${isLive
-            ? 'border-green-200 shadow-xl shadow-green-50 ring-1 ring-green-100'
-            : 'border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-100'
+        <div className={`group relative bg-white dark:bg-[#181820] rounded-2xl border transition-all duration-300 overflow-hidden flex flex-col h-full hover:-translate-y-1 hover:scale-[1.01] ${isLive
+            ? 'border-green-200 dark:border-green-900/30 shadow-xl shadow-green-50 dark:shadow-none ring-1 ring-green-100 dark:ring-green-900/20'
+            : 'border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-none hover:border-indigo-100 dark:hover:border-gray-700'
             }`}>
             {/* Status Strip */}
             {isLive && (
@@ -186,14 +186,14 @@ const ContestCard = ({ contest, status }) => {
                     {isPast ? (
                         <Link
                             to={`/contests/${contest.slug || contest._id}/leaderboard`}
-                            className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight hover:text-indigo-600 transition-colors flex-1"
+                            className="text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-2 leading-tight hover:text-indigo-600 transition-colors flex-1"
                         >
                             {contest.title}
                         </Link>
                     ) : (
                         <Link
                             to={isLive ? (!isSubmitted ? `/contests/${contest.slug || contest._id}` : `/contests/${contest.slug || contest._id}/leaderboard`) : `/contests/${contest.slug || contest._id}/practice`}
-                            className="text-lg font-bold text-gray-900 line-clamp-2 leading-tight hover:text-indigo-600 transition-colors"
+                            className="text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-2 leading-tight hover:text-indigo-600 transition-colors"
                         >
                             {contest.title}
                         </Link>
@@ -206,26 +206,26 @@ const ContestCard = ({ contest, status }) => {
                 </div>
 
                 {contest.description && (
-                    <p className="text-sm text-gray-500 line-clamp-2 mb-6 flex-1">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-6 flex-1">
                         {contest.description}
                     </p>
                 )}
 
-                <div className="space-y-3 text-sm text-gray-600 bg-gray-50/50 p-4 rounded-xl border border-gray-50 mt-auto">
+                <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/20 p-4 rounded-xl border border-gray-50 dark:border-gray-800/50 mt-auto">
                     <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider">
                             <Calendar size={12} /> Start
                         </div>
-                        <div className="font-medium text-gray-800 ml-5">
+                        <div className="font-medium text-gray-800 dark:text-gray-200 ml-5">
                             {formatDate(contest.startTime)}
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider">
                             <Clock size={12} /> End
                         </div>
-                        <div className="font-medium text-gray-800 ml-5">
+                        <div className="font-medium text-gray-800 dark:text-gray-200 ml-5">
                             {formatDate(contest.endTime)}
                         </div>
                     </div>
@@ -233,13 +233,13 @@ const ContestCard = ({ contest, status }) => {
             </div>
 
             {/* Bottom action area */}
-            <div className="border-t border-gray-100">
+            <div className="border-t border-gray-100 dark:border-gray-800">
                 {isLive ? (
                     <div className="p-4">
                         {!isSubmitted ? (
                             <Link
                                 to={`/contests/${contest.slug || contest._id}`}
-                                className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all py-3 gap-2 text-sm transform hover:-translate-y-0.5"
+                                className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-blue-100 dark:shadow-none hover:shadow-blue-200 dark:hover:shadow-none transition-all py-3 gap-2 text-sm transform hover:-translate-y-0.5"
                             >
                                 Enter Contest <ArrowRight size={16} />
                             </Link>
@@ -247,7 +247,7 @@ const ContestCard = ({ contest, status }) => {
                             <Link
                                 to={`/contests/${contest.slug || contest._id}/leaderboard`}
                                 target="_blank"
-                                className="flex w-full items-center justify-center rounded-xl border border-gray-200 text-gray-700 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all py-2.5 text-sm font-medium gap-2"
+                                className="flex w-full items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all py-2.5 text-sm font-medium gap-2"
                             >
                                 View Live Leaderboard
                             </Link>
@@ -258,26 +258,26 @@ const ContestCard = ({ contest, status }) => {
                     <div className="flex divide-x divide-gray-100 bg-gray-50/30">
                         <Link
                             to={`/contests/${contest.slug || contest._id}/practice`}
-                            className="flex-1 flex items-center justify-center gap-2 p-4 hover:bg-emerald-50 transition-colors group"
+                            className="flex-1 flex items-center justify-center gap-2 p-4 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 transition-colors group"
                         >
                             <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg group-hover:bg-emerald-200 transition-colors">
                                 <BookOpen size={18} />
                             </div>
-                            <span className="text-sm font-semibold text-gray-700 group-hover:text-emerald-700">Practice</span>
+                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">Practice</span>
                         </Link>
                         <Link
                             to={`/contests/${contest.slug || contest._id}/leaderboard`}
-                            className="flex-1 flex items-center justify-center gap-2 p-4 hover:bg-indigo-50 transition-colors group"
+                            className="flex-1 flex items-center justify-center gap-2 p-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors group"
                         >
                             <div className="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg group-hover:bg-indigo-200 transition-colors">
                                 <BarChart2 size={18} />
                             </div>
-                            <span className="text-sm font-semibold text-gray-700 group-hover:text-indigo-700">Leaderboard</span>
+                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Leaderboard</span>
                         </Link>
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

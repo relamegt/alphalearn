@@ -134,7 +134,7 @@ const PersonalDetails = () => {
 
     if (initialLoading) {
         return (
-            <div className="max-w-4xl mx-auto card dark:bg-[#0a0f1a] dark:border-gray-800 animate-pulse transition-colors">
+            <div className="max-w-4xl mx-auto card dark:bg-[#111117] dark:border-gray-800 animate-pulse transition-colors">
                 <div className="w-48 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-6 pb-2 border-b border-gray-100 dark:border-gray-800"></div>
                 <div className="space-y-6 mt-4">
                     {/* Profile Picture Skeleton */}
@@ -161,7 +161,7 @@ const PersonalDetails = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto card dark:bg-[#0a0f1a] dark:border-gray-800 animate-fade-in transition-colors">
+        <div className="max-w-4xl mx-auto card dark:bg-[#111117] dark:border-gray-800 animate-fade-in transition-colors">
             <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6 pb-2 border-b border-gray-100 dark:border-gray-800">Personal Details</h2>
             <form onSubmit={handleUpdatePersonal} className="space-y-6">
                 {/* Profile Picture */}
@@ -249,7 +249,7 @@ const PersonalDetails = () => {
                             type="tel"
                             value={personalData.phone}
                             onChange={(e) => setPersonalData({ ...personalData, phone: e.target.value })}
-                            className="input-field dark:bg-[#0a0f1a] dark:text-gray-100 dark:border-gray-700"
+                            className="input-field dark:bg-[#111117] dark:text-gray-100 dark:border-gray-700"
                             maxLength="10"
                         />
                     </div>

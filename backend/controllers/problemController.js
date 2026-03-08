@@ -118,17 +118,18 @@ const getProblemById = async (req, res) => {
             });
         }
 
-        // Add isSolved status for students
+        // Add isSolved and hasViewedEditorial status for students
         if (req.user && req.user.role === 'student') {
             const progress = await Progress.findByStudent(req.user.userId);
-            if (progress && progress.problemsSolved) {
-                problem.isSolved = progress.problemsSolved.some(id => id.toString() === problem._id.toString());
-            } else {
-                problem.isSolved = false;
-            }
+            const isSolved = progress?.problemsSolved?.some(id => id.toString() === problem._id.toString()) || false;
+            const viewedExplicitly = progress?.viewedEditorials?.some(id => id.toString() === problem._id.toString()) || false;
+
+            problem.isSolved = isSolved;
+            // Editorial is unlocked if solved OR if explicitly viewed
+            res.locals.hasViewedEditorial = isSolved || viewedExplicitly;
 
             // If it's a solved quiz, try to load the saved answers so they persist on refresh
-            if (problem.isSolved && problem.type === 'quiz') {
+            if (isSolved && problem.type === 'quiz') {
                 try {
                     const Submission = require('../models/Submission');
                     const subs = await Submission.findByStudentAndProblem(req.user.userId, problem._id.toString());
@@ -153,7 +154,8 @@ const getProblemById = async (req, res) => {
 
         res.json({
             success: true,
-            problem
+            problem,
+            hasViewedEditorial: res.locals.hasViewedEditorial || false
         });
     } catch (error) {
         console.error('Get problem by ID error:', error);

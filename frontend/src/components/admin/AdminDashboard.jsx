@@ -188,10 +188,10 @@ const AdminDashboard = () => {
                                             borderRadius: '12px',
                                             border: 'none',
                                             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                            backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                                            color: isDark ? '#F9FAFB' : '#0a0f1a'
+                                            backgroundColor: isDark ? '#1c1c26' : '#FFFFFF',
+                                            color: isDark ? '#F9FAFB' : '#111117'
                                         }}
-                                        itemStyle={{ color: isDark ? '#D1D5DB' : '#374151' }}
+                                        itemStyle={{ color: isDark ? '#D1D5DB' : '#23232e' }}
                                     />
                                     <Legend
                                         verticalAlign="bottom"
@@ -217,19 +217,19 @@ const AdminDashboard = () => {
                                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                                 barSize={40}
                             >
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#374151' : '#E5E7EB'} />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#23232e' : '#E5E7EB'} />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: isDark ? '#9CA3AF' : '#6B7280' }} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fill: isDark ? '#9CA3AF' : '#6B7280' }} />
                                 <Tooltip
-                                    cursor={{ fill: isDark ? '#1F2937' : '#F3F4F6' }}
+                                    cursor={{ fill: isDark ? '#1c1c26' : '#F3F4F6' }}
                                     contentStyle={{
                                         borderRadius: '12px',
                                         border: 'none',
                                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                        backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                                        color: isDark ? '#F9FAFB' : '#0a0f1a'
+                                        backgroundColor: isDark ? '#1c1c26' : '#FFFFFF',
+                                        color: isDark ? '#F9FAFB' : '#111117'
                                     }}
-                                    itemStyle={{ color: isDark ? '#D1D5DB' : '#374151' }}
+                                    itemStyle={{ color: isDark ? '#D1D5DB' : '#23232e' }}
                                 />
                                 <Bar dataKey="value" radius={[8, 8, 0, 0]} animationDuration={1000}>
                                     {userStats.map((entry, index) => (

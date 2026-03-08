@@ -177,7 +177,7 @@ const ReportGenerator = () => {
                 </div>
             ) : (
                 <div className="text-center py-24 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                    <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                    <div className="bg-gray-50 dark:bg-[#111117]/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
                         <Layers className="w-10 h-10 text-gray-300 dark:text-gray-600" />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">No Batch Selected</h3>

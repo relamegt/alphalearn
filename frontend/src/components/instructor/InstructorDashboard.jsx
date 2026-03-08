@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import adminService from '../../services/adminService';
 import submissionService from '../../services/submissionService';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
     Users,
     BookOpen,
@@ -16,6 +17,7 @@ import {
 
 const InstructorDashboard = () => {
     const navigate = useNavigate();
+    const { isDark } = useTheme();
     const [stats, setStats] = useState({
         batches: [],
         totalStudents: 0,
@@ -58,29 +60,29 @@ const InstructorDashboard = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-[60vh]">
-                <div className="spinner w-8 h-8 text-primary-600"></div>
+                <div className="spinner w-8 h-8 text-primary-600 dark:text-primary-400"></div>
             </div>
         );
     }
 
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
-            case 'accepted': return 'text-green-600 bg-green-50 border-green-100';
-            case 'wrong answer': return 'text-red-600 bg-red-50 border-red-100';
-            case 'time limit exceeded': return 'text-orange-600 bg-orange-50 border-orange-100';
-            default: return 'text-gray-600 bg-gray-50 border-gray-100';
+            case 'accepted': return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800/30';
+            case 'wrong answer': return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800/30';
+            case 'time limit exceeded': return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800/30';
+            default: return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700';
         }
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-24">
+        <div className="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-24 transition-colors">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                         Instructor Dashboard
                     </h1>
-                    <p className="text-gray-500 mt-1">
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">
                         Track student progress and manage your batches.
                     </p>
                 </div>
@@ -97,42 +99,42 @@ const InstructorDashboard = () => {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Users className="w-24 h-24 text-blue-600" />
+                        <Users className="w-24 h-24 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="relative z-10">
-                        <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 mb-4">
+                        <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
                             <Users size={24} />
                         </div>
-                        <h3 className="text-3xl font-bold text-gray-900">{stats.totalStudents}</h3>
-                        <p className="text-sm font-medium text-gray-500">Total Students</p>
+                        <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.totalStudents}</h3>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Students</p>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <BookOpen className="w-24 h-24 text-green-600" />
+                        <BookOpen className="w-24 h-24 text-green-600 dark:text-green-400" />
                     </div>
                     <div className="relative z-10">
-                        <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-green-600 mb-4">
+                        <div className="w-12 h-12 bg-green-50 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-600 dark:text-green-400 mb-4">
                             <BookOpen size={24} />
                         </div>
-                        <h3 className="text-3xl font-bold text-gray-900">{stats.activeBatchesCount}</h3>
-                        <p className="text-sm font-medium text-gray-500">Active Batches</p>
+                        <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.activeBatchesCount}</h3>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Batches</p>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Activity className="w-24 h-24 text-purple-600" />
+                        <Activity className="w-24 h-24 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div className="relative z-10">
-                        <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 mb-4">
+                        <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 rounded-xl flex items-center justify-center text-purple-600 dark:text-purple-400 mb-4">
                             <Activity size={24} />
                         </div>
-                        <h3 className="text-3xl font-bold text-gray-900">{recentSubmissions.length}</h3>
-                        <p className="text-sm font-medium text-gray-500">Recent Submissions</p>
+                        <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{recentSubmissions.length}</h3>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Recent Submissions</p>
                     </div>
                 </div>
             </div>
@@ -140,18 +142,18 @@ const InstructorDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Active Batches List */}
                 <div className="lg:col-span-1 space-y-6">
-                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                         <BookOpen size={20} className="text-primary-500" />
                         My Batches
                     </h3>
                     <div className="space-y-4">
                         {stats.batches.filter(b => b.status === 'active').slice(0, 5).map(batch => (
-                            <div key={batch._id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                            <div key={batch._id} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="flex justify-between items-start mb-2">
-                                    <h4 className="font-semibold text-gray-900">{batch.name}</h4>
-                                    <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Active</span>
+                                    <h4 className="font-semibold text-gray-900 dark:text-gray-100">{batch.name}</h4>
+                                    <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Active</span>
                                 </div>
-                                <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                                <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-3">
                                     <div className="flex items-center gap-1">
                                         <Users size={14} />
                                         <span>{batch.studentCount || 0} Students</span>
@@ -167,8 +169,8 @@ const InstructorDashboard = () => {
                             </div>
                         ))}
                         {stats.activeBatchesCount === 0 && (
-                            <div className="text-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                                <p className="text-gray-500 text-sm">No active batches found.</p>
+                            <div className="text-center p-8 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                <p className="text-gray-500 dark:text-gray-400 text-sm">No active batches found.</p>
                             </div>
                         )}
                         {/* <button className="w-full py-3 text-sm text-gray-500 hover:text-gray-700 font-medium border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
@@ -179,14 +181,14 @@ const InstructorDashboard = () => {
 
                 {/* Recent Student Activity */}
                 <div className="lg:col-span-2 space-y-6">
-                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                         <Activity size={20} className="text-primary-500" />
                         Recent Student Activity
                     </h3>
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
-                                <thead className="bg-gray-50/50 text-xs uppercase text-gray-500 font-semibold">
+                                <thead className="bg-gray-50/50 dark:bg-gray-700/30 text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold">
                                     <tr>
                                         <th className="px-6 py-4">Student</th>
                                         <th className="px-6 py-4">Problem</th>
@@ -194,23 +196,23 @@ const InstructorDashboard = () => {
                                         <th className="px-6 py-4 text-right">Time</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-50">
+                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                     {recentSubmissions.map((sub) => (
-                                        <tr key={sub.id || sub._id} className="hover:bg-gray-50/50 transition-colors">
+                                        <tr key={sub.id || sub._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
                                             <td className="px-6 py-4">
-                                                <div className="font-medium text-gray-900">{sub.user?.username || 'Unknown Student'}</div>
-                                                <div className="text-xs text-gray-500">{sub.user?.email}</div>
+                                                <div className="font-medium text-gray-900 dark:text-gray-100">{sub.user?.username || 'Unknown Student'}</div>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400">{sub.user?.email}</div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="text-sm text-gray-700 font-medium">{sub.problem?.title || 'Unknown Problem'}</div>
-                                                <div className="text-xs text-gray-500">{sub.language}</div>
+                                                <div className="text-sm text-gray-700 dark:text-gray-300 font-medium">{sub.problem?.title || 'Unknown Problem'}</div>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400">{sub.language}</div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(sub.status)}`}>
                                                     {sub.status}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right text-sm text-gray-500">
+                                            <td className="px-6 py-4 text-right text-sm text-gray-500 dark:text-gray-400">
                                                 {new Date(sub.submittedAt || sub.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                                             </td>
                                         </tr>

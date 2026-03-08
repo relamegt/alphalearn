@@ -82,19 +82,19 @@ const PlatformRatingCard = ({ platform, stats, color = '#6257E3', icon }) => {
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-gray-50/50 dark:bg-[#0a0f1a]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
+                <div className="bg-gray-50/50 dark:bg-[#111117]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
                     <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold mb-1">Current</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{rating}</p>
                 </div>
-                <div className="bg-gray-50/50 dark:bg-[#0a0f1a]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
+                <div className="bg-gray-50/50 dark:bg-[#111117]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
                     <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold mb-1">Highest</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{maxRating || rating}</p>
                 </div>
-                <div className="bg-gray-50/50 dark:bg-[#0a0f1a]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
+                <div className="bg-gray-50/50 dark:bg-[#111117]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
                     <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold mb-1">Contests</p>
                     <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{totalContests}</p>
                 </div>
-                <div className="bg-gray-50/50 dark:bg-[#0a0f1a]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
+                <div className="bg-gray-50/50 dark:bg-[#111117]/40 p-3 rounded-xl border border-gray-100/50 dark:border-gray-800/50">
                     <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold mb-1">Change</p>
                     <p className={`text-xl font-bold ${isPositiveChange ? 'text-green-500' : 'text-red-500'}`}>
                         {isPositiveChange ? '▲' : '▼'} {Math.abs(ratingChange)}

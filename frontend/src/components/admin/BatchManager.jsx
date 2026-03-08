@@ -203,7 +203,7 @@ const BatchManager = () => {
             <div className="glass-panel overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-gray-50/50 dark:bg-[#0a0f1a]/40 text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold tracking-wider">
+                        <thead className="bg-gray-50/50 dark:bg-[#111117]/40 text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold tracking-wider">
                             <tr>
                                 <th className="px-6 py-4">Batch Name</th>
                                 <th className="px-6 py-4">Duration</th>
@@ -214,7 +214,7 @@ const BatchManager = () => {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {batches.map((batch) => (
-                                <tr key={batch._id} className="hover:bg-gray-50/50 dark:hover:bg-[#141b2b]/30 transition-colors">
+                                <tr key={batch._id} className="hover:bg-gray-50/50 dark:hover:bg-[#23232e]/30 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
                                             <span className="font-semibold text-gray-900 dark:text-gray-100">{batch.name}</span>
@@ -299,7 +299,7 @@ const BatchManager = () => {
             {showCreateModal && (
                 <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
                     <div className="modal-content max-w-4xl max-h-[90vh] overflow-y-auto p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#111117]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg">
                                     <GraduationCap size={20} />
@@ -308,7 +308,7 @@ const BatchManager = () => {
                             </div>
                             <button
                                 onClick={() => setShowCreateModal(false)}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#23232e] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -326,7 +326,7 @@ const BatchManager = () => {
                                             onChange={(e) =>
                                                 setFormData({ ...formData, name: e.target.value })
                                             }
-                                            className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                            className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                             placeholder="e.g., 2022-2026 CS Batch A"
                                             required
                                         />
@@ -343,7 +343,7 @@ const BatchManager = () => {
                                                 onChange={(e) =>
                                                     setFormData({ ...formData, startDate: e.target.value })
                                                 }
-                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                                className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                                 required
                                             />
                                         </div>
@@ -357,7 +357,7 @@ const BatchManager = () => {
                                                 onChange={(e) =>
                                                     setFormData({ ...formData, endDate: e.target.value })
                                                 }
-                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                                className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                                 required
                                             />
                                         </div>
@@ -365,7 +365,7 @@ const BatchManager = () => {
                                 </div>
 
                                 {/* Educational Details Section */}
-                                <div className="bg-gray-50 dark:bg-[#0a0f1a]/40 p-5 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <div className="bg-gray-50 dark:bg-[#111117]/40 p-5 rounded-xl border border-gray-100 dark:border-gray-800">
                                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-1">Educational Defaults</h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Default academic details for students in this batch.</p>
 
@@ -383,7 +383,7 @@ const BatchManager = () => {
                                                         education: { ...formData.education, institution: e.target.value }
                                                     })
                                                 }
-                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                                className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                                 placeholder="e.g., ABC Engineering College"
                                             />
                                         </div>
@@ -402,7 +402,7 @@ const BatchManager = () => {
                                                             education: { ...formData.education, degree: e.target.value }
                                                         })
                                                     }
-                                                    className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                                    className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                                     placeholder="e.g., B.Tech"
                                                 />
                                             </div>
@@ -455,7 +455,7 @@ const BatchManager = () => {
                                         <div className="relative">
                                             <input
                                                 type="text"
-                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                                className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                                 placeholder="Type branch code and press Enter or Comma (e.g. CSE, IT)"
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' || e.key === ',') {
@@ -492,7 +492,7 @@ const BatchManager = () => {
                                         onChange={(e) =>
                                             setFormData({ ...formData, description: e.target.value })
                                         }
-                                        className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                        className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                         rows="3"
                                         placeholder="Optional notes about this batch..."
                                     />
@@ -528,7 +528,7 @@ const BatchManager = () => {
             {showEditModal && selectedBatch && (
                 <div className="modal-backdrop" onClick={() => setShowEditModal(false)}>
                     <div className="modal-content max-w-4xl max-h-[90vh] overflow-y-auto p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#111117]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
                                     <Edit2 size={20} />
@@ -537,7 +537,7 @@ const BatchManager = () => {
                             </div>
                             <button
                                 onClick={() => setShowEditModal(false)}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#23232e] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -555,7 +555,7 @@ const BatchManager = () => {
                                             onChange={(e) =>
                                                 setEditFormData({ ...editFormData, name: e.target.value })
                                             }
-                                            className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                            className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                             required
                                         />
                                     </div>
@@ -571,7 +571,7 @@ const BatchManager = () => {
                                                 onChange={(e) =>
                                                     setEditFormData({ ...editFormData, startDate: e.target.value })
                                                 }
-                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                                className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                                 required
                                             />
                                         </div>
@@ -585,7 +585,7 @@ const BatchManager = () => {
                                                 onChange={(e) =>
                                                     setEditFormData({ ...editFormData, endDate: e.target.value })
                                                 }
-                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                                className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                                 required
                                             />
                                         </div>
@@ -611,7 +611,7 @@ const BatchManager = () => {
                                                         education: { ...editFormData.education, institution: e.target.value }
                                                     })
                                                 }
-                                                className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                                className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                             />
                                         </div>
 
@@ -629,7 +629,7 @@ const BatchManager = () => {
                                                             education: { ...editFormData.education, degree: e.target.value }
                                                         })
                                                     }
-                                                    className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                                    className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                                 />
                                             </div>
                                             <div>
@@ -751,7 +751,7 @@ const BatchManager = () => {
             {showExtendModal && selectedBatch && (
                 <div className="modal-backdrop" onClick={() => setShowExtendModal(false)}>
                     <div className="modal-content max-w-md p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#111117]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg">
                                     <Clock size={20} />
@@ -760,13 +760,13 @@ const BatchManager = () => {
                             </div>
                             <button
                                 onClick={() => setShowExtendModal(false)}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#23232e] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
                         </div>
                         <div className="p-6">
-                            <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-700">
+                            <div className="bg-gray-50 dark:bg-[#111117]/50 p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-700">
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                     Current End Date: <strong className="text-gray-900 dark:text-gray-100">{new Date(selectedBatch.endDate).toLocaleDateString()}</strong>
                                 </p>
@@ -789,7 +789,7 @@ const BatchManager = () => {
                                         type="date"
                                         name="newEndDate"
                                         min={selectedBatch.endDate}
-                                        className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                        className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                         required
                                     />
                                 </div>
@@ -823,7 +823,7 @@ const BatchManager = () => {
             {showStatsModal && selectedBatch && (
                 <div className="modal-backdrop" onClick={() => setShowStatsModal(false)}>
                     <div className="modal-content max-w-2xl max-h-[90vh] overflow-y-auto p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#111117]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
                                     <BarChart2 size={24} />
@@ -832,7 +832,7 @@ const BatchManager = () => {
                             </div>
                             <button
                                 onClick={() => setShowStatsModal(false)}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#23232e] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -842,7 +842,7 @@ const BatchManager = () => {
                             {batchStats ? (
                                 <div className="space-y-6">
                                     {/* Batch Information */}
-                                    <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                                    <div className="bg-gray-50 dark:bg-[#111117]/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
                                         <h3 className="text-sm font-semibold mb-3 text-gray-500 dark:text-gray-400 uppercase tracking-wider">Batch Details</h3>
                                         <div className="grid grid-cols-2 gap-4 text-sm">
                                             <div>

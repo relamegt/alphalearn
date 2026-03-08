@@ -58,7 +58,7 @@ const ProfessionalDetails = () => {
 
     if (initialLoading) {
         return (
-            <div className="max-w-4xl mx-auto card dark:bg-[#0a0f1a] dark:border-gray-800 animate-pulse transition-colors">
+            <div className="max-w-4xl mx-auto card dark:bg-[#111117] dark:border-gray-800 animate-pulse transition-colors">
                 <div className="w-48 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-6 pb-2 border-b border-gray-100 dark:border-gray-800"></div>
                 <div className="space-y-6">
                     <div className="space-y-4">
@@ -79,7 +79,7 @@ const ProfessionalDetails = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto card animate-fade-in dark:bg-[#0a0f1a] dark:border-gray-800 transition-colors">
+        <div className="max-w-4xl mx-auto card animate-fade-in dark:bg-[#111117] dark:border-gray-800 transition-colors">
             <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6 pb-2 border-b border-gray-100 dark:border-gray-800">Professional Details</h2>
             <form onSubmit={handleUpdateProfessional} className="space-y-6">
 
@@ -132,7 +132,7 @@ const ProfessionalDetails = () => {
                                         skills: e.target.value.split(',').map((s) => s.trim()),
                                     })
                                 }
-                                className="input-field py-4 pl-4 dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                className="input-field py-4 pl-4 dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                             />
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">

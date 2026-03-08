@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import toast from 'react-hot-toast';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
+    const { isDark } = useTheme();
     const navigate = useNavigate();
 
     const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -102,7 +104,7 @@ const Navbar = () => {
     const links = getNavLinks();
 
     return (
-        <nav className="bg-white dark:bg-[#0a0f1a] border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
+        <nav className="bg-white dark:bg-[#111117] border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     {/* Logo (Left side) */}
@@ -123,9 +125,19 @@ const Navbar = () => {
                         <ThemeToggle size="md" />
 
                         <div className="relative group h-16 flex items-center">
-                            <button className="flex items-center space-x-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none transition-colors px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-[#141b2b]">
-                                <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600">
-                                    {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                            <button className="flex items-center space-x-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none transition-colors px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-[#23232e]">
+                                <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
+                                    {user.profile?.profilePicture ? (
+                                        <img
+                                            src={user.profile.profilePicture}
+                                            alt={user.firstName}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <>
+                                            {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                                        </>
+                                    )}
                                 </div>
                                 <span className="font-medium text-sm hidden md:block">
                                     {user.username || user.firstName}
@@ -136,7 +148,7 @@ const Navbar = () => {
                             </button>
 
                             {/* Dropdown Menu */}
-                            <div className="absolute top-[60px] right-0 w-64 bg-white dark:bg-[#0a0f1a] rounded-lg shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] border border-gray-100 dark:border-gray-700 hidden group-hover:block z-[500] py-2">
+                            <div className={`absolute top-[60px] right-0 w-64 bg-white dark:bg-[#111117] rounded-lg border border-gray-100 dark:border-gray-700 hidden group-hover:block z-[500] py-2 ${!isDark ? 'shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
                                 {/* Header in Dropdown (optional context) */}
                                 <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 mb-1">
                                     <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{user.firstName} {user.lastName}</p>
@@ -159,7 +171,7 @@ const Navbar = () => {
                                                     </button>
                                                     {/* Submenu Flyout */}
                                                     <div className="absolute right-full top-0 pr-1 hidden group-hover/item:block z-[500]">
-                                                        <div className="w-56 bg-white dark:bg-[#0a0f1a] rounded-lg shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] border border-gray-100 dark:border-gray-700 py-1">
+                                                        <div className={`w-56 bg-white dark:bg-[#111117] rounded-lg border border-gray-100 dark:border-gray-700 py-1 ${!isDark ? 'shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
                                                             {link.children.map((child, cIdx) => (
                                                                 <Link
                                                                     key={cIdx}

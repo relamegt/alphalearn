@@ -116,7 +116,7 @@ const ContestManager = () => {
     });
 
     return (
-        <div className="min-h-screen bg-gray-50/50 p-6 pb-20">
+        <div className="min-h-screen bg-gray-50/50 dark:bg-[#111117] p-6 pb-20 transition-colors">
             <div className="max-w-7xl mx-auto space-y-6">
 
                 <div className="animate-fade-in-up">
@@ -131,10 +131,10 @@ const ContestManager = () => {
                         <div className="space-y-6">
 
                             {/* Header & Filters Combined Bar */}
-                            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-[#181820] p-4 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm dark:shadow-none transition-colors">
 
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full xl:w-auto">
-                                    <h1 className="text-xl font-bold text-gray-900 hidden md:block mr-2">Contests</h1>
+                                    <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 hidden md:block mr-2">Contests</h1>
 
                                     {/* Status Filter */}
                                     <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
@@ -143,8 +143,8 @@ const ContestManager = () => {
                                                 key={f}
                                                 onClick={() => setFilter(f)}
                                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-all whitespace-nowrap ${filter === f
-                                                    ? 'bg-indigo-50 text-indigo-700'
-                                                    : 'text-gray-600 hover:bg-gray-50'
+                                                    ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#23232e]'
                                                     }`}
                                             >
                                                 {f}
@@ -174,7 +174,7 @@ const ContestManager = () => {
                                     {/* Create Button */}
                                     <button
                                         onClick={() => { setEditingContest(null); setView('create'); }}
-                                        className="btn-primary flex items-center justify-center gap-2 shadow-md shadow-indigo-100 py-1.5"
+                                        className="btn-primary flex items-center justify-center gap-2 shadow-md dark:shadow-none shadow-indigo-100 py-1.5"
                                     >
                                         <Plus size={16} /> <span className="whitespace-nowrap">New Contest</span>
                                     </button>
@@ -187,10 +187,10 @@ const ContestManager = () => {
                                     <div className="spinner w-8 h-8 border-indigo-600 border-t-transparent"></div>
                                 </div>
                             ) : filteredContests.length === 0 ? (
-                                <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 border-dashed">
-                                    <Trophy size={48} className="mx-auto text-gray-200 mb-4" />
-                                    <h3 className="text-lg font-medium text-gray-900">No contests found</h3>
-                                    <p className="text-gray-500 mt-1">
+                                <div className="text-center py-16 bg-white dark:bg-[#181820] rounded-2xl border border-gray-100 dark:border-gray-800 border-dashed transition-colors">
+                                    <Trophy size={48} className="mx-auto text-gray-200 dark:text-gray-800 mb-4" />
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No contests found</h3>
+                                    <p className="text-gray-500 dark:text-gray-400 mt-1">
                                         {filter !== 'all' ? `No ${filter} contests found.` : 'Get started by creating a new contest.'}
                                     </p>
                                     {filter === 'all' && (
@@ -218,7 +218,10 @@ const ContestManager = () => {
                                         const durationStr = `${hours}h ${minutes > 0 ? `${minutes}m` : ''}`;
 
                                         return (
-                                            <div key={contest._id} className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all duration-300 overflow-hidden flex flex-col h-full relative">
+                                            <div key={contest._id} className={`group relative bg-white dark:bg-[#181820] rounded-2xl border transition-all duration-300 overflow-hidden flex flex-col h-full hover:-translate-y-1 hover:scale-[1.01] ${isActive
+                                                ? 'border-green-200 dark:border-green-900/30 shadow-xl shadow-green-50 dark:shadow-none ring-1 ring-green-100 dark:ring-green-900/20'
+                                                : 'border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-none hover:border-indigo-100 dark:hover:border-gray-700'
+                                                }`}>
                                                 {isActive && (
                                                     <div className="absolute top-3 right-3 z-10">
                                                         <span className="relative flex h-3 w-3">
@@ -230,33 +233,33 @@ const ContestManager = () => {
 
                                                 <div className="p-6 flex-1 flex flex-col">
                                                     <div className="flex justify-between items-start mb-4">
-                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isActive ? 'bg-green-100 text-green-700 ring-1 ring-green-200' :
-                                                            isUpcoming ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100' :
-                                                                'bg-gray-100 text-gray-600'
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isActive ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-1 ring-green-200 dark:ring-green-900/50' :
+                                                            isUpcoming ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 ring-1 ring-blue-100 dark:ring-blue-900/50' :
+                                                                'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                                                             }`}>
                                                             {isActive && <div className="w-1.5 h-1.5 rounded-full bg-green-600 animate-pulse"></div>}
                                                             {isActive ? 'Live Now' : isUpcoming ? 'Upcoming' : 'Ended'}
                                                         </span>
                                                     </div>
 
-                                                    <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 leading-tight group-hover:text-indigo-600 transition-colors" title={contest.title}>
+                                                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 line-clamp-1 leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" title={contest.title}>
                                                         <Link to={`/contests/${contest.slug || contest._id}/leaderboard`} className="hover:underline focus:outline-none">
                                                             {contest.title}
                                                         </Link>
                                                     </h3>
 
-                                                    <p className="text-sm text-gray-500 line-clamp-2 mb-5 h-10">
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-5 h-10">
                                                         {contest.description || 'No description provided.'}
                                                     </p>
 
-                                                    <div className="flex items-center gap-4 text-xs font-medium text-gray-500 mt-auto bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                                    <div className="flex items-center gap-4 text-xs font-medium text-gray-500 dark:text-gray-400 mt-auto bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-800/50 transition-colors">
                                                         <div className="flex items-center gap-1.5" title="Duration">
-                                                            <Clock size={14} className="text-gray-400" />
+                                                            <Clock size={14} className="text-gray-400 dark:text-gray-500" />
                                                             <span>{durationStr}</span>
                                                         </div>
-                                                        <div className="w-px h-3 bg-gray-300"></div>
+                                                        <div className="w-px h-3 bg-gray-300 dark:bg-gray-700"></div>
                                                         <div className="flex items-center gap-1.5" title="Problem Count">
-                                                            <Layers size={14} className="text-gray-400" />
+                                                            <Layers size={14} className="text-gray-400 dark:text-gray-500" />
                                                             <span>{contest.problems?.length || 0} Problems</span>
                                                         </div>
                                                     </div>
@@ -272,32 +275,32 @@ const ContestManager = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                                                <div className="p-4 bg-gray-50 dark:bg-[#1c1c26] border-t border-gray-100 dark:border-gray-800 flex gap-3 transition-colors">
                                                     <button
                                                         onClick={() => handleEditContest(contest)}
-                                                        className="flex-1 py-2 px-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center gap-2 shadow-sm"
+                                                        className="flex-1 py-2 px-3 bg-white dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#23232e] hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none"
                                                     >
                                                         <Edit size={14} />
                                                         Edit
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteContest(contest._id)}
-                                                        className="p-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all flex items-center justify-center gap-2 shadow-sm"
+                                                        className="p-2 bg-white dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-900 transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none"
                                                         title="Delete Contest"
                                                     >
                                                         <Trash2 size={14} />
                                                     </button>
                                                     <Link
                                                         to={`/contests/${contest.slug || contest._id}/leaderboard`}
-                                                        className="flex-1 py-2 px-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center gap-2 shadow-sm"
+                                                        className="flex-1 py-2 px-3 bg-white dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#23232e] hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none"
                                                     >
-                                                        <Trophy size={14} className={isActive ? "text-yellow-500" : "text-gray-400"} />
+                                                        <Trophy size={14} className={isActive ? "text-yellow-500" : "text-gray-400 dark:text-gray-600"} />
                                                         Leaderboard
                                                     </Link>
                                                     {!contest.batchId && (
                                                         <button
                                                             onClick={(e) => handleCopyLink(e, contest)}
-                                                            className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg text-sm font-medium text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-all flex items-center justify-center gap-2 shadow-sm"
+                                                            className="p-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex items-center justify-center gap-2 shadow-sm dark:shadow-none"
                                                             title="Copy Global Contest Link"
                                                         >
                                                             <Copy size={16} />

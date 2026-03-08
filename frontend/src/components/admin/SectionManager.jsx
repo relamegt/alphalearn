@@ -252,7 +252,7 @@ const SectionManager = () => {
                         <div key={section._id} className="glass-panel overflow-hidden transition-all duration-300 hover:shadow-md border border-gray-100 dark:border-gray-800 rounded-xl">
                             {/* Section Header */}
                             <div
-                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors duration-200 ${expandedSection === section._id ? 'bg-primary-50/30 dark:bg-primary-900/10' : 'hover:bg-gray-50 dark:hover:bg-[#141b2b]/40'}`}
+                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors duration-200 ${expandedSection === section._id ? 'bg-primary-50/30 dark:bg-primary-900/10' : 'hover:bg-gray-50 dark:hover:bg-[#23232e]/40'}`}
                                 onClick={() => toggleSection(section._id)}
                             >
                                 <div className="flex items-center space-x-4">
@@ -337,7 +337,7 @@ const SectionManager = () => {
 
                                                 {/* Problems List */}
                                                 {expandedSubsection === sub._id && (
-                                                    <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-[#0a0f1a]/20">
+                                                    <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-[#111117]/20">
                                                         {sub.problemIds && sub.problemIds.length > 0 ? (
                                                             <>
                                                                 {selectedToRemove.length > 0 && (
@@ -357,7 +357,7 @@ const SectionManager = () => {
                                                                         const isChecked = selectedToRemove.includes(pid);
 
                                                                         return (
-                                                                            <li key={pid} className={`flex justify-between items-center text-sm p-3 transition-colors pl-4 group ${isChecked ? 'bg-red-50/40 dark:bg-red-900/10' : 'hover:bg-white dark:hover:bg-[#141b2b]'}`}>
+                                                                            <li key={pid} className={`flex justify-between items-center text-sm p-3 transition-colors pl-4 group ${isChecked ? 'bg-red-50/40 dark:bg-red-900/10' : 'hover:bg-white dark:hover:bg-[#23232e]'}`}>
                                                                                 <div className="flex items-center space-x-3">
                                                                                     <input
                                                                                         type="checkbox"

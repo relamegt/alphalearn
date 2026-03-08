@@ -256,16 +256,16 @@ const ProfileReset = () => {
                                         key={student.id}
                                         onClick={() => handleSelectStudent(student)}
                                         className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedStudent?.id === student.id
-                                            ? 'border-primary-600 bg-primary-50 shadow-md'
-                                            : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                                            ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 shadow-md'
+                                            : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700 hover:bg-gray-50 dark:hover:bg-[#23232e]'
                                             }`}
                                     >
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-medium text-gray-900 truncate">
+                                                <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
                                                     {student.firstName} {student.lastName}
                                                 </p>
-                                                <p className="text-sm text-gray-600 truncate">{student.email}</p>
+                                                <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{student.email}</p>
                                                 <div className="flex gap-2 mt-2 flex-wrap">
                                                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
                                                         {student.rollNumber}
@@ -307,9 +307,9 @@ const ProfileReset = () => {
                         {selectedStudent ? (
                             <>
                                 {/* Student Details */}
-                                <div className="card bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-primary-200">
+                                <div className="card bg-gradient-to-br from-blue-50 to-purple-50 dark:from-[#23232e] dark:to-[#111117] border-2 border-primary-200 dark:border-primary-900/50">
                                     <div className="flex items-start justify-between mb-4">
-                                        <h3 className="text-lg font-semibold text-gray-900">
+                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                                             Selected Student
                                         </h3>
                                         <button
@@ -328,41 +328,41 @@ const ProfileReset = () => {
                                     </div>
                                     <div className="space-y-4">
                                         <div>
-                                            <p className="text-xs text-gray-600 uppercase tracking-wide font-medium">
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide font-medium">
                                                 Full Name
                                             </p>
-                                            <p className="text-lg font-semibold text-gray-900 mt-1">
+                                            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 mt-1">
                                                 {selectedStudent.firstName} {selectedStudent.lastName}
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-xs text-gray-600 uppercase tracking-wide font-medium">
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide font-medium">
                                                 Email
                                             </p>
-                                            <p className="font-medium text-gray-900 mt-1">
+                                            <p className="font-medium text-gray-900 dark:text-gray-100 mt-1">
                                                 {selectedStudent.email}
                                             </p>
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <p className="text-xs text-gray-600 uppercase tracking-wide font-medium">
+                                                <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide font-medium">
                                                     Roll Number
                                                 </p>
-                                                <p className="font-semibold text-gray-900 mt-1">
+                                                <p className="font-semibold text-gray-900 dark:text-gray-100 mt-1">
                                                     {selectedStudent.rollNumber}
                                                 </p>
                                             </div>
                                             <div>
-                                                <p className="text-xs text-gray-600 uppercase tracking-wide font-medium">
+                                                <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide font-medium">
                                                     Branch
                                                 </p>
-                                                <p className="font-semibold text-gray-900 mt-1">
+                                                <p className="font-semibold text-gray-900 dark:text-gray-100 mt-1">
                                                     {selectedStudent.branch}
                                                 </p>
                                             </div>
                                         </div>
                                         <div>
-                                            <p className="text-xs text-gray-600 uppercase tracking-wide font-medium">
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide font-medium">
                                                 Status
                                             </p>
                                             <span

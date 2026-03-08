@@ -313,7 +313,7 @@ const UserManagement = () => {
 
                     {selectedBatch && (
                         <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700">
-                            <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/30 dark:bg-[#0a0f1a]/20">
+                            <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/30 dark:bg-[#111117]/20">
                                 <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                                     Batch Members
                                     <span className="px-2.5 py-0.5 bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 text-xs rounded-full border border-blue-100 dark:border-blue-900/50">{users.length}</span>
@@ -322,7 +322,7 @@ const UserManagement = () => {
                                     <input
                                         type="text"
                                         placeholder="Search users..."
-                                        className="w-full pl-10 pr-4 py-2 text-sm bg-white dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:border-blue-400 dark:focus:border-blue-500 transition-all shadow-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                                        className="w-full pl-10 pr-4 py-2 text-sm bg-white dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:border-blue-400 dark:focus:border-blue-500 transition-all shadow-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                     />
@@ -336,7 +336,7 @@ const UserManagement = () => {
                                 </div>
                             ) : users.length === 0 ? (
                                 <div className="text-center py-20">
-                                    <div className="w-16 h-16 bg-gray-50 dark:bg-[#0a0f1a]/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <div className="w-16 h-16 bg-gray-50 dark:bg-[#111117]/50 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <Users className="w-8 h-8 text-gray-300 dark:text-gray-600" />
                                     </div>
                                     <h3 className="text-gray-900 dark:text-gray-100 font-medium">No users found</h3>
@@ -345,7 +345,7 @@ const UserManagement = () => {
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
-                                        <thead className="bg-gray-50/50 dark:bg-[#0a0f1a]/50 text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold tracking-wider">
+                                        <thead className="bg-gray-50/50 dark:bg-[#111117]/50 text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold tracking-wider">
                                             <tr>
                                                 <th className="px-6 py-4">User</th>
                                                 <th className="px-6 py-4">Role</th>
@@ -418,7 +418,7 @@ const UserManagement = () => {
                                         </tbody>
                                     </table>
                                     {filteredUsers.length === 0 && (
-                                        <div className="p-12 text-center text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-[#0a0f1a]/30 italic">
+                                        <div className="p-12 text-center text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-[#111117]/30 italic">
                                             No users match your search.
                                         </div>
                                     )}
@@ -458,7 +458,7 @@ const UserManagement = () => {
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
-                                <thead className="bg-gray-50 dark:bg-[#0a0f1a]/50 text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold tracking-wider">
+                                <thead className="bg-gray-50 dark:bg-[#111117]/50 text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold tracking-wider">
                                     <tr>
                                         <th className="px-6 py-4 rounded-l-lg">Admin</th>
                                         <th className="px-6 py-4">Status</th>
@@ -519,7 +519,7 @@ const UserManagement = () => {
             {showAddUserModal && (
                 <div className="modal-backdrop" onClick={() => setShowAddUserModal(false)}>
                     <div className="modal-content p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#111117]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
                                     <UserPlus size={20} />
@@ -528,7 +528,7 @@ const UserManagement = () => {
                             </div>
                             <button
                                 onClick={() => setShowAddUserModal(false)}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#23232e] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -546,7 +546,7 @@ const UserManagement = () => {
                                         onChange={(e) =>
                                             setSingleUserData({ ...singleUserData, email: e.target.value })
                                         }
-                                        className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                        className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                         placeholder="user@example.com"
                                         required
                                         list={singleUserData.role === 'instructor' ? "instructor-list" : undefined}
@@ -613,7 +613,7 @@ const UserManagement = () => {
             {showAddAdminModal && (
                 <div className="modal-backdrop" onClick={() => setShowAddAdminModal(false)}>
                     <div className="modal-content p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#111117]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
                                     <Shield size={20} />
@@ -622,7 +622,7 @@ const UserManagement = () => {
                             </div>
                             <button
                                 onClick={() => setShowAddAdminModal(false)}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#23232e] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -640,7 +640,7 @@ const UserManagement = () => {
                                         onChange={(e) =>
                                             setAdminFormData({ ...adminFormData, email: e.target.value })
                                         }
-                                        className="input-field w-full dark:bg-[#0a0f1a] dark:border-gray-700 dark:text-gray-100"
+                                        className="input-field w-full dark:bg-[#111117] dark:border-gray-700 dark:text-gray-100"
                                         placeholder="admin@example.com"
                                         required
                                     />
@@ -684,7 +684,7 @@ const UserManagement = () => {
             {showBulkUploadModal && (
                 <div className="modal-backdrop" onClick={() => setShowBulkUploadModal(false)}>
                     <div className="modal-content p-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0f1a]/40 rounded-t-2xl">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#111117]/40 rounded-t-2xl">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
                                     <Upload size={20} />
@@ -693,7 +693,7 @@ const UserManagement = () => {
                             </div>
                             <button
                                 onClick={() => setShowBulkUploadModal(false)}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#141b2b] rounded-lg transition-colors"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 hover:bg-gray-100 dark:hover:bg-[#23232e] rounded-lg transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -757,7 +757,7 @@ const UserManagement = () => {
                                             Download Sample
                                         </button>
                                     </div>
-                                    <code className="block bg-white dark:bg-[#0a0f1a] p-3 rounded border border-blue-100 dark:border-blue-900/50 text-gray-600 dark:text-gray-400 font-mono text-xs shadow-sm">
+                                    <code className="block bg-white dark:bg-[#111117] p-3 rounded border border-blue-100 dark:border-blue-900/50 text-gray-600 dark:text-gray-400 font-mono text-xs shadow-sm">
                                         email<br />
                                         student1@example.com<br />
                                         student2@example.com

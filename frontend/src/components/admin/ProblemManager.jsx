@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import problemService from '../../services/problemService';
 import toast from 'react-hot-toast';
 import CustomDropdown from '../../components/shared/CustomDropdown';
@@ -33,6 +34,7 @@ const POINTS = {
 };
 
 const ProblemManager = () => {
+    const { isDark } = useTheme();
     const [problems, setProblems] = useState([]);
     const [filteredProblems, setFilteredProblems] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -479,7 +481,7 @@ const ProblemManager = () => {
             </div>
 
             {/* Controls */}
-            <div className="glass-panel p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-end">
+            <div className="glass-panel p-6 rounded-2xl border border-gray-100 dark:border-gray-800 dark:bg-[#111117] shadow-sm flex flex-col md:flex-row gap-4 justify-between items-end">
                 <div className="w-full md:w-auto flex flex-col md:flex-row gap-4 flex-1">
                     <div className="relative w-full md:w-96">
                         <input
@@ -487,7 +489,7 @@ const ProblemManager = () => {
                             placeholder="Search problems..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400 transition-all shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 focus:border-primary-400 dark:focus:border-primary-600 transition-all shadow-sm text-gray-900 dark:text-gray-100"
                         />
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                     </div>
@@ -504,24 +506,24 @@ const ProblemManager = () => {
 
                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     {selectedProblems.length > 0 && (
-                        <button onClick={handleBulkDelete} className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center gap-2">
+                        <button onClick={handleBulkDelete} className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center gap-2">
                             <Trash2 size={18} /> Delete Selected ({selectedProblems.length})
                         </button>
                     )}
                     <button onClick={() => setShowCreateModal(true)} className="btn-primary flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold">
                         <Plus size={18} /> Create Problem
                     </button>
-                    <button onClick={() => setShowBulkModal(true)} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm flex items-center gap-2">
+                    <button onClick={() => setShowBulkModal(true)} className="bg-white dark:bg-[#111117] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#23232e] hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-600 dark:hover:text-blue-400 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm flex items-center gap-2">
                         <Upload size={18} /> Bulk Upload
                     </button>
-                    <button onClick={downloadSampleJSON} className="p-2.5 text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-transparent hover:border-gray-200" title="Download Sample JSON">
+                    <button onClick={downloadSampleJSON} className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-50 dark:bg-[#111117] hover:bg-gray-100 dark:hover:bg-[#23232e] rounded-xl transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700" title="Download Sample JSON">
                         <Download size={20} />
                     </button>
                 </div>
             </div>
 
             {/* Content */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-[#111117] rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 text-gray-900 dark:text-gray-100">
                 {loading ? (
                     <div className="flex justify-center py-16">
                         <div className="spinner border-t-primary-500 border-2 w-8 h-8"></div>
@@ -537,37 +539,37 @@ const ProblemManager = () => {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
-                            <thead className="bg-gray-50/50 text-xs uppercase text-gray-500 font-semibold tracking-wider">
+                            <thead className="bg-gray-50/50 dark:bg-zinc-800/30 text-xs uppercase text-gray-500 font-semibold tracking-wider border-b border-gray-100 dark:border-gray-800">
                                 <tr>
                                     <th className="px-6 py-4 w-10">
                                         <input
                                             type="checkbox"
-                                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-4 h-4 cursor-pointer"
+                                            className="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111117] text-primary-600 focus:ring-primary-500 w-4 h-4 cursor-pointer"
                                             checked={selectedProblems.length === filteredProblems.length && filteredProblems.length > 0}
                                             onChange={toggleSelectAll}
                                         />
                                     </th>
                                     <th className="px-6 py-4">Problem</th>
                                     <th className="px-6 py-4">Difficulty</th>
-                                    <th className="px-6 py-4">Points</th>
+                                    <th className="px-6 py-4">Coins</th>
                                     <th className="px-6 py-4">Created Date</th>
                                     <th className="px-6 py-4 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-50">
+                            <tbody className="divide-y divide-gray-50 dark:divide-gray-800 bg-white dark:bg-[#111117]">
                                 {filteredProblems.map((problem) => (
-                                    <tr key={problem.id || problem._id} className="hover:bg-gray-50/40 transition-colors group">
+                                    <tr key={problem.id || problem._id} className="hover:bg-gray-50/40 dark:hover:bg-[#23232e] transition-colors group">
                                         <td className="px-6 py-4 text-center">
                                             <input
                                                 type="checkbox"
-                                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-4 h-4 cursor-pointer"
+                                                className="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-[#111117] text-primary-600 focus:ring-primary-500 w-4 h-4 cursor-pointer"
                                                 checked={selectedProblems.includes(problem._id)}
                                                 onChange={() => toggleProblemSelection(problem._id)}
                                             />
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="font-semibold text-gray-900">{problem.title}</div>
-                                            <div className="text-xs text-gray-500 mt-1 capitalize">{problem.type || 'problem'}</div>
+                                            <div className="font-semibold text-gray-900 dark:text-gray-100">{problem.title}</div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 capitalize">{problem.type || 'problem'}</div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${problem.difficulty === 'Easy' ? 'bg-green-50 text-green-700 border-green-100' :
@@ -577,25 +579,25 @@ const ProblemManager = () => {
                                                 {problem.difficulty}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600 font-medium">
-                                            {problem.points} pts
+                                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                                            {problem.points} Coins
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">
+                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                             {new Date(problem.createdAt).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-4 text-right relative">
                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end gap-2">
                                                 <button
                                                     onClick={() => openSolutionModal(problem)}
-                                                    className="p-2 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                                                    className="p-2 text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors"
                                                     title="Set Reference Solution"
                                                 >
                                                     <Code2 size={16} />
                                                 </button>
-                                                <button onClick={() => openEditModal(problem)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
+                                                <button onClick={() => openEditModal(problem)} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title="Edit">
                                                     <Edit2 size={16} />
                                                 </button>
-                                                <button onClick={() => handleDeleteProblem(problem._id, problem.title)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                                                <button onClick={() => handleDeleteProblem(problem._id, problem.title)} className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Delete">
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>
@@ -612,7 +614,7 @@ const ProblemManager = () => {
             {(showCreateModal || showEditModal) && (
                 <div className="modal-backdrop" onClick={() => { setShowCreateModal(false); setShowEditModal(false); }}>
                     <div className="modal-content max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col my-8" onClick={(e) => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-zinc-800/30">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                                     {showEditModal ? <Edit2 size={20} /> : <Plus size={20} />}
@@ -665,7 +667,7 @@ const ProblemManager = () => {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
-                                            <Award size={16} className="text-gray-400" /> Points
+                                            <Award size={16} className="text-gray-400" /> Coins
                                         </label>
                                         <input
                                             type="number"
@@ -813,7 +815,7 @@ const ProblemManager = () => {
                                                     <Editor
                                                         height="100%"
                                                         language="cpp"
-                                                        theme="light"
+                                                        theme={isDark ? 'antigravity-dark' : 'vs-light'}
                                                         value={formData.solutionCode?.cpp || ''}
                                                         onChange={(val) => setFormData({
                                                             ...formData,
@@ -1123,7 +1125,7 @@ const ProblemManager = () => {
                                     }
                                     value={solutionCode}
                                     onChange={val => setSolutionCodeVal(val || '')}
-                                    theme="vs-dark"
+                                    theme="antigravity-dark"
                                     options={{
                                         minimap: { enabled: false },
                                         fontSize: 13,
@@ -1147,7 +1149,7 @@ const ProblemManager = () => {
                                 <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
                                     <button
                                         onClick={() => setShowSolutionModal(false)}
-                                        style={{ padding: '9px 18px', borderRadius: '10px', border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
+                                        style={{ padding: '9px 18px', borderRadius: '10px', border: '1px solid #e5e7eb', background: '#fff', color: '#23232e', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
                                         onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.borderColor = '#d1d5db'; }}
                                         onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e5e7eb'; }}
                                     >

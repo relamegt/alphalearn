@@ -44,7 +44,7 @@ const ScoreDistributionChart = ({ leaderboardDetails }) => {
     if (data.length === 0) {
         return (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mt-6 h-64 flex flex-col items-center justify-center text-center">
-                <div className="bg-gray-50 dark:bg-[#0a0f1a]/50 rounded-full w-12 h-12 flex items-center justify-center mb-3">
+                <div className="bg-gray-50 dark:bg-[#111117]/50 rounded-full w-12 h-12 flex items-center justify-center mb-3">
                     <span className="text-xl">🥧</span>
                 </div>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">No score data available</p>

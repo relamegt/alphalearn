@@ -350,7 +350,8 @@ const CompleteProfile = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        <div className="min-h-screen bg-[#F7F5FF] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-blue-50/50 to-indigo-100/50 pointer-events-none"></div>
             {/* Background elements */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
                 <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-200/50 rounded-full mix-blend-multiply filter blur-[80px] animate-blob"></div>
@@ -367,8 +368,8 @@ const CompleteProfile = () => {
                             className="w-16 h-16 object-contain drop-shadow"
                         />
                     </div>
-                    <h1 className="text-4xl sm:text-5xl font-extrabold text-indigo-950 tracking-tight mb-3">
-                        Welcome to AlphaKnowledge
+                    <h1 className="text-4xl sm:text-5xl font-extrabold text-[#111827] dark:text-white tracking-tight mb-3">
+                        Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-300 dark:to-blue-300">AlphaKnowledge</span>
                     </h1>
                     <p className="text-lg text-indigo-800/80 font-medium max-w-2xl mx-auto">
                         We're excited to have you on board! Let's get your profile set up so you can start accelerating your learning journey.
@@ -386,7 +387,7 @@ const CompleteProfile = () => {
                             <div key={stepNumber} className="flex flex-col items-center group cursor-default">
                                 <div
                                     className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 border-4 ${step >= stepNumber
-                                        ? 'bg-blue-600 border-blue-100 text-white shadow-md scale-110'
+                                        ? 'bg-blue-600 border-blue-100 text-white shadow-md dark:shadow-none scale-110'
                                         : 'bg-white border-gray-200 text-gray-400'
                                         }`}
                                 >
@@ -403,7 +404,7 @@ const CompleteProfile = () => {
                 </div>
 
                 {/* Form Card */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-white p-8 sm:p-10 transition-all">
+                <div className="bg-white/90 dark:bg-[#111117] backdrop-blur-md rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-none border border-white dark:border-gray-800 p-8 sm:p-10 transition-all">
                     <form onSubmit={handleSubmit} noValidate>
                         {/* Step 1: Basic Info */}
                         {step === 1 && (

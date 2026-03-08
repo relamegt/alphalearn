@@ -8,11 +8,22 @@ const STORAGE_KEY = 'alphalearn-theme';
 export const ThemeProvider = ({ children }) => {
     const [theme, setThemeState] = useState(() => {
         if (!DARK_MODE_ENABLED) return 'light';
+
+        // One-time migration to dark mode for Everyone
+        const migrationKey = 'theme_migrated_to_dark_v1';
+        const isMigrated = localStorage.getItem(migrationKey);
+
+        if (!isMigrated) {
+            localStorage.setItem(migrationKey, 'true');
+            localStorage.setItem(STORAGE_KEY, 'dark');
+            return 'dark';
+        }
+
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored === 'dark' || stored === 'light') return stored;
         } catch { /* ignore */ }
-        return 'light';
+        return 'dark';
     });
 
     const isDark = theme === 'dark' && DARK_MODE_ENABLED;

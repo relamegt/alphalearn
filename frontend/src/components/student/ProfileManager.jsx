@@ -315,7 +315,7 @@ const ProfileManager = () => {
 
     if (initialLoading) {
         return (
-            <div className="p-6 bg-[#F7F5FF] dark:bg-[#0a0f1a] min-h-screen transition-colors">
+            <div className="p-6 bg-[#F7F5FF] dark:bg-[#111117] min-h-screen transition-colors">
                 {/* Header Skeleton */}
                 <div className="w-1/4 h-8 bg-gray-200 dark:bg-gray-800 rounded mb-6 animate-pulse"></div>
 
@@ -361,7 +361,7 @@ const ProfileManager = () => {
     }
 
     return (
-        <div className="p-6 bg-[#F7F5FF] dark:bg-[#0a0f1a] min-h-screen transition-colors">
+        <div className="p-6 bg-[#F7F5FF] dark:bg-[#111117] min-h-screen transition-colors">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 font-display">Profile Management</h1>
 
             {/* Tabs */}

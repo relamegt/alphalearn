@@ -159,7 +159,7 @@ const ContestJoin = () => {
     // ── loading / error screens ───────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors">
+            <div className="flex justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#111117] transition-colors">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
             </div>
         );
@@ -167,8 +167,8 @@ const ContestJoin = () => {
 
     if (error && !contest) {
         return (
-            <div className="flex flex-col justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors p-4">
-                <div className="bg-white dark:bg-[#0a0f1a] p-8 rounded-xl shadow-lg max-w-md w-full text-center border border-gray-100 dark:border-gray-800">
+            <div className="flex flex-col justify-center items-center h-screen bg-[#F7F5FF] dark:bg-[#111117] transition-colors p-4">
+                <div className="bg-white dark:bg-[#111117] p-8 rounded-xl shadow-lg max-w-md w-full text-center border border-gray-100 dark:border-gray-800">
                     <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                         {error === 'Contest not found.' ? 'Contest Not Found' : 'Unavailable'}
@@ -189,7 +189,7 @@ const ContestJoin = () => {
 
     // ── main render ───────────────────────────────────────────────────────────
     return (
-        <div className="h-screen bg-[#F7F5FF] dark:bg-[#0a0f1a] transition-colors flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="h-screen bg-[#F7F5FF] dark:bg-[#111117] transition-colors flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
             {/* Logo */}
             <div className="flex items-center gap-3 mb-4">
                 <img
@@ -203,7 +203,7 @@ const ContestJoin = () => {
             </div>
 
             <div
-                className="bg-white dark:bg-[#0a0f1a] max-w-lg w-full rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden transition-colors"
+                className="bg-white dark:bg-[#111117] max-w-lg w-full rounded-2xl shadow-xl dark:shadow-none border border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden transition-colors"
                 style={{ maxHeight: '85vh' }}
             >
                 {/* Banner */}
@@ -254,7 +254,7 @@ const ContestJoin = () => {
                             <div className="flex items-start justify-center w-full gap-3">
                                 {/* Days */}
                                 <div className="timer w-14">
-                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm">
+                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm dark:shadow-none">
                                         <h3 ref={daysRef} className="font-semibold text-2xl text-indigo-600 dark:text-indigo-400 text-center tabular-nums leading-none">
                                             {init.d}
                                         </h3>
@@ -264,7 +264,7 @@ const ContestJoin = () => {
                                 <h3 className="font-semibold text-2xl text-amber-700 dark:text-amber-500 mt-2">:</h3>
                                 {/* Hours */}
                                 <div className="timer w-14">
-                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm">
+                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm dark:shadow-none">
                                         <h3 ref={hoursRef} className="font-semibold text-2xl text-indigo-600 dark:text-indigo-400 text-center tabular-nums leading-none">
                                             {init.h}
                                         </h3>
@@ -274,7 +274,7 @@ const ContestJoin = () => {
                                 <h3 className="font-semibold text-2xl text-amber-700 dark:text-amber-500 mt-2">:</h3>
                                 {/* Minutes */}
                                 <div className="timer w-14">
-                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm">
+                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm dark:shadow-none">
                                         <h3 ref={minutesRef} className="font-semibold text-2xl text-indigo-600 dark:text-indigo-400 text-center tabular-nums leading-none">
                                             {init.m}
                                         </h3>
@@ -284,7 +284,7 @@ const ContestJoin = () => {
                                 <h3 className="font-semibold text-2xl text-amber-700 dark:text-amber-500 mt-2">:</h3>
                                 {/* Seconds */}
                                 <div className="timer w-14">
-                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm">
+                                    <div className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2 py-2 shadow-sm dark:shadow-none">
                                         <h3 ref={secondsRef} className="font-semibold text-2xl text-indigo-600 dark:text-indigo-400 text-center tabular-nums leading-none">
                                             {init.s}
                                         </h3>
@@ -318,7 +318,7 @@ const ContestJoin = () => {
                                         disabled={status === 'upcoming'}
                                         className={`w-full flex items-center justify-center py-3 px-4 rounded-xl text-white font-medium transition ${status === 'upcoming'
                                             ? 'bg-gray-400 cursor-not-allowed'
-                                            : 'bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg'
+                                            : 'bg-indigo-600 hover:bg-indigo-700 shadow-md dark:shadow-none hover:shadow-lg dark:hover:shadow-none'
                                             }`}
                                     >
                                         <Play className="w-5 h-5 mr-2" />
@@ -367,7 +367,7 @@ const ContestJoin = () => {
                                         <div className="pt-4">
                                             <button
                                                 type="submit" disabled={registering}
-                                                className={`w-full flex items-center justify-center py-3 px-4 rounded-xl text-white font-medium transition ${registering ? 'bg-indigo-400 cursor-wait' : 'bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg'
+                                                className={`w-full flex items-center justify-center py-3 px-4 rounded-xl text-white font-medium transition ${registering ? 'bg-indigo-400 cursor-wait' : 'bg-indigo-600 hover:bg-indigo-700 shadow-md dark:shadow-none hover:shadow-lg dark:hover:shadow-none'
                                                     }`}
                                             >
                                                 {registering ? (

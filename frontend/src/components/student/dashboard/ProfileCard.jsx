@@ -14,9 +14,9 @@ const ProfileCard = ({ user, updateUser }) => {
                 <img
                     src={profilePic}
                     alt={displayName}
-                    className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                    className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-lg dark:shadow-none"
                 />
-                <div className="absolute bottom-0 right-0 bg-green-500 w-4 h-4 rounded-full border-2 border-white"></div>
+                <div className="absolute bottom-0 right-0 bg-green-500 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800"></div>
             </div>
 
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">{displayName}</h2>

@@ -208,10 +208,10 @@ const getContestById = async (req, res) => {
         }
 
         // Check if contest submitted
-        const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
+        const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contest._id);
 
         // Get solved problems
-        const solvedProblems = await ContestSubmission.getAcceptedProblems(studentId, contestId);
+        const solvedProblems = await ContestSubmission.getAcceptedProblems(studentId, contest._id);
         const solvedProblemIds = solvedProblems.map(p => p.toString());
 
         // Get contest problems in BULK
@@ -440,7 +440,7 @@ const submitContestCode = async (req, res) => {
 
         // 3. Normal Contest Submission Flow
         // Check if contest is submitted (completed)
-        const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
+        const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contest._id);
         if (hasSubmitted) {
             return res.status(400).json({
                 success: false,
@@ -449,7 +449,7 @@ const submitContestCode = async (req, res) => {
         }
 
         // Check if problem already solved
-        const isProblemSolved = await ContestSubmission.isProblemSolved(studentId, contestId, problemId);
+        const isProblemSolved = await ContestSubmission.isProblemSolved(studentId, contest._id, problemId);
         if (isProblemSolved && !isAutoSubmit) {
             return res.status(400).json({
                 success: false,
@@ -552,8 +552,14 @@ const runContestCode = async (req, res) => {
         const isCustom = customInput !== undefined && customInput !== null && String(customInput).trim() !== '';
         const isMultiCustom = Array.isArray(customInputs) && customInputs.length > 0;
 
+        // Check if contest exists
+        const contest = await Contest.findById(contestId);
+        if (!contest) {
+            return res.status(404).json({ success: false, message: 'Contest not found' });
+        }
+
         // Check if contest is submitted
-        const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
+        const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contest._id);
         if (hasSubmitted && !isPracticeMode) {
             return res.status(400).json({
                 success: false,
@@ -562,18 +568,12 @@ const runContestCode = async (req, res) => {
         }
 
         // Check if problem already solved
-        const isProblemSolved = await ContestSubmission.isProblemSolved(studentId, contestId, problemId);
+        const isProblemSolved = await ContestSubmission.isProblemSolved(studentId, contest._id, problemId);
         if (isProblemSolved && !isPracticeMode) {
             return res.status(400).json({
                 success: false,
                 message: 'Problem already solved. Cannot run code.'
             });
-        }
-
-        // Check if contest exists
-        const contest = await Contest.findById(contestId);
-        if (!contest) {
-            return res.status(404).json({ success: false, message: 'Contest not found' });
         }
 
         // Validate code
@@ -793,8 +793,13 @@ const finishContest = async (req, res) => {
         // Frontend sends current tracked violation counts as the definitive snapshot
         const { finalViolations } = req.body || {};
 
+        const contest = await Contest.findById(contestId);
+        if (!contest) {
+            return res.status(404).json({ success: false, message: 'Contest not found' });
+        }
+        
         // Check if already submitted
-        const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contestId);
+        const hasSubmitted = await ContestSubmission.hasSubmittedContest(studentId, contest._id);
         if (hasSubmitted) {
             return res.status(400).json({
                 success: false,
@@ -804,7 +809,7 @@ const finishContest = async (req, res) => {
 
 
         // Build violation snapshot — enforce maximum between frontend and backend
-        const dbViolations = await ContestSubmission.getProctoringViolations(studentId, contestId);
+        const dbViolations = await ContestSubmission.getProctoringViolations(studentId, contest._id);
 
         let violationSnapshot = {
             tabSwitchCount: Math.max((finalViolations?.tabSwitchCount || 0), dbViolations.totalTabSwitches),
@@ -815,7 +820,7 @@ const finishContest = async (req, res) => {
         const totalViolations = (violationSnapshot.tabSwitchCount || 0) + (violationSnapshot.fullscreenExits || 0);
 
         // Mark contest as completed — stores violation snapshot on the COMPLETED record
-        await ContestSubmission.markContestCompleted(studentId, contestId, 0, violationSnapshot);
+        await ContestSubmission.markContestCompleted(studentId, contest._id, 0, violationSnapshot);
 
         let finalScore = 0;
         let finalProblemsSolved = 0;
@@ -828,8 +833,8 @@ const finishContest = async (req, res) => {
 
         // Update live leaderboard (Throttled)
         try {
-            await ContestSubmission.invalidateCache(contestId);
-            notifyLeaderboardUpdate(contestId);
+            await ContestSubmission.invalidateCache(contest._id);
+            notifyLeaderboardUpdate(contest._id.toString());
         } catch (wsError) {
             console.error('WebSocket notification error in finishContest:', wsError);
         }

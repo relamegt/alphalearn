@@ -1,8 +1,116 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { TypeAnimation } from 'react-type-animation';
+import { Code, Sparkles } from 'lucide-react';
 
+
+
+// Constants for Code Animation
+const CODE_SNIPPETS = [
+    {
+        language: 'C++',
+        code: `#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Welcome Back to AlphaKnowledge!";\n    return 0;\n}`
+    },
+    {
+        language: 'Java',
+        code: `public class Alpha {\n    public static void main(String[] args) {\n        System.out.println("Hello AlphaKnowledge!");\n    }\n}`
+    },
+    {
+        language: 'Python',
+        code: `# AlphaKnowledge\ndef greet():\n    print("Welcome Back to AlphaKnowledge!")\n\ngreet()`
+    }
+];
+
+const CodeBlock = () => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [animationKey, setAnimationKey] = useState(0);
+    const [isHovered, setIsHovered] = useState(false);
+    const cardRef = useRef(null);
+
+    const handleMouseMove = (e) => {
+        if (!cardRef.current) return;
+        const rect = cardRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        cardRef.current.style.setProperty('--mouse-x', `${x}px`);
+        cardRef.current.style.setProperty('--mouse-y', `${y}px`);
+    };
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentIndex(prev => (prev + 1) % CODE_SNIPPETS.length);
+            setAnimationKey(prev => prev + 1);
+        }, 8000);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div
+            ref={cardRef}
+            className="relative mt-8 w-full max-w-[420px] min-h-[300px] mx-auto lg:mx-0 bg-white/95 dark:bg-black/20 backdrop-blur-xl rounded-2xl px-6 py-8 border-2 border-indigo-500/20 dark:border-white/5 overflow-hidden cursor-pointer group transition-all duration-700 ease-out shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-none"
+            onMouseMove={handleMouseMove}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            style={{
+                '--mouse-x': '50%',
+                '--mouse-y': '50%',
+                background: `
+                    radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(99, 102, 241, 0.1), transparent 50%),
+                    transparent
+                `,
+                transform: isHovered ? 'translateY(-5px)' : 'translateY(0)',
+            }}
+        >
+            {/* Header */}
+            <div className="relative flex items-center justify-between mb-6 z-20">
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-red-500/80 rounded-full"></div>
+                    <div className="w-2 h-2 bg-yellow-500/80 rounded-full"></div>
+                    <div className="w-2 h-2 bg-green-500/80 rounded-full"></div>
+                    <span className="ml-3 text-[10px] font-bold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-black/20 px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-500/10 transition-all duration-300">
+                        {CODE_SNIPPETS[currentIndex].language}
+                    </span>
+                </div>
+                <Code className="w-4 h-4 text-indigo-500/50" />
+            </div>
+
+            {/* Code content */}
+            <div className="relative flex z-20">
+                <div className="flex flex-col text-gray-400 dark:text-gray-500/50 text-[11px] font-mono select-none mr-4 pt-1 border-r border-gray-200 dark:border-gray-500/10 pr-4">
+                    {Array.from({ length: 7 }, (_, i) => (
+                        <span key={i} className="leading-5">{i + 1}</span>
+                    ))}
+                </div>
+
+                <div className="flex-1 text-[#111827] dark:text-gray-100 text-[12px] font-mono leading-5 text-left">
+                    <TypeAnimation
+                        key={`${animationKey}-${currentIndex}`}
+                        sequence={[
+                            CODE_SNIPPETS[currentIndex].code,
+                            5000,
+                        ]}
+                        speed={60}
+                        repeat={Infinity}
+                        omitDeletionAnimation={true}
+                        cursor={true}
+                        wrapper="span"
+                        style={{
+                            whiteSpace: "pre-wrap",
+                            display: "block",
+                        }}
+                    />
+                </div>
+            </div>
+
+            {/* Corner Accent */}
+            <div className="absolute bottom-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                <Sparkles className="w-4 h-4 text-indigo-500" />
+            </div>
+        </div>
+    );
+};
 
 const LoginForm = () => {
     const { login } = useAuth();
@@ -14,6 +122,7 @@ const LoginForm = () => {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState({});
+    const cardRef = useRef(null); // Adding ref for consistency if needed
 
 
     // Show message from state (e.g., after profile completion)
@@ -87,66 +196,65 @@ const LoginForm = () => {
 
 
     return (
-        <div className="min-h-screen flex bg-white dark:bg-[#0a0f1a] font-sans transition-colors">
-            {/* Left Side - Brand/Illustration */}
-            <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-900 via-blue-900 to-indigo-800 justify-center items-center relative overflow-hidden">
-                {/* Decorative Background Elements */}
-                <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                    <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-blue-500/30 rounded-full mix-blend-screen filter blur-[100px] animate-pulse"></div>
-                    <div className="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] bg-indigo-500/30 rounded-full mix-blend-screen filter blur-[100px] animate-pulse" style={{ animationDelay: '2s' }}></div>
-                </div>
-
-                <div className="relative z-10 text-center px-12 max-w-2xl transform transition-transform duration-700 hover:scale-105">
-                    <div className="inline-flex items-center justify-center p-5 bg-white/10 backdrop-blur-xl rounded-full border border-white/20 shadow-2xl mb-8">
+        <div className="min-h-screen flex bg-[#F7F5FF] dark:bg-[#111117] font-sans">
+            {/* Left Side - Brand/Illustration (Always Dark/Professional) */}
+            <div className="hidden lg:flex lg:w-1/2 justify-center lg:justify-start items-center lg:items-start lg:pt-24 lg:pl-14 relative overflow-hidden">
+                <div className="relative z-10 text-center lg:text-left px-12 transition-all duration-700">
+                    <div className="flex justify-center mb-6 group transition-transform duration-500 hover:scale-110">
                         <img
                             src="/alphalogo.png"
                             alt="AlphaKnowledge"
-                            className="w-24 h-24 object-contain drop-shadow-xl"
+                            className="w-20 h-20 object-contain filter brightness-110 drop-shadow-xl"
                         />
                     </div>
-                    <h1 className="text-4xl lg:text-5xl font-extrabold text-white mb-6 tracking-tight leading-tight">
-                        Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300">AlphaKnowledge</span>
+                    <h1 className="text-4xl lg:text-5xl font-extrabold text-[#111827] dark:text-white mb-4 tracking-tight leading-tight whitespace-nowrap">
+                        Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-300 dark:to-blue-300">AlphaKnowledge</span>
                     </h1>
-                    {/* <p className="text-lg lg:text-xl text-blue-100/90 leading-relaxed font-light">
-                        Accelerate your learning journey with cutting-edge tools, comprehensive resources, and a vibrant community.
-                    </p> */}
+                    <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 font-medium mb-10 whitespace-nowrap text-center">
+                        Master problem solving skills with structured learning and real-time execution.
+                    </p>
+
+                    {/* Integrated Typing Animation */}
+                    <div className="w-full max-w-md mx-auto">
+                        <CodeBlock />
+                    </div>
                 </div>
             </div>
 
             {/* Right Side - Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-gray-50/50 dark:bg-[#0a0f1a] relative transition-colors">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 relative">
                 <div className="max-w-md w-full space-y-8">
                     {/* Mobile Header */}
                     <div className="text-center lg:hidden">
-                        <div className="inline-flex justify-center mb-6 p-4 bg-white rounded-full shadow-md border border-gray-100">
+                        <div className="inline-flex justify-center mb-6 p-4 bg-white dark:bg-[#1a1a24] rounded-full shadow-md dark:shadow-none border border-gray-100 dark:border-gray-800">
                             <img
                                 src="/alphalogo.png"
                                 alt="AlphaKnowledge"
                                 className="w-14 h-14 object-contain"
                             />
                         </div>
-                        <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                        <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
                             AlphaKnowledge
                         </h2>
-                        <p className="mt-2 text-sm text-gray-500 font-medium">
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 font-medium">
                             Sign in to continue your learning journey
                         </p>
                     </div>
 
                     <div className="hidden lg:block mb-10">
-                        <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Sign in</h2>
-                        <p className="text-base text-gray-500 font-medium">Please enter your credentials to access your account.</p>
+                        <h2 className="text-4xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight mb-3">Sign in</h2>
+                        <p className="text-base text-gray-500 dark:text-gray-400 font-medium">Please enter your credentials to access your account.</p>
                     </div>
 
                     {/* Form container */}
-                    <div className="bg-white dark:bg-[#0a0f1a] p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_30px_rgb(0,0,0,0.4)]">
+                    <div className="bg-white dark:bg-[#111117] p-8 rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none border border-gray-100 dark:border-gray-800 transition-all duration-300">
                         <form className="space-y-6" onSubmit={handleSubmit}>
                             <div className="space-y-5">
                                 {/* Email Field */}
                                 <div>
                                     <label
                                         htmlFor="email"
-                                        className="block text-sm font-semibold text-gray-700 mb-2"
+                                        className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2"
                                     >
                                         Email Address
                                     </label>
@@ -182,7 +290,7 @@ const LoginForm = () => {
                                 <div>
                                     <label
                                         htmlFor="password"
-                                        className="block text-sm font-semibold text-gray-700 mb-2"
+                                        className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2"
                                     >
                                         Password
                                     </label>
@@ -236,7 +344,7 @@ const LoginForm = () => {
                             <div className="flex items-center justify-end">
                                 <Link
                                     to="/forgot-password"
-                                    className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                                    className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                                 >
                                     Forgot your password?
                                 </Link>
@@ -246,7 +354,7 @@ const LoginForm = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full btn-primary h-12 rounded-xl flex justify-center items-center text-base font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all duration-200"
+                                className="w-full btn-primary h-12 rounded-xl flex justify-center items-center text-base font-bold shadow-lg shadow-blue-500/30 dark:shadow-none hover:shadow-blue-500/50 dark:hover:shadow-none hover:-translate-y-0.5 transition-all duration-200"
                             >
                                 {loading ? (
                                     <>
@@ -284,11 +392,11 @@ const LoginForm = () => {
                     </div>
 
                     {/* Help Text */}
-                    <div className="text-center mt-6">
-                        <p className="text-xs text-gray-400 font-medium">
-                            Need help? <a href="#" className="text-blue-600 hover:text-blue-700">Contact your administrator</a>
+                    {/* <div className="text-center mt-6">
+                        <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">
+                            Need help? <a href="#" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">Contact your administrator</a>
                         </p>
-                    </div>
+                    </div> */}
                 </div>
             </div>
         </div>

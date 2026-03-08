@@ -207,29 +207,29 @@ const ProblemSidebar = () => {
 
     if (loading) {
         return (
-            <div className="flex flex-col h-full bg-white dark:bg-[#0a0f1a] overflow-hidden border-r border-gray-200 dark:border-gray-800 animate-pulse transition-colors">
+            <div className="flex flex-col h-full bg-white dark:bg-[#111117] overflow-hidden border-r border-gray-200 dark:border-gray-800 animate-pulse transition-colors">
                 {/* Header Skeleton */}
-                <div className="shrink-0 p-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#0a0f1a] z-10">
+                <div className="shrink-0 p-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#111117] z-10">
                     {/* Title row */}
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-[#0a0f1a]"></div>
+                            <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-[#111117]"></div>
                             <div className="space-y-2">
-                                <div className="w-24 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
-                                <div className="w-16 h-3 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
+                                <div className="w-24 h-4 bg-gray-200 dark:bg-[#111117] rounded"></div>
+                                <div className="w-16 h-3 bg-gray-200 dark:bg-[#111117] rounded"></div>
                             </div>
                         </div>
                         {/* Circular progress dummy */}
-                        <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-[#0a0f1a] shrink-0"></div>
+                        <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-[#111117] shrink-0"></div>
                     </div>
 
                     {/* Search Bar Skeleton */}
-                    <div className="w-full h-8 bg-gray-100 dark:bg-[#0a0f1a] rounded-lg mb-3"></div>
+                    <div className="w-full h-8 bg-gray-100 dark:bg-[#111117] rounded-lg mb-3"></div>
 
                     {/* Difficulty filter skeleton */}
-                    <div className="flex gap-1 bg-gray-50 dark:bg-[#0a0f1a]/50 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex gap-1 bg-gray-50 dark:bg-[#111117]/50 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
                         {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="flex-1 py-1.5 h-6 bg-gray-200 dark:bg-[#0a0f1a] rounded-md"></div>
+                            <div key={i} className="flex-1 py-1.5 h-6 bg-gray-200 dark:bg-[#111117] rounded-md"></div>
                         ))}
                     </div>
                 </div>
@@ -240,15 +240,15 @@ const ProblemSidebar = () => {
                         <div key={section} className="space-y-3">
                             {/* Section header */}
                             <div className="flex items-center gap-3 w-full">
-                                <div className="w-5 h-5 rounded bg-gray-200 dark:bg-[#0a0f1a] shrink-0"></div>
-                                <div className="w-3/4 h-4 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
+                                <div className="w-5 h-5 rounded bg-gray-200 dark:bg-[#111117] shrink-0"></div>
+                                <div className="w-3/4 h-4 bg-gray-200 dark:bg-[#111117] rounded"></div>
                             </div>
                             {/* Problem items */}
                             {[1, 2].map(item => (
                                 <div key={item} className="flex items-center gap-3 pl-8">
-                                    <div className="w-4 h-4 rounded-full bg-gray-200 dark:bg-[#0a0f1a] shrink-0"></div>
-                                    <div className="w-2/3 h-3 bg-gray-200 dark:bg-[#0a0f1a] rounded"></div>
-                                    <div className="w-8 h-3 bg-gray-200 dark:bg-[#0a0f1a] rounded ml-auto"></div>
+                                    <div className="w-4 h-4 rounded-full bg-gray-200 dark:bg-[#111117] shrink-0"></div>
+                                    <div className="w-2/3 h-3 bg-gray-200 dark:bg-[#111117] rounded"></div>
+                                    <div className="w-8 h-3 bg-gray-200 dark:bg-[#111117] rounded ml-auto"></div>
                                 </div>
                             ))}
                         </div>
@@ -259,10 +259,10 @@ const ProblemSidebar = () => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-[#0a0f1a] overflow-hidden border-r border-gray-200 dark:border-gray-800 transition-colors">
+        <div className="flex flex-col h-full bg-white dark:bg-[#111117] overflow-hidden border-r border-gray-200 dark:border-gray-800 transition-colors">
 
             {/* ── Header ─────────────────────────────────────────────── */}
-            <div className="shrink-0 p-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#0a0f1a] z-10 transition-colors">
+            <div className="shrink-0 p-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#111117] z-10 transition-colors">
 
                 {/* Title row */}
                 <div className="flex items-center justify-between mb-4">
@@ -303,7 +303,7 @@ const ProblemSidebar = () => {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search problems..."
-                        className="w-full bg-gray-50 dark:bg-[#0a0f1a] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-xs rounded-lg py-1.5 pl-8 pr-7 focus:bg-white dark:focus:bg-gray-700 focus:border-purple-500 dark:focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 font-medium"
+                        className="w-full bg-gray-50 dark:bg-[#111117] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-xs rounded-lg py-1.5 pl-8 pr-7 focus:bg-white dark:focus:bg-gray-700 focus:border-purple-500 dark:focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 font-medium"
                     />
                     {searchQuery && (
                         <button
@@ -316,14 +316,14 @@ const ProblemSidebar = () => {
                 </div>
 
                 {/* Difficulty filter */}
-                <div className="flex gap-1 bg-gray-50 dark:bg-[#0a0f1a]/50 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex gap-1 bg-gray-50 dark:bg-[#111117]/50 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
                     {['All', 'Easy', 'Medium', 'Hard'].map(level => (
                         <button
                             key={level}
                             onClick={() => setDifficulty(level)}
                             className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all duration-200
                                 ${difficulty === level
-                                    ? 'bg-white dark:bg-[#0a0f1a] text-gray-800 dark:text-gray-100 shadow-sm ring-1 ring-gray-200 dark:ring-gray-600'
+                                    ? 'bg-white dark:bg-[#111117] text-gray-800 dark:text-gray-100 shadow-sm ring-1 ring-gray-200 dark:ring-gray-600'
                                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50'
                                 }`}
                         >
@@ -334,7 +334,7 @@ const ProblemSidebar = () => {
             </div>
 
             {/* ── List ────────────────────────────────────────────────── */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-white dark:bg-[#0a0f1a] transition-colors">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide bg-white dark:bg-[#111117] transition-colors">
                 {structuredContent?.sections.map(section => (
                     <div key={section._id} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
                         {/* Section header */}
@@ -346,13 +346,13 @@ const ProblemSidebar = () => {
                         />
 
                         {expandedSections[section._id] && (
-                            <div className="bg-gray-50/50 dark:bg-[#0a0f1a] pb-2">
+                            <div className="bg-gray-50/50 dark:bg-[#111117] pb-2">
                                 {section.subsections.map(sub => (
                                     <div key={sub._id}>
                                         {/* Subsection header */}
                                         <button
                                             onClick={() => toggleSubsection(sub._id)}
-                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100/50 dark:hover:bg-[#141b2b] transition-colors group"
+                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100/50 dark:hover:bg-[#23232e] transition-colors group"
                                         >
                                             <div className="w-6 flex justify-center shrink-0">
                                                 <ChevronRight
@@ -361,7 +361,7 @@ const ProblemSidebar = () => {
                                                 />
                                             </div>
                                             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex-1 text-left truncate">{sub.title}</span>
-                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-[#0a0f1a] px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
+                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-[#111117] px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
                                                 {sub.problems.length}
                                             </span>
                                         </button>
@@ -431,7 +431,7 @@ const SectionHeader = ({ title, expanded, count, onClick, noToggle }) => {
         <button
             onClick={onClick}
             className={`w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200
-                ${expanded ? 'bg-white dark:bg-[#0a0f1a]' : 'bg-white dark:bg-[#0a0f1a] hover:bg-gray-50 dark:hover:bg-[#141b2b]'}
+                ${expanded ? 'bg-white dark:bg-[#111117]' : 'bg-white dark:bg-[#111117] hover:bg-gray-50 dark:hover:bg-[#23232e]'}
                 ${!noToggle ? 'cursor-pointer' : 'cursor-default'}
             `}
         >
@@ -447,7 +447,7 @@ const SectionHeader = ({ title, expanded, count, onClick, noToggle }) => {
                 {title}
             </span>
 
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-[#0a0f1a] px-2 py-0.5 rounded-full border border-transparent dark:border-gray-700 transition-colors">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-[#111117] px-2 py-0.5 rounded-full border border-transparent dark:border-gray-700 transition-colors">
                 {count}
             </span>
 
@@ -473,8 +473,8 @@ const ProblemRow = ({ problem, active, indent, onClick }) => {
                 flex items-center gap-3 pr-4 py-2.5 my-0.5 cursor-pointer transition-all duration-150 border-l-[3px]
                 ${indent}
                 ${active
-                    ? 'bg-purple-50 dark:bg-[#141b2b] border-l-purple-600 dark:border-l-purple-500'
-                    : 'border-l-transparent hover:bg-gray-100 dark:hover:bg-[#141b2b] hover:border-l-gray-300 dark:hover:border-l-gray-700'
+                    ? 'bg-purple-50 dark:bg-[#23232e] border-l-purple-600 dark:border-l-purple-500'
+                    : 'border-l-transparent hover:bg-gray-100 dark:hover:bg-[#23232e] hover:border-l-gray-300 dark:hover:border-l-gray-700'
                 }
             `}
         >

@@ -14,7 +14,7 @@
         --color-bg-input: #F3F4F6;
         --color-bg-hover: #EDE9FE;
         --color-text-primary: #111827;
-        --color-text-secondary: #4B5563;
+        --color-text-secondary: #333342;
         --color-text-muted: #9CA3AF;
         --color-border: #E5E7EB;
         --color-border-light: #F3F4F6;
@@ -23,19 +23,19 @@
     }
 
     .dark {
-        /* Dark mode (Evolvion-inspired deep navy/black) */
-        --color-bg-primary: #0a0f1a;
-        --color-bg-card: #0a0f1a;
-        --color-bg-surface: #0a0f1a;
-        --color-bg-input: #0a0f1a;
-        --color-bg-hover: #141b2b;
-        --color-text-primary: #f8fafc;
-        --color-text-secondary: #94a3b8;
-        --color-text-muted: #64748b;
-        --color-border: #1e293b;
-        --color-border-light: #334155;
+        /* Dark mode (Antigravity-inspired deep neutral/violet) */
+        --color-bg-primary: #111117;
+        --color-bg-card: #181820;
+        --color-bg-surface: #1c1c26;
+        --color-bg-input: #181820;
+        --color-bg-hover: #23232e;
+        --color-text-primary: #f2f2f2;
+        --color-text-secondary: #e6e6e6;
+        --color-text-muted: #8a8a96;
+        --color-border: #282833;
+        --color-border-light: #333342;
         --color-shadow: rgba(0, 0, 0, 0.5);
-        --color-accent: #a78bfa;
+        --color-accent: #7d63f2;
     }
 
     /* Smooth theme transition */
@@ -65,11 +65,11 @@
     }
 
     .dark .btn-primary {
-        @apply bg-primary-600 shadow-purple-900/40;
+        @apply bg-primary-600 shadow-none;
     }
 
     .dark .btn-primary:hover {
-        @apply bg-primary-500 shadow-purple-900/60;
+        @apply bg-primary-500 shadow-none;
     }
 
     .btn-secondary {
@@ -93,11 +93,11 @@
     }
 
     .dark .btn-danger {
-        @apply bg-red-600 shadow-red-900/40;
+        @apply bg-red-600 shadow-none;
     }
 
     .dark .btn-danger:hover {
-        box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);
+        box-shadow: none;
     }
 
     /* Form inputs */
@@ -118,7 +118,7 @@
     .dark .input-field:focus {
         background-color: var(--color-bg-input);
         border-color: var(--color-accent);
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        box-shadow: none;
     }
 
     /* Cards & Panels */
@@ -133,7 +133,7 @@
     }
 
     .dark .card:hover {
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        box-shadow: none;
     }
 
     .glass-panel {
@@ -145,7 +145,7 @@
     }
 
     .dark .glass-panel {
-        background-color: rgba(17, 24, 39, 0.8);
+        background-color: rgba(24, 24, 32, 0.8);
         border-color: var(--color-border);
     }
 
@@ -291,7 +291,7 @@
     .dark .modal-content {
         background-color: var(--color-bg-card);
         border-color: var(--color-border);
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        box-shadow: none;
     }
 
     /* Heatmap */
@@ -317,7 +317,7 @@
 }
 
 .dark .fullscreen-mode {
-    @apply bg-[#0a0f1a];
+    @apply bg-[#111117];
 }
 
 /* Secure mode */
@@ -337,34 +337,42 @@ body.secure-mode {
    Dark mode overrides for common patterns
    ============================================ */
 
-/* Background utility overrides */
+/* Global Shadow Disabler & Background overrides */
 @layer base {
+
+    /* Globally disable box shadows in dark mode to match Antigravity style (excluding focus rings) */
+    .dark * {
+        --tw-shadow: 0 0 #0000 !important;
+        --tw-shadow-colored: 0 0 #0000 !important;
+        box-shadow: none !important;
+    }
+
     .dark .bg-gray-50 {
-        background-color: #0a0f1a !important;
+        background-color: #111117 !important;
     }
 
     .dark .bg-gray-50\/50 {
-        background-color: rgba(10, 15, 26, 0.5) !important;
+        background-color: rgba(17, 17, 23, 0.5) !important;
     }
 
     .dark .bg-gray-100 {
-        background-color: #1f2937 !important;
+        background-color: #1c1c26 !important;
     }
 
     .dark .bg-gray-200 {
-        background-color: #374151 !important;
+        background-color: #23232e !important;
     }
 
     .dark .bg-gray-50\/30 {
-        background-color: rgba(10, 15, 26, 0.3) !important;
+        background-color: rgba(17, 17, 23, 0.3) !important;
     }
 
     .dark .bg-white {
-        background-color: #0a0f1a !important;
+        background-color: #111117 !important;
     }
 
     .dark .bg-white\/80 {
-        background-color: rgba(17, 24, 39, 0.8) !important;
+        background-color: rgba(24, 24, 32, 0.8) !important;
     }
 
     /* Text utility overrides */
@@ -508,41 +516,25 @@ body.secure-mode {
 
     /* Border utility overrides */
     .dark .border-gray-100 {
-        border-color: #1f2937 !important;
+        border-color: #1c1c26 !important;
     }
 
     .dark .border-gray-200 {
-        border-color: #374151 !important;
+        border-color: #23232e !important;
     }
 
     .dark .border-gray-300 {
-        border-color: #4B5563 !important;
+        border-color: #333342 !important;
     }
 
     .dark .divide-gray-100> :not([hidden])~ :not([hidden]) {
-        border-color: #1f2937 !important;
+        border-color: #1c1c26 !important;
     }
 
     .dark .divide-gray-200> :not([hidden])~ :not([hidden]) {
-        border-color: #374151 !important;
+        border-color: #23232e !important;
     }
 
-    /* Shadow overrides */
-    .dark .shadow-sm {
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3) !important;
-    }
-
-    .dark .shadow-md {
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4) !important;
-    }
-
-    .dark .shadow-lg {
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4) !important;
-    }
-
-    .dark .shadow-xl {
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4) !important;
-    }
 
     /* Ring overrides */
     .dark .ring-1.ring-green-100 {
@@ -551,11 +543,11 @@ body.secure-mode {
 
     /* Hover bg overrides */
     .dark .hover\:bg-gray-50:hover {
-        background-color: #1a2236 !important;
+        background-color: #181820 !important;
     }
 
     .dark .hover\:bg-gray-50\/50:hover {
-        background-color: rgba(26, 34, 54, 0.5) !important;
+        background-color: rgba(24, 24, 32, 0.5) !important;
     }
 
     .dark .hover\:bg-blue-50:hover {
@@ -576,20 +568,20 @@ body.secure-mode {
 
     /* Bg color overrides for colored indicators */
     .dark .bg-gray-100 {
-        background-color: #1f2937 !important;
+        background-color: #1c1c26 !important;
     }
 
     .dark .bg-gray-200 {
-        background-color: #374151 !important;
+        background-color: #23232e !important;
     }
 
     .dark .bg-gray-300 {
-        background-color: #4B5563 !important;
+        background-color: #333342 !important;
     }
 
     /* Focus ring overrides */
     .dark .focus\:bg-white:focus {
-        background-color: #0a0f1a !important;
+        background-color: #111117 !important;
     }
 
     .dark .focus\:ring-primary-100:focus {
@@ -605,13 +597,13 @@ body.secure-mode {
 
     /* Select & dropdown in dark mode */
     .dark select {
-        background-color: #0f172a !important;
-        border-color: #374151 !important;
+        background-color: #181820 !important;
+        border-color: #23232e !important;
         color: #F3F4F6 !important;
     }
 
     .dark select option {
-        background-color: #0a0f1a;
+        background-color: #111117;
         color: #F3F4F6;
     }
 
@@ -623,11 +615,11 @@ body.secure-mode {
 
     /* min-h-screen bg fix */
     .dark .min-h-screen.bg-gray-50 {
-        background-color: #0a0f1a !important;
+        background-color: #111117 !important;
     }
 
     .dark .min-h-screen.bg-white {
-        background-color: #0a0f1a !important;
+        background-color: #111117 !important;
     }
 
     /* Colored backgrounds in dark mode */
@@ -827,7 +819,7 @@ body.secure-mode {
 
     /* Dashed border overrides */
     .dark .border-dashed.border-gray-200 {
-        border-color: #374151 !important;
+        border-color: #23232e !important;
     }
 
     /* Hover text color overrides */
@@ -861,7 +853,7 @@ body.secure-mode {
 
     /* Hover border overrides */
     .dark .hover\:border-gray-300:hover {
-        border-color: #4B5563 !important;
+        border-color: #333342 !important;
     }
 
     .dark .hover\:border-indigo-100:hover {
@@ -927,12 +919,12 @@ body.secure-mode {
    Scrollbar dark mode
    ============================================ */
     .dark ::-webkit-scrollbar-thumb {
-        background-color: #374151 !important;
+        background-color: #23232e !important;
         border-radius: 9999px;
     }
 
     .dark ::-webkit-scrollbar-thumb:hover {
-        background-color: #4B5563 !important;
+        background-color: #333342 !important;
     }
 
     .dark ::-webkit-scrollbar-track {
@@ -944,8 +936,8 @@ body.secure-mode {
    ============================================ */
     .dark [data-sonner-toaster],
     .dark .go685806154 {
-        background-color: #0a0f1a !important;
-        border-color: #1f2937 !important;
+        background-color: #111117 !important;
+        border-color: #1c1c26 !important;
         color: #F3F4F6 !important;
     }
 
@@ -1019,21 +1011,46 @@ body.secure-mode {
 }
 
 .dark ::-webkit-scrollbar-thumb {
-    background-color: #374151;
+    background-color: #23232e;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-    background-color: #4B5563;
+    background-color: #333342;
 }
 
-/* Scrollbar hide utility (for horizontal tab bars) */
+/* Scrollbar hide utility */
 .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+/* Recursive scrollbar hide for workspace */
+.no-scrollbars-all,
+.no-scrollbars-all * {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+    scrollbar-color: transparent transparent !important;
+}
+
+.no-scrollbars-all::-webkit-scrollbar,
+.no-scrollbars-all *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.no-scrollbars-all::-webkit-scrollbar-thumb,
+.no-scrollbars-all *::-webkit-scrollbar-thumb,
+.no-scrollbars-all::-webkit-scrollbar-track,
+.no-scrollbars-all *::-webkit-scrollbar-track {
+    background: transparent !important;
+    display: none !important;
 }
 
 @keyframes spin {
