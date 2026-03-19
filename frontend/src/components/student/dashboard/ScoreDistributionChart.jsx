@@ -8,8 +8,8 @@ const COLORS = {
     'codechef': '#0EA5E9',        // Light Blue
     'codeforces': '#8B5CF6',      // Purple
     'spoj': '#78350F',            // Brown
-    'smartinterviews': '#FCD34D', // Yellow
-    'internal': '#FCD34D',        // Yellow (Internal/SmartInterviews)
+    'alphacoins': '#FCD34D', // Yellow
+    'internal': '#FCD34D',        // Yellow (Internal)
     'geeksforgeeks': '#22C55E'    // Green
 };
 
@@ -22,13 +22,14 @@ const ScoreDistributionChart = ({ leaderboardDetails }) => {
         // Add internal score
         const internalScore = leaderboardDetails.alphaCoins || 0;
         if (internalScore > 0) {
-            result.push({ name: 'Alpha Coins', value: internalScore, fill: COLORS['smartinterviews'] });
+            result.push({ name: 'Alpha Coins', value: internalScore, fill: COLORS['alphacoins'] });
         }
 
-        // Add external scores
+        // Add external scores (filter out social profiles)
+        const socialPlatforms = ['github', 'linkedin'];
         if (leaderboardDetails.externalScores) {
             Object.entries(leaderboardDetails.externalScores).forEach(([platform, score]) => {
-                if (score > 0) {
+                if (score > 0 && !socialPlatforms.includes(platform.toLowerCase())) {
                     result.push({
                         name: platform.charAt(0).toUpperCase() + platform.slice(1),
                         value: score,
@@ -52,18 +53,20 @@ const ScoreDistributionChart = ({ leaderboardDetails }) => {
         );
     }
 
+    const isMobile = window.innerWidth < 768;
+
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mt-6 Transition-all">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mt-6 transition-all">
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Score Distribution</h3>
-            <div className="h-64 w-full">
+            <div className="h-[300px] sm:h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
                             data={data}
                             cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
+                            cy={isMobile ? "40%" : "50%"}
+                            innerRadius={isMobile ? 50 : 60}
+                            outerRadius={isMobile ? 70 : 80}
                             paddingAngle={5}
                             dataKey="value"
                         >
@@ -91,11 +94,15 @@ const ScoreDistributionChart = ({ leaderboardDetails }) => {
                             }}
                         />
                         <Legend
-                            layout="vertical"
-                            verticalAlign="middle"
-                            align="right"
-                            wrapperStyle={{ fontSize: '12px', fontWeight: 500 }}
-                            iconType="rect"
+                            layout={isMobile ? "horizontal" : "vertical"}
+                            verticalAlign={isMobile ? "bottom" : "middle"}
+                            align={isMobile ? "center" : "right"}
+                            wrapperStyle={{ 
+                                fontSize: '11px', 
+                                fontWeight: 500,
+                                paddingTop: isMobile ? '20px' : '0'
+                            }}
+                            iconType="circle"
                         />
                     </PieChart>
                 </ResponsiveContainer>

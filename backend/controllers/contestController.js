@@ -111,9 +111,16 @@ const getContestsByBatch = async (req, res) => {
                 return res.status(403).json({ success: false, message: 'Access denied' });
             }
             if (req.user.role === 'instructor') {
+                const User = require('../models/User');
+                const instructor = await User.findById(req.user.userId);
+                const assignedBatches = instructor?.assignedBatches || [];
+                const batchIds = [instructor?.batchId, ...assignedBatches]
+                    .filter(id => id)
+                    .map(id => new ObjectId(id));
+
                 query.$or = [
-                    { batchId: { $ne: null } },
-                    { batchId: null, createdBy: new ObjectId(req.user.userId) }
+                    { batchId: { $in: batchIds } },
+                    { createdBy: new ObjectId(req.user.userId) }
                 ];
             }
         } else {

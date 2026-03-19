@@ -269,8 +269,8 @@ const ProblemSidebar = () => {
                     <div className="flex items-center gap-3">
                         <CiCircleList className="text-gray-500 dark:text-gray-400 text-2xl" />
                         <div>
-                            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">Problem List</h2>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">{solvedCount} / {problems.length} Solved</p>
+                            <h2 className="text-sm sm:text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">Problem List</h2>
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">{solvedCount} / {problems.length} Solved</p>
                         </div>
                     </div>
 
@@ -443,7 +443,7 @@ const SectionHeader = ({ title, expanded, count, onClick, noToggle }) => {
                 }
             </div>
 
-            <span className="text-sm font-bold text-gray-800 dark:text-gray-200 flex-1 text-left truncate leading-tight">
+            <span className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200 flex-1 text-left truncate leading-tight">
                 {title}
             </span>
 
@@ -485,7 +485,7 @@ const ProblemRow = ({ problem, active, indent, onClick }) => {
                 }
             </div>
 
-            <span className={`flex-1 text-sm truncate leading-snug transition-colors
+            <span className={`flex-1 text-xs sm:text-sm truncate leading-snug transition-colors
                 ${active ? 'font-semibold text-purple-700 dark:text-purple-400' : 'font-medium text-gray-600 dark:text-gray-400'}
             `}>
                 {problem.title}

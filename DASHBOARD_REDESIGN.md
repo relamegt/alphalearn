@@ -1,7 +1,7 @@
 # Dashboard Redesign & Refactoring
 
 ## Overview
-Successfully redesigned the Student Dashboard to match the "Smart Interviews" style layout as requested. The new dashboard features a detailed sidebar with profile, education, and platform rating cards, along with a main content area housing complex graphs for global rankings and score distribution.
+Successfully redesigned the Student Dashboard to match the "AlphaLearn" style layout as requested. The new dashboard features a detailed sidebar with profile, education, and platform rating cards, along with a main content area housing complex graphs for global rankings and score distribution.
 
 ## Changes Implemented
 

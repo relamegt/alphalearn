@@ -110,31 +110,31 @@ const Dashboard = () => {
     // For now using null or emojis in cards if updated
 
     return (
-        <div className="p-6 bg-[#F7F5FF] dark:bg-[#111117] min-h-screen transition-colors">
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="p-4 sm:p-6 bg-[#F7F5FF] dark:bg-[#111117] min-h-screen transition-colors">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
                 {/* LEFT COLUMN - Profile, Education, Platform Stats */}
-                <div className="lg:col-span-1 space-y-6">
+                <div className="lg:col-span-1 space-y-4 sm:space-y-6">
                     <ProfileCard
                         user={user}
                         updateUser={updateUser}
                     />
 
                     {/* New Professional Stats Card */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow">
-                            <div className="w-12 h-12 bg-yellow-50 rounded-full flex items-center justify-center mb-2">
-                                <span className="text-2xl">🏆</span>
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-50 rounded-full flex items-center justify-center mb-2">
+                                <span className="text-xl sm:text-2xl">🏆</span>
                             </div>
-                            <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Overall Score</p>
-                            <p className="text-2xl font-bold text-gray-900">{leaderboardStats?.score || 0}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-500 uppercase font-semibold tracking-wider">Overall Score</p>
+                            <p className="text-xl sm:text-2xl font-bold text-gray-900">{leaderboardStats?.score || 0}</p>
                         </div>
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow">
-                            <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-2">
-                                <span className="text-2xl">🌍</span>
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-full flex items-center justify-center mb-2">
+                                <span className="text-xl sm:text-2xl">🌍</span>
                             </div>
-                            <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider">Global Rank</p>
-                            <p className="text-2xl font-bold text-gray-900">#{leaderboardStats?.globalRank || '-'}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-500 uppercase font-semibold tracking-wider">Global Rank</p>
+                            <p className="text-xl sm:text-2xl font-bold text-gray-900">#{leaderboardStats?.globalRank || '-'}</p>
                         </div>
                     </div>
 
@@ -144,7 +144,7 @@ const Dashboard = () => {
 
                     {/* Platform Stats Cards */}
                     {externalContestStats && Object.entries(externalContestStats)
-                        .filter(([platform]) => !['hackerrank', 'interviewbit'].includes(platform.toLowerCase()))
+                        .filter(([platform]) => !['hackerrank', 'interviewbit', 'github', 'linkedin'].includes(platform.toLowerCase()))
                         .map(([platform, stats]) => (
                             <PlatformRatingCard
                                 key={platform}
@@ -191,63 +191,109 @@ const Dashboard = () => {
                                     <p className="text-xs text-gray-400 mt-1">Start solving problems to see your history</p>
                                 </div>
                             ) : (
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100">
-                                        <tr>
-                                            <th className="px-6 py-3 font-semibold">Problem</th>
-                                            <th className="px-6 py-3 font-semibold">Status</th>
-                                            <th className="px-6 py-3 font-semibold">Language</th>
-                                            <th className="px-6 py-3 font-semibold text-right">Date</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
+                                <>
+                                    {/* Table View - Hidden on Mobile */}
+                                    <table className="w-full text-sm text-left hidden sm:table">
+                                        <thead className="text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100">
+                                            <tr>
+                                                <th className="px-6 py-3 font-semibold">Problem</th>
+                                                <th className="px-6 py-3 font-semibold">Status</th>
+                                                <th className="px-6 py-3 font-semibold">Language</th>
+                                                <th className="px-6 py-3 font-semibold text-right">Date</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {recentSubmissions.slice(0, 5).map((submission, idx) => {
+                                                const isAccepted = submission.verdict === 'Accepted';
+                                                return (
+                                                    <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                                        <td className="px-6 py-4">
+                                                            <Link
+                                                                to={`/problems/${submission.problemSlug || submission.problemId}?tab=submissions`}
+                                                                className="font-medium text-gray-900 line-clamp-1 hover:text-primary-600 transition-colors"
+                                                                title={submission.problemTitle}
+                                                            >
+                                                                {submission.problemTitle}
+                                                            </Link>
+                                                            <div className="text-xs text-gray-400 mt-0.5">
+                                                                {submission.totalTestCases > 0 ?
+                                                                    `${submission.testCasesPassed}/${submission.totalTestCases} Test Cases` :
+                                                                    'Custom Test'}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border
+                                                                ${isAccepted
+                                                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                                                    : 'bg-red-50 text-red-700 border-red-200'}
+                                                            `}>
+                                                                <span className={`w-1.5 h-1.5 rounded-full ${isAccepted ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                                {submission.verdict}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-600 text-xs font-medium capitalize">
+                                                                {submission.language}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right text-gray-500 font-mono text-xs">
+                                                            {new Date(submission.submittedAt).toLocaleString('en-US', {
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                hour: 'numeric',
+                                                                minute: '2-digit',
+                                                                hour12: true
+                                                            })}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+
+                                    {/* Card View - Mobile Only */}
+                                    <div className="sm:hidden divide-y divide-gray-100">
                                         {recentSubmissions.slice(0, 5).map((submission, idx) => {
                                             const isAccepted = submission.verdict === 'Accepted';
                                             return (
-                                                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                                                    <td className="px-6 py-4">
-                                                        <Link
-                                                            to={`/problems/${submission.problemSlug || submission.problemId}?tab=submissions`}
-                                                            className="font-medium text-gray-900 line-clamp-1 hover:text-primary-600 transition-colors"
-                                                            title={submission.problemTitle}
-                                                        >
-                                                            {submission.problemTitle}
-                                                        </Link>
-                                                        <div className="text-xs text-gray-400 mt-0.5">
-                                                            {submission.totalTestCases > 0 ?
-                                                                `${submission.testCasesPassed}/${submission.totalTestCases} Test Cases` :
-                                                                'Custom Test'}
+                                                <div key={idx} className="p-4 space-y-3">
+                                                    <div className="flex justify-between items-start gap-3">
+                                                        <div className="min-w-0 flex-1">
+                                                            <Link
+                                                                to={`/problems/${submission.problemSlug || submission.problemId}?tab=submissions`}
+                                                                className="font-bold text-gray-900 line-clamp-1 hover:text-primary-600 transition-colors text-sm"
+                                                            >
+                                                                {submission.problemTitle}
+                                                            </Link>
+                                                            <p className="text-[10px] text-gray-400 mt-0.5 uppercase font-semibold">
+                                                                {submission.totalTestCases > 0 ?
+                                                                    `${submission.testCasesPassed}/${submission.totalTestCases} Test Cases` :
+                                                                    'Custom Test'}
+                                                            </p>
                                                         </div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border
+                                                        <span className="text-[10px] text-gray-400 font-mono whitespace-nowrap">
+                                                            {new Date(submission.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center justify-between">
+                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border
                                                             ${isAccepted
                                                                 ? 'bg-green-50 text-green-700 border-green-200'
                                                                 : 'bg-red-50 text-red-700 border-red-200'}
                                                         `}>
-                                                            <span className={`w-1.5 h-1.5 rounded-full ${isAccepted ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                            <span className={`w-1 h-1 rounded-full ${isAccepted ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                                             {submission.verdict}
                                                         </span>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-600 text-xs font-medium capitalize">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-600 text-[10px] font-bold capitalize">
                                                             {submission.language}
                                                         </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right text-gray-500 font-mono text-xs">
-                                                        {new Date(submission.submittedAt).toLocaleString('en-US', {
-                                                            month: 'short',
-                                                            day: 'numeric',
-                                                            hour: 'numeric',
-                                                            minute: '2-digit',
-                                                            hour12: true
-                                                        })}
-                                                    </td>
-                                                </tr>
+                                                    </div>
+                                                </div>
                                             );
                                         })}
-                                    </tbody>
-                                </table>
+                                    </div>
+                                </>
                             )}
                         </div>
                     </div>

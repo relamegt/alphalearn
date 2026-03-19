@@ -68,15 +68,23 @@ const MarkdownComponents = {
 };
 
 /* —"—"—" Helpers —"—"—" */
-const DragHandleH = ({ onMouseDown }) => (
-    <div onMouseDown={onMouseDown} className="w-1.5 bg-gray-50 dark:bg-[#111117] hover:bg-purple-100 dark:hover:bg-purple-900/30 border-l border-r border-gray-100 dark:border-gray-700 cursor-col-resize shrink-0 transition-colors z-10 relative group flex flex-col justify-center items-center">
+const DragHandleH = ({ onMouseDown, onTouchStart }) => (
+    <div
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+        className="w-1.5 bg-gray-50 dark:bg-[#111117] hover:bg-purple-100 dark:hover:bg-purple-900/30 border-l border-r border-gray-100 dark:border-gray-700 cursor-col-resize shrink-0 transition-colors z-10 relative group flex flex-col justify-center items-center"
+    >
         <div className="h-4 w-0.5 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-purple-400" />
     </div>
 );
 
-const DragHandleV = ({ onMouseDown }) => (
-    <div onMouseDown={onMouseDown} className="h-1.5 bg-gray-50 dark:bg-[#111117] hover:bg-purple-100 dark:hover:bg-purple-900/30 border-t border-b border-gray-100 dark:border-gray-700 cursor-row-resize shrink-0 transition-colors z-10 relative flex justify-center items-center group">
-        <div className="w-4 h-0.5 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-purple-400" />
+const DragHandleV = ({ onMouseDown, onTouchStart }) => (
+    <div
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+        className="h-2 sm:h-1.5 bg-gray-50 dark:bg-[#111117] hover:bg-purple-100 dark:hover:bg-purple-900/30 border-t border-b border-gray-100 dark:border-gray-700 cursor-row-resize shrink-0 transition-colors z-10 relative flex justify-center items-center group touch-none"
+    >
+        <div className="w-8 sm:w-4 h-1 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-purple-400" />
     </div>
 );
 
@@ -307,10 +315,20 @@ const ContestInterface = ({ isPractice = false }) => {
     const monacoRef = useRef(null);
     const containerRef = useRef(null);
     const dragging = useRef(null);
+
+    // ── responsive ──
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
     // Keep a ref to violations so handleMaxViolations can read them without stale closures
     const violationsRef = useRef({ tabSwitchCount: 0, tabSwitchDuration: 0, fullscreenExits: 0, pasteAttempts: 0 });
     const finishingRef = useRef(false); // mirrors `finishing` state — readable in closures without staleness
     const timeUpFiredRef = useRef(false); // ensures we only fire time-up submission once
+    const threeMinWarningFiredRef = useRef(false); // ensures the 3-minute toast only fires once
+    const oneMinWarningFiredRef = useRef(false); // ensures the 1-minute toast only fires once
     // Refs for values needed inside async setInterval callbacks (avoids stale closures)
     const userRef = useRef(user);
     const navigateRef = useRef(navigate);
@@ -333,13 +351,14 @@ const ContestInterface = ({ isPractice = false }) => {
     };
 
     // Proctoring Hook - Disable in Practice Mode
-    const handleMaxViolations = useCallback(async () => {
+    const handleMaxViolations = useCallback(async (finalViolations) => {
         if (isPractice || autoSubmitTriggered.current || contestSubmitted) return;
         autoSubmitTriggered.current = true;
         setFinishing(true);
         toast.error('⚠️ Maximum violations exceeded! Finishing contest...');
         try {
-            const result = await contestService.finishContest(contestId, violationsRef.current);
+            // Use provided violations directly if available (avoids stale closures)
+            const result = await contestService.finishContest(contestId, finalViolations || violationsRef.current);
             const clientScore = calcClientScore(contestRef.current, lockedProblemsRef.current);
             toast.success(`Contest ended. Final Score: ${clientScore}`);
             setContestSubmitted(true);
@@ -691,6 +710,26 @@ const ContestInterface = ({ isPractice = false }) => {
             const remaining = calculateRemaining();
             setTimeRemaining(remaining);
 
+            if (remaining <= 180 && remaining > 60 && !threeMinWarningFiredRef.current) {
+                threeMinWarningFiredRef.current = true;
+                toast.error(`Only 3 minutes remaining in the contest!`, {
+                    duration: 6000,
+                    style: isDark
+                        ? { background: '#1c0f0f', color: '#f87171', border: '1px solid #7f1d1d' }
+                        : { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }
+                });
+            }
+
+            if (remaining <= 60 && remaining > 0 && !oneMinWarningFiredRef.current) {
+                oneMinWarningFiredRef.current = true;
+                toast.error(`Only 60 seconds remaining in the contest!`, {
+                    duration: 6000,
+                    style: isDark
+                        ? { background: '#1c0f0f', color: '#f87171', border: '1px solid #7f1d1d' }
+                        : { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }
+                });
+            }
+
             if (remaining === 0 && !timeUpFiredRef.current) {
                 timeUpFiredRef.current = true;
                 clearInterval(interval);
@@ -700,7 +739,7 @@ const ContestInterface = ({ isPractice = false }) => {
 
                 // Add random jitter (1-5 seconds) to prevent thundering herd on backend
                 const jitter = Math.floor(Math.random() * 4000) + 1000;
-                toast(`⏱ Time up! Submitting in ${Math.round(jitter / 1000)}s...`);
+                toast(`⏱ Time up! Submitting the contest...`);
 
                 setTimeout(async () => {
                     // Re-check guard inside timeout
@@ -1320,21 +1359,29 @@ const ContestInterface = ({ isPractice = false }) => {
     };
 
     /* —"—"—" Drag Logic (useEffect-based for smooth resize like CodeEditor) —"—"—" */
+    const getPos = useCallback((e) => {
+        if (e.touches && e.touches[0]) {
+            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+        return { x: e.clientX, y: e.clientY };
+    }, []);
+
     const onMouseMoveResize = useCallback((e) => {
         const d = dragging.current;
         if (!d || !containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
+        const { x, y } = getPos(e);
         if (d.type === 'sidebar') {
-            const newW = d.startVal + ((e.clientX - d.startX) / rect.width) * 100;
+            const newW = d.startVal + ((x - d.startX) / rect.width) * 100;
             setSidebarW(Math.min(45, Math.max(10, newW)));
         } else if (d.type === 'desc') {
-            const newW = d.startVal + ((e.clientX - d.startX) / rect.width) * 100;
+            const newW = d.startVal + ((x - d.startX) / rect.width) * 100;
             setDescW(Math.min(70, Math.max(15, newW)));
         } else if (d.type === 'editorH') {
-            const newH = d.startVal + ((e.clientY - d.startY) / rect.height) * 100;
+            const newH = d.startVal + ((y - d.startY) / rect.height) * 100;
             setEditorTopH(Math.min(90, Math.max(10, newH)));
         }
-    }, [isResizing]);
+    }, [isResizing, getPos]);
 
     const onMouseUpResize = useCallback(() => {
         dragging.current = null;
@@ -1347,15 +1394,20 @@ const ContestInterface = ({ isPractice = false }) => {
         if (isResizing) {
             window.addEventListener('mousemove', onMouseMoveResize);
             window.addEventListener('mouseup', onMouseUpResize);
+            window.addEventListener('touchmove', onMouseMoveResize, { passive: false });
+            window.addEventListener('touchend', onMouseUpResize);
         }
         return () => {
             window.removeEventListener('mousemove', onMouseMoveResize);
             window.removeEventListener('mouseup', onMouseUpResize);
+            window.removeEventListener('touchmove', onMouseMoveResize);
+            window.removeEventListener('touchend', onMouseUpResize);
         };
     }, [isResizing, onMouseMoveResize, onMouseUpResize]);
 
     const startDrag = (type, e) => {
-        e.preventDefault();
+        // e.preventDefault(); // allow touch but we'll stop scroll in touchmove if dragging
+        const pos = getPos(e);
         setIsResizing(true);
         document.body.style.cursor = type === 'editorH' ? 'row-resize' : 'col-resize';
         document.body.style.userSelect = 'none';
@@ -1367,8 +1419,8 @@ const ContestInterface = ({ isPractice = false }) => {
 
         dragging.current = {
             type,
-            startX: e.clientX,
-            startY: e.clientY,
+            startX: pos.x,
+            startY: pos.y,
             startVal,
         };
     };
@@ -1538,7 +1590,16 @@ const ContestInterface = ({ isPractice = false }) => {
 
             {/* —"—"—" Minimal Header —"—"—" */}
             <header className="h-14 bg-white dark:bg-[#111117] border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 z-20 shrink-0 shadow-sm dark:shadow-black/20 relative transition-colors">
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                    {isMobile && (
+                        <button
+                            onClick={() => setShowSidebar(!showSidebar)}
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#23232e] rounded-lg text-gray-500 dark:text-gray-400 transition-colors"
+                            title="Toggle Problems List"
+                        >
+                            <List size={20} />
+                        </button>
+                    )}
 
                     <div className="flex flex-col min-w-0">
                         <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate flex items-center gap-2">
@@ -1651,16 +1712,22 @@ const ContestInterface = ({ isPractice = false }) => {
                 </div>
             </header>
 
-            {/* —"—" Main 3—column area —"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—" */}
-            <div className="flex-1 flex overflow-hidden relative">
+            {/* —"—" Main 3—column area —"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—"—" */}
+            <div className={`flex-1 flex flex-col lg:flex-row relative transition-colors ${isMobile ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}>
 
-                {/* —" Col 1: Sidebar —" */}
+                {/* —" Col 1: Sidebar (Drawer on mobile) —" */}
                 <div
-                    style={{
+                    style={isMobile ? {
+                        width: '280px',
+                        position: 'absolute',
+                        height: '100%',
+                        left: 0,
+                        top: 0
+                    } : {
                         width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px`,
                         transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
                     }}
-                    className="relative flex flex-col shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] z-20 transition-colors"
+                    className={`flex flex-col shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] z-[200] transition-transform duration-300 ease-in-out ${isMobile && !showSidebar ? '-translate-x-full' : 'translate-x-0'}`}
                 >
                     <div className="flex-1 overflow-hidden flex flex-col relative h-full">
                         <div className={`flex-1 flex flex-col overflow-hidden h-full transition-opacity duration-300 ${showSidebar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none hidden'}`}>
@@ -1699,7 +1766,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                         : 'bg-white dark:bg-[#111117] border-transparent dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-[#23232e]'
                                                 }`}
                                         >
-                                            <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center font-bold text-sm shadow-sm border ${isActive
+                                            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg shrink-0 flex items-center justify-center font-bold text-xs sm:text-sm shadow-sm border ${isActive
                                                 ? (isSolved ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800')
                                                 : isSolved
                                                     ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400'
@@ -1708,7 +1775,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                 {String.fromCharCode(65 + i)}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className={`text-sm font-medium truncate flex items-center gap-1.5 ${isActive
+                                                <p className={`text-xs sm:text-sm font-medium truncate flex items-center gap-1.5 ${isActive
                                                     ? (isSolved ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-900 dark:text-gray-100')
                                                     : isSolved
                                                         ? 'text-emerald-700 dark:text-emerald-400'
@@ -1772,13 +1839,22 @@ const ContestInterface = ({ isPractice = false }) => {
                     </button>
                 </div>
 
-                {showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
+                {/* Mobile overlay for sidebar */}
+                {isMobile && showSidebar && (
+                    <div className="absolute inset-0 bg-black/50 z-[190]" onClick={() => setShowSidebar(false)} />
+                )}
+
+                {!isMobile && showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
 
                 {/* —" Col 2: Description / Editorial —" */}
-                <div style={{
+                <div style={isMobile ? {
+                    flex: selectedProblem ? 'none' : '1',
+                    height: selectedProblem ? '60vh' : 'calc(100vh - 56px)',
+                    width: '100%'
+                } : {
                     width: `${descW}%`,
                     transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
-                }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] transition-colors">
+                }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 dark:border-gray-700 border-b md:border-b-0 bg-white dark:bg-[#111117] transition-colors relative">
 
                     <div className="flex items-center h-12 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] shrink-0 pl-0 pr-4 overflow-x-auto no-scrollbar transition-colors">
                         <div className="flex items-center gap-1 h-full">
@@ -1788,7 +1864,7 @@ const ContestInterface = ({ isPractice = false }) => {
                             >
                                 <FileText size={14} /> Description
                             </button>
-                            {isPractice && selectedProblem?.editorial && (
+                            {isPractice && (
                                 <button
                                     onClick={() => setShowEditorial(true)}
                                     className={`h-full flex items-center gap-2 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${showEditorial ? 'border-purple-500 text-purple-700 dark:text-purple-400 bg-white dark:bg-[#111117]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#23232e]'}`}
@@ -1805,52 +1881,67 @@ const ContestInterface = ({ isPractice = false }) => {
                                 <div className="prose prose-sm max-w-none font-problem">
                                     <h2 className="text-xl font-bold text-gray-900 mb-6 font-sans">{selectedProblem.title} - Editorial</h2>
 
-                                    {selectedProblem.editorial.approach && (
-                                        <div className="mb-8">
-                                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <span className="w-1.5 h-6 bg-purple-500 rounded-full" />
-                                                Approach
-                                            </h3>
-                                            <div className="text-gray-700 leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: selectedProblem.editorial.approach }} />
-                                        </div>
-                                    )}
-
-                                    {selectedProblem.editorial.complexity && (
-                                        <div className="mb-8">
-                                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <span className="w-1.5 h-6 bg-purple-500 rounded-full" />
-                                                Complexity
-                                            </h3>
-                                            <div className="bg-gray-50 dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-sm text-gray-700 dark:text-gray-300 transition-colors">
-                                                <div dangerouslySetInnerHTML={{ __html: selectedProblem.editorial.complexity }} />
+                                    {(!selectedProblem.editorial || (!selectedProblem.editorial.approach && !selectedProblem.editorial.complexity && !selectedProblem.editorial.solution)) ? (
+                                        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                                            <div className="w-16 h-16 bg-gray-50 dark:bg-[#111117] rounded-full flex items-center justify-center mb-4 border border-gray-100 dark:border-gray-700">
+                                                <BookOpen className="w-8 h-8 text-gray-400 dark:text-gray-500" />
                                             </div>
+                                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">No Editorial Available</h3>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                                                The editorial for this problem has not been published yet. Try solving it on your own or discuss with your peers!
+                                            </p>
                                         </div>
-                                    )}
+                                    ) : (
+                                        <>
 
-                                    {selectedProblem.editorial.solution && (
-                                        <div>
-                                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <span className="w-1.5 h-6 bg-emerald-500 rounded-full" />
-                                                Solution
-                                            </h3>
-                                            <div className="relative group">
-                                                <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={() => {
-                                                            navigator.clipboard.writeText(selectedProblem.editorial.solution);
-                                                            toast.success('Solution copied!');
-                                                        }}
-                                                        className="p-1.5 bg-white dark:bg-[#111117] shadow-sm border border-gray-200 dark:border-gray-700 rounded-md text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                                                        title="Copy Code"
-                                                    >
-                                                        <Code2 size={14} />
-                                                    </button>
+                                            {selectedProblem.editorial.approach && (
+                                                <div className="mb-8">
+                                                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                        <span className="w-1.5 h-6 bg-purple-500 rounded-full" />
+                                                        Approach
+                                                    </h3>
+                                                    <div className="text-gray-700 leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: selectedProblem.editorial.approach }} />
                                                 </div>
-                                                <pre className="bg-[#111117] text-gray-100 rounded-xl p-4 overflow-x-auto text-xs font-mono border border-gray-800">
-                                                    <code>{selectedProblem.editorial.solution}</code>
-                                                </pre>
-                                            </div>
-                                        </div>
+                                            )}
+
+                                            {selectedProblem.editorial.complexity && (
+                                                <div className="mb-8">
+                                                    <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                        <span className="w-1.5 h-6 bg-purple-500 rounded-full" />
+                                                        Complexity
+                                                    </h3>
+                                                    <div className="bg-gray-50 dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-sm text-gray-700 dark:text-gray-300 transition-colors">
+                                                        <div dangerouslySetInnerHTML={{ __html: selectedProblem.editorial.complexity }} />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {selectedProblem.editorial.solution && (
+                                                <div>
+                                                    <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                        <span className="w-1.5 h-6 bg-emerald-500 rounded-full" />
+                                                        Solution
+                                                    </h3>
+                                                    <div className="relative group">
+                                                        <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button
+                                                                onClick={() => {
+                                                                    navigator.clipboard.writeText(selectedProblem.editorial.solution);
+                                                                    toast.success('Solution copied!');
+                                                                }}
+                                                                className="p-1.5 bg-white dark:bg-[#111117] shadow-sm border border-gray-200 dark:border-gray-700 rounded-md text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                                                                title="Copy Code"
+                                                            >
+                                                                <Code2 size={14} />
+                                                            </button>
+                                                        </div>
+                                                        <pre className="bg-[#111117] text-gray-100 rounded-xl p-4 overflow-x-auto text-xs font-mono border border-gray-800">
+                                                            <code>{selectedProblem.editorial.solution}</code>
+                                                        </pre>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             ) : (
@@ -1972,23 +2063,42 @@ const ContestInterface = ({ isPractice = false }) => {
                                     )}
                                 </div>
                             )
-                        ) : <div className="p-8 text-center text-gray-400">Select a problem to view</div>}
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-gray-50 dark:bg-[#111117] transition-colors">
+                                <div className="w-16 h-16 bg-white dark:bg-[#1c1c24] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center mb-5 relative before:absolute before:inset-0 before:bg-purple-50 dark:before:bg-purple-900/10 before:rounded-2xl before:-z-10 before:scale-110 before:opacity-50 transition-colors">
+                                    <Trophy className="w-8 h-8 text-purple-500 dark:text-purple-400" />
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">
+                                    {isPractice ? 'Practice Workspace' : (contest?.title || 'Contest Workspace')}
+                                </h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium max-w-[280px]">
+                                    {isPractice
+                                        ? 'Select a problem from the list to view its description and start practicing.'
+                                        : 'Select a problem from the left sidebar to start solving.'}
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />
+                {!isMobile && <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />}
 
                 {/* Editor & Results */}
-                <div style={{
+                <div style={isMobile ? {
+                    display: selectedProblem ? 'flex' : 'none',
+                    flex: 'none',
+                    height: '80vh',
+                    width: '100%'
+                } : {
                     width: showSidebar ? `calc(${100 - sidebarW - descW}%)` : `calc(100% - ${COLLAPSED_SIDEBAR_WIDTH}px - ${descW}%)`,
                     transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
                 }} className="flex flex-col overflow-hidden bg-white dark:bg-[#111117] transition-colors">
                     {/* Editor Split */}
                     <div style={{ height: `${editorTopH}%`, transition: isResizing ? 'none' : 'height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' }} className="flex flex-col relative overflow-hidden">
                         {/* Toolbar */}
-                        <div className="h-12 bg-white dark:bg-[#111117] border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3 shrink-0 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <div className="w-44">
+                        <div className="h-12 bg-white dark:bg-[#111117] border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-2 shrink-0 transition-colors overflow-visible">
+                            <div className="flex items-center gap-1.5 sm:gap-3">
+                                <div className="w-24 sm:w-44 shrink-0">
                                     <CustomDropdown
                                         options={LANGUAGE_OPTIONS}
                                         value={currentLang}
@@ -1998,17 +2108,17 @@ const ContestInterface = ({ isPractice = false }) => {
                                     />
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                                 <div className="flex items-center bg-gray-100 dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 transition-colors">
                                     <button onClick={handleRun} disabled={running || isProblemLocked || (contestSubmitted && !isPractice)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 rounded-md hover:bg-white dark:hover:bg-[#23232e] hover:shadow-sm transition-all disabled:opacity-50" title="Run Code">
-                                        {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} className="fill-current" />}
-                                        <span className="hidden sm:inline">Run</span>
+                                        className="flex items-center gap-1 px-2 sm:px-3 py-1.5 text-[10px] font-bold text-gray-700 dark:text-gray-300 rounded-md hover:bg-white dark:hover:bg-[#23232e] hover:shadow-sm transition-all disabled:opacity-50" title="Run Code">
+                                        {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={10} className="fill-current" />}
+                                        <span className="hidden xs:inline-block sm:inline-block">Run</span>
                                     </button>
                                     <button onClick={handleSubmit} disabled={submitting || isProblemLocked || (contestSubmitted && !isPractice)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 ml-0.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-sm transition-all disabled:opacity-50" title={isPractice ? 'Verify Code' : 'Submit Code'}>
-                                        {submitting ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
-                                        <span className="hidden sm:inline">{isPractice ? 'Verify' : 'Submit'}</span>
+                                        className="flex items-center gap-1 px-2 sm:px-3 py-1.5 ml-0.5 text-[10px] font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-sm transition-all disabled:opacity-50" title={isPractice ? 'Verify Code' : 'Submit Code'}>
+                                        {submitting ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+                                        <span className="hidden xs:inline-block sm:inline-block">{isPractice ? 'Verify' : 'Submit'}</span>
                                     </button>
                                 </div>
                             </div>
@@ -2102,7 +2212,10 @@ const ContestInterface = ({ isPractice = false }) => {
                         </div>
                     </div>
 
-                    <DragHandleV onMouseDown={(e) => startDrag('editorH', e)} />
+                    <DragHandleV
+                        onMouseDown={(e) => startDrag('editorH', e)}
+                        onTouchStart={(e) => startDrag('editorH', e)}
+                    />
 
                     {/* Results Split */}
                     <div
@@ -2590,7 +2703,7 @@ const ContestInterface = ({ isPractice = false }) => {
                 </div>
             )}
             {showLeaderboard && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111117]/50 backdrop-blur-sm p-6 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#111117]/50 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-[#111117] rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="bg-white dark:bg-[#111117] border-b border-gray-100 dark:border-gray-700 p-5 flex justify-between items-start shrink-0">
                             <div className="flex-1 min-w-0">
@@ -2677,7 +2790,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                             ))}
 
                                             <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#23232e] whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700" onClick={() => handleSort('time')}>
-                                                Time (hrs) {sortConfig.key === 'time' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                Time {sortConfig.key === 'time' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                             </th>
                                             <th className="p-4 font-bold text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#23232e] whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700" onClick={() => handleSort('problemsSolved')}>
                                                 Solved {sortConfig.key === 'problemsSolved' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -2748,16 +2861,39 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                     return (
                                                                         <td key={`cu-${prob._id}`} style={pinnedBg} className="p-2 text-center dark:border-b dark:border-purple-800 dark:border-r dark:border-purple-800">
                                                                             <div className="flex flex-col items-center justify-center gap-0.5">
-                                                                                <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
-                                                                                    {icon && <span className="font-bold">{icon}</span>}
-                                                                                    {status === 'Not Attempted' ? '—' : status === 'Accepted' ? 'Accepted' : 'Wrong'}
+                                                                                    <div className={`px-2 py-1 rounded text-xs inline-flex items-center gap-1 min-w-[72px] justify-center ${cellClass}`}>
+                                                                                        {icon && <span className="font-bold">{icon}</span>}
+                                                                                        {status === 'Not Attempted' ? '—' : status === 'Accepted' ? 'Accepted' : 'Wrong'}
+                                                                                    </div>
+                                                                                    {pData?.submittedAt !== undefined && pData?.submittedAt !== null && (
+                                                                                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-mono tracking-tighter">
+                                                                                            {(() => {
+                                                                                                const totalSeconds = Math.round(pData.submittedAt * 60);
+                                                                                                const h = Math.floor(totalSeconds / 3600);
+                                                                                                const m = Math.floor((totalSeconds % 3600) / 60);
+                                                                                                const s = totalSeconds % 60;
+                                                                                                return h > 0
+                                                                                                    ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+                                                                                                    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                                                                                            })()}
+                                                                                        </span>
+                                                                                    )}
                                                                                 </div>
-                                                                            </div>
                                                                         </td>
                                                                     );
                                                                 })}
 
-                                                                <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-sm text-center text-purple-700 dark:text-purple-400 font-mono dark:border-b dark:border-purple-800">{(currentUserEntry.time / 60).toFixed(2)} hrs</td>
+                                                                <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-sm text-center text-purple-700 dark:text-purple-400 font-mono dark:border-b dark:border-purple-800">
+                                                                    {(() => {
+                                                                        const totalSeconds = Math.round(currentUserEntry.time * 60);
+                                                                        const h = Math.floor(totalSeconds / 3600);
+                                                                        const m = Math.floor((totalSeconds % 3600) / 60);
+                                                                        const s = totalSeconds % 60;
+                                                                        return h > 0
+                                                                            ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+                                                                            : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                                                                    })()}
+                                                                </td>
                                                                 <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-center dark:border-b dark:border-purple-800">
                                                                     <span className="inline-block bg-purple-200 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded-full text-xs font-bold border border-purple-300 dark:border-purple-700">
                                                                         {currentUserEntry.problemsSolved}/{contest?.problems?.length || 0}
@@ -2771,16 +2907,16 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                     return (
                                                                         <>
                                                                             <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-sm text-center dark:border-b dark:border-purple-800">
-                                                                                <span className={cuTs > 0 ? 'text-red-600 font-bold' : 'text-gray-500'}>{cuTs}/{maxV}</span>
+                                                                                <span className={cuTs > 0 ? 'text-red-600 font-bold' : 'text-gray-500'}>{cuTs}</span>
                                                                             </td>
                                                                             <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-sm text-center dark:border-b dark:border-purple-800">
-                                                                                <span className={cuFse > 0 ? 'text-red-600 font-bold' : 'text-gray-500'}>{cuFse}/{maxV}</span>
+                                                                                <span className={cuFse > 0 ? 'text-red-600 font-bold' : 'text-gray-500'}>{cuFse}</span>
                                                                             </td>
                                                                             <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-center dark:border-b dark:border-purple-800">
                                                                                 <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${cuTotal === 0 ? 'bg-green-100 text-green-800'
                                                                                     : cuTotal >= maxV ? 'bg-red-200 text-red-900'
                                                                                         : 'bg-red-100 text-red-700'
-                                                                                    }`}>{cuTotal}/{maxV}</span>
+                                                                                    }`}>{cuTotal}</span>
                                                                             </td>
                                                                         </>
                                                                     );
@@ -2857,7 +2993,15 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                                     </div>
                                                                                     {pData?.submittedAt !== undefined && pData?.submittedAt !== null && (
                                                                                         <span className="text-[10px] text-gray-500 font-mono tracking-tighter">
-                                                                                            {(pData.submittedAt / 60).toFixed(2)} hrs
+                                                                                            {(() => {
+                                                                                                const totalSeconds = Math.round(pData.submittedAt * 60);
+                                                                                                const h = Math.floor(totalSeconds / 3600);
+                                                                                                const m = Math.floor((totalSeconds % 3600) / 60);
+                                                                                                const s = totalSeconds % 60;
+                                                                                                return h > 0
+                                                                                                    ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+                                                                                                    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                                                                                            })()}
                                                                                         </span>
                                                                                     )}
                                                                                 </div>
@@ -2865,7 +3009,17 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                         );
                                                                     })}
 
-                                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">{(entry.time / 60).toFixed(2)} hrs</td>
+                                                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 font-mono border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">
+                                                                        {(() => {
+                                                                            const totalSeconds = Math.round(entry.time * 60);
+                                                                            const h = Math.floor(totalSeconds / 3600);
+                                                                            const m = Math.floor((totalSeconds % 3600) / 60);
+                                                                            const s = totalSeconds % 60;
+                                                                            return h > 0
+                                                                                ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+                                                                                : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                                                                        })()}
+                                                                    </td>
                                                                     <td className="px-3 py-2 whitespace-nowrap text-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">
                                                                         <span className="inline-block bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full text-xs font-bold border border-primary-100">
                                                                             {entry.problemsSolved}/{contest?.problems?.length || 0}
@@ -2881,12 +3035,12 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                             <>
                                                                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">
                                                                                     <span className={ts > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                                        {ts}/{limit}
+                                                                                        {ts}
                                                                                     </span>
                                                                                 </td>
                                                                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">
                                                                                     <span className={fse > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                                                                                        {fse}/{limit}
+                                                                                        {fse}
                                                                                     </span>
                                                                                 </td>
                                                                                 <td className="px-3 py-2 whitespace-nowrap text-center border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">
@@ -2894,7 +3048,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                                                                         <span className={`px-2 py-1 rounded-full text-xs font-bold inline-block ${totalV === 0 ? 'bg-green-100 text-green-800'
                                                                                             : pct >= 100 ? 'bg-red-100 text-red-800'
                                                                                                 : 'bg-yellow-100 text-yellow-800'
-                                                                                            }`}>{totalV}/{limit}</span>
+                                                                                            }`}>{totalV}</span>
                                                                                     </div>
                                                                                 </td>
                                                                             </>

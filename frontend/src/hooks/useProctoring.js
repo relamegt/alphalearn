@@ -170,7 +170,7 @@ const useProctoring = (contestId, studentId, isActive, onMaxViolations, maxViola
         if (!isActive) return;
         const totalViolations = violations.tabSwitchCount + violations.fullscreenExits;
         if (totalViolations > 0 && totalViolations >= maxViolations) {
-            onMaxViolations?.();
+            onMaxViolations?.(violations);
         }
     }, [violations, isActive, maxViolations, onMaxViolations]);
 

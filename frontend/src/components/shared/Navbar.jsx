@@ -1,9 +1,81 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../contexts/ThemeContext';
+
+const NavItem = ({ link, isDark, setIsMenuOpen }) => {
+    const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
+    
+    if (link.children) {
+        return (
+            <div className="relative group/item">
+                <button 
+                    onClick={() => setIsSubmenuOpen(!isSubmenuOpen)}
+                    className={`w-[calc(100%-1rem)] flex items-center justify-between px-4 py-2.5 mx-2 rounded-md transition-all text-sm font-medium ${isSubmenuOpen ? 'bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#23232e]'}`}
+                >
+                    <div className="flex items-center space-x-3">
+                        <span className={`opacity-70 group-hover/item:opacity-100 transition-opacity ${isSubmenuOpen ? 'opacity-100' : ''}`}>
+                            {link.icon}
+                        </span>
+                        <span>{link.label}</span>
+                    </div>
+                    <svg className={`w-3.5 h-3.5 transition-transform duration-200 lg:hidden ${isSubmenuOpen ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+                
+                {/* Submenu - Accordion style on mobile */}
+                <div className={`${isSubmenuOpen ? 'block' : 'hidden'} lg:hidden bg-gray-50 dark:bg-[#1a1a24] mx-2 mt-0.5 rounded-md overflow-hidden animate-in slide-in-from-top-1 duration-200`}>
+                    {link.children.map((child, cIdx) => (
+                        <Link
+                            key={cIdx}
+                            to={child.to}
+                            onClick={() => setIsMenuOpen(false)}
+                            className="block px-11 py-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 text-xs font-semibold transition-colors"
+                        >
+                            {child.label}
+                        </Link>
+                    ))}
+                </div>
+
+                {/* Desktop Flyout */}
+                <div className="absolute right-full top-0 pr-1 hidden lg:group-hover/item:block z-[500]">
+                    <div className={`w-56 bg-white dark:bg-[#111117] rounded-lg border border-gray-100 dark:border-gray-700 py-1 ${!isDark ? 'shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
+                        {link.children.map((child, cIdx) => (
+                            <Link
+                                key={cIdx}
+                                to={child.to}
+                                onClick={() => setIsMenuOpen(false)}
+                                className="block px-4 py-2.5 hover:bg-primary-50 dark:hover:bg-primary-500/10 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-sm font-medium truncate"
+                            >
+                                {child.label}
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="relative group/item">
+            <Link
+                to={link.to}
+                target={link.newTab ? "_blank" : undefined}
+                rel={link.newTab ? "noopener noreferrer" : undefined}
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center space-x-3 px-4 py-2.5 mx-2 rounded-md hover:bg-primary-50 dark:hover:bg-primary-500/10 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-sm font-medium w-[calc(100%-1rem)]"
+            >
+                <span className="opacity-70 group-hover/item:opacity-100 transition-opacity">
+                    {link.icon}
+                </span>
+                <span>{link.label}</span>
+            </Link>
+        </div>
+    );
+};
 
 const Navbar = () => {
     const { user, logout } = useAuth();
@@ -11,6 +83,19 @@ const Navbar = () => {
     const navigate = useNavigate();
 
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setIsMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
@@ -109,24 +194,27 @@ const Navbar = () => {
                 <div className="flex justify-between items-center h-16">
                     {/* Logo (Left side) */}
                     <div className="flex-shrink-0 flex items-center">
-                        <Link to="/" className="flex items-center space-x-2">
+                        <Link to="/" className="flex items-center space-x-1.5 sm:space-x-2">
                             <img
                                 src="/alphalogo.png"
                                 alt="AlphaKnowledge"
-                                className="h-8 w-auto object-contain"
+                                className="h-6 sm:h-8 w-auto object-contain"
                             />
-                            <span className="text-xl font-bold text-gray-800 dark:text-gray-100 tracking-tight">AlphaKnowledge</span>
+                            <span className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 tracking-tight">AlphaKnowledge</span>
                         </Link>
                     </div>
 
                     {/* Right Side: Theme Toggle & Profile & Dropdown */}
                     <div className="flex items-center gap-2">
                         {/* Theme Toggle */}
-                        <ThemeToggle size="md" />
+                        <ThemeToggle size="sm" className="sm:size-9" />
 
-                        <div className="relative group h-16 flex items-center">
-                            <button className="flex items-center space-x-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none transition-colors px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-[#23232e]">
-                                <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
+                        <div className="relative h-16 flex items-center" ref={menuRef}>
+                            <button 
+                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                className="flex items-center space-x-2 sm:space-x-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none transition-colors px-2 sm:px-3 py-1.5 sm:py-2 rounded-md hover:bg-gray-50 dark:hover:bg-[#23232e]"
+                            >
+                                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs sm:text-sm font-bold text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
                                     {user.profile?.profilePicture ? (
                                         <img
                                             src={user.profile.profilePicture}
@@ -142,13 +230,14 @@ const Navbar = () => {
                                 <span className="font-medium text-sm hidden md:block">
                                     {user.username || user.firstName}
                                 </span>
-                                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${isMenuOpen ? 'rotate-180 text-gray-900 dark:text-white' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
                             </button>
 
                             {/* Dropdown Menu */}
-                            <div className={`absolute top-[60px] right-0 w-64 bg-white dark:bg-[#111117] rounded-lg border border-gray-100 dark:border-gray-700 hidden group-hover:block z-[500] py-2 ${!isDark ? 'shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
+                            {isMenuOpen && (
+                                <div className={`absolute top-[60px] right-0 w-64 bg-white dark:bg-[#111117] rounded-lg border border-gray-100 dark:border-gray-700 block z-[500] py-2 ${!isDark ? 'shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
                                 {/* Header in Dropdown (optional context) */}
                                 <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 mb-1">
                                     <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{user.firstName} {user.lastName}</p>
@@ -158,46 +247,7 @@ const Navbar = () => {
                                 {/* Menu Items */}
                                 <div className="space-y-0.5">
                                     {links.map((link, idx) => (
-                                        <div key={idx} className="relative group/item">
-                                            {link.children ? (
-                                                <>
-                                                    <button className="w-[calc(100%-1rem)] flex items-center justify-between px-4 py-2.5 mx-2 rounded-md hover:bg-primary-50 dark:hover:bg-primary-500/10 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-sm font-medium">
-                                                        <div className="flex items-center space-x-3">
-                                                            <span className="opacity-70 group-hover:opacity-100 transition-opacity">
-                                                                {link.icon}
-                                                            </span>
-                                                            <span>{link.label}</span>
-                                                        </div>
-                                                    </button>
-                                                    {/* Submenu Flyout */}
-                                                    <div className="absolute right-full top-0 pr-1 hidden group-hover/item:block z-[500]">
-                                                        <div className={`w-56 bg-white dark:bg-[#111117] rounded-lg border border-gray-100 dark:border-gray-700 py-1 ${!isDark ? 'shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)]' : ''}`}>
-                                                            {link.children.map((child, cIdx) => (
-                                                                <Link
-                                                                    key={cIdx}
-                                                                    to={child.to}
-                                                                    className="block px-4 py-2.5 hover:bg-primary-50 dark:hover:bg-primary-500/10 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-sm font-medium truncate"
-                                                                >
-                                                                    {child.label}
-                                                                </Link>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <Link
-                                                    to={link.to}
-                                                    target={link.newTab ? "_blank" : undefined}
-                                                    rel={link.newTab ? "noopener noreferrer" : undefined}
-                                                    className="flex items-center space-x-3 px-4 py-2.5 mx-2 rounded-md hover:bg-primary-50 dark:hover:bg-primary-500/10 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-sm font-medium w-[calc(100%-1rem)]"
-                                                >
-                                                    <span className="opacity-70 group-hover:opacity-100 transition-opacity">
-                                                        {link.icon}
-                                                    </span>
-                                                    <span>{link.label}</span>
-                                                </Link>
-                                            )}
-                                        </div>
+                                        <NavItem key={idx} link={link} isDark={isDark} setIsMenuOpen={setIsMenuOpen} />
                                     ))}
                                 </div>
 
@@ -219,7 +269,8 @@ const Navbar = () => {
                                     )}
                                     <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
                                 </button>
-                            </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

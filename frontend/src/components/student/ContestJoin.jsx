@@ -329,7 +329,7 @@ const ContestJoin = () => {
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                                         <Trophy className="w-5 h-5 text-indigo-600" />
-                                        Spot Registration
+                                        Registration
                                     </h3>
                                     <form onSubmit={handleRegister} className="space-y-4">
                                         <div>

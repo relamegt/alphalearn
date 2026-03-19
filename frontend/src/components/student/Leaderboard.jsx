@@ -15,6 +15,17 @@ const PLATFORMS = [
     { value: 'codeforces', label: 'Codeforces' }
 ];
 
+const formatTime = (mins) => {
+    if (mins === null || mins === undefined) return 'N/A';
+    const totalSeconds = Math.round(mins * 60);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = Math.round(totalSeconds % 60);
+    return h > 0
+        ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
 const Leaderboard = ({ batchId, isBatchView }) => {
     const { contestId, batchName: urlBatchId } = useParams();
     const [searchParams] = useSearchParams();
@@ -638,10 +649,10 @@ const Leaderboard = ({ batchId, isBatchView }) => {
             return str;
         };
 
-        // Format raw minutes into '4m' or '1:01h'
-        const formatTime = (mins) => {
-            if (mins === null || mins === undefined) return '';
-            return `${(mins / 60).toFixed(2)} hrs`;
+        // Format raw minutes into '01:20:25' or '36:58'
+        const formatCSVTime = (mins) => {
+            const time = formatTime(mins);
+            return time === 'N/A' ? '' : time;
         };
 
         // ONE column per problem –" header is "P1: Title"
@@ -1054,14 +1065,14 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     </div>
                                                 </th>
                                                 <th
-                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 sticky left-[90px] bg-white dark:bg-[#111117] z-[120] w-[130px] min-w-[130px] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#23232e]"
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 static md:sticky md:left-[90px] bg-white dark:bg-[#111117] z-[120] w-[130px] min-w-[130px] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#23232e]"
                                                     onClick={() => handleSort('rollNumber')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
                                                     Roll No {sortConfig.key === 'rollNumber' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                                                 </th>
                                                 <th
-                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 sticky left-[220px] bg-white dark:bg-[#111117] z-[120] w-[260px] min-w-[260px] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#23232e]"
+                                                    className="px-4 py-3 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider border-r border-gray-200 dark:border-gray-700 static md:sticky md:left-[220px] bg-white dark:bg-[#111117] z-[120] w-[260px] min-w-[260px] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#23232e]"
                                                     onClick={() => handleSort('name')}
                                                     rowSpan={viewMode === 'detailed' ? 2 : 1}
                                                 >
@@ -1190,7 +1201,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     </>
                                                 )}
 
-                                                {/* Internal Contests –" styled like SmartInterviews reference */}
+                                                {/* Internal Contests –" styled like reference */}
                                                 {internalContestsMeta.map((contest, idx) => {
                                                     const date = contest.startTime
                                                         ? new Date(contest.startTime).toLocaleDateString('en-IN', {
@@ -1342,20 +1353,20 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         </td>
                                                         <td
                                                             style={currentUserBg}
-                                                            className={`px-4 py-3 whitespace-nowrap sticky left-[90px] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[130px] min-w-[130px] ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]'}`}
+                                                            className={`px-4 py-3 whitespace-nowrap static md:sticky md:left-[90px] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[130px] min-w-[130px] ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]'}`}
                                                         >
                                                             <span className="text-gray-900 dark:text-gray-100">{entry.rollNumber}</span>
                                                         </td>
                                                         <td
                                                             style={currentUserBg}
-                                                            className={`px-4 py-3 whitespace-nowrap font-bold sticky left-[220px] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[260px] min-w-[260px] truncate ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]'}`}
+                                                            className={`px-4 py-3 whitespace-nowrap font-bold static md:sticky md:left-[220px] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[260px] min-w-[260px] truncate ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]'}`}
                                                             title={entry.name}
                                                         >
                                                             {entry.socialProfiles?.linkedin ? (
-                                                                <a 
-                                                                    href={entry.socialProfiles.linkedin.startsWith('http') ? entry.socialProfiles.linkedin : `https://www.linkedin.com/in/${entry.socialProfiles.linkedin}`} 
-                                                                    target="_blank" 
-                                                                    rel="noopener noreferrer" 
+                                                                <a
+                                                                    href={entry.socialProfiles.linkedin.startsWith('http') ? entry.socialProfiles.linkedin : `https://www.linkedin.com/in/${entry.socialProfiles.linkedin}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
                                                                     className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors w-fit"
                                                                 >
                                                                     {entry.name}
@@ -1538,8 +1549,8 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                     <thead className="bg-gray-50 dark:bg-[#111117] transition-colors border-b border-gray-200 dark:border-gray-800 sticky top-0 z-[100]">
                                                         <tr>
                                                             <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight sticky left-0 z-[110] bg-gray-50 dark:bg-[#111117] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[80px] min-w-[80px]">Rank</th>
-                                                            <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight sticky left-[80px] z-[110] bg-gray-50 dark:bg-[#111117] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[140px] min-w-[140px]">Roll Number</th>
-                                                            <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight sticky left-[220px] z-[110] bg-gray-50 dark:bg-[#111117] shadow-[4px_0_10px_-4px_rgba(0,0,0,0.2)] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] w-[180px] min-w-[180px]">Username</th>
+                                                            <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight static md:sticky md:left-[80px] z-[110] bg-gray-50 dark:bg-[#111117] md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:md:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[140px] min-w-[140px]">Roll Number</th>
+                                                            <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight static md:sticky md:left-[220px] z-[110] bg-gray-50 dark:bg-[#111117] md:shadow-[4px_0_10px_-4px_rgba(0,0,0,0.2)] dark:md:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] w-[180px] min-w-[180px]">Username</th>
                                                             <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight">Branch</th>
                                                             <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight">Rating</th>
                                                             <th className="px-4 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase tracking-tight">Problems Solved</th>
@@ -1566,8 +1577,8 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                             </div>
                                                                         </div>
                                                                     </td>
-                                                                    <td className={`px-3 py-2 whitespace-nowrap text-gray-900 dark:text-gray-100 sticky left-[80px] z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] font-mono w-[140px] min-w-[140px] ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#111117]'}`}>{entry.rollNumber}</td>
-                                                                    <td className={`px-3 py-2 whitespace-nowrap font-bold text-gray-900 dark:text-gray-100 sticky left-[220px] z-40 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.2)] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] w-[180px] min-w-[180px] truncate ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#111117]'}`}>{entry.username}</td>
+                                                                    <td className={`px-3 py-2 whitespace-nowrap text-gray-900 dark:text-gray-100 static md:sticky md:left-[80px] z-40 md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:md:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] font-mono w-[140px] min-w-[140px] ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#111117]'}`}>{entry.rollNumber}</td>
+                                                                    <td className={`px-3 py-2 whitespace-nowrap font-bold text-gray-900 dark:text-gray-100 static md:sticky md:left-[220px] z-40 md:shadow-[4px_0_10px_-4px_rgba(0,0,0,0.2)] dark:md:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] w-[180px] min-w-[180px] truncate ${isCurrentUser ? 'bg-purple-100 dark:bg-[#1e1b4b]' : 'bg-white dark:bg-[#111117]'}`}>{entry.username}</td>
                                                                     <td className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">{entry.branch}</td>
                                                                     <td className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 font-bold">{entry.rating}</td>
                                                                     <td className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">{entry.problemsSolved}</td>
@@ -1728,10 +1739,10 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] sticky left-0 bg-white dark:bg-[#111117] z-[120] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] min-w-[60px] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700" onClick={() => handleInternalSort('rank')}>
                                                             Rank {internalSortConfig.key === 'rank' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
-                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] sticky left-[60px] bg-white dark:bg-[#111117] z-[120] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 min-w-[110px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)]" onClick={() => handleInternalSort('rollNumber')}>
+                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] static md:sticky md:left-[60px] bg-white dark:bg-[#111117] z-[120] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 min-w-[110px] md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:md:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)]" onClick={() => handleInternalSort('rollNumber')}>
                                                             Roll No {internalSortConfig.key === 'rollNumber' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
-                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] sticky left-[170px] bg-white dark:bg-[#111117] z-[120] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 min-w-[140px]" onClick={() => handleInternalSort('username')}>
+                                                        <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] static md:sticky md:left-[170px] bg-white dark:bg-[#111117] z-[120] dark:md:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 min-w-[140px]" onClick={() => handleInternalSort('username')}>
                                                             Username {internalSortConfig.key === 'username' && (internalSortConfig.direction === 'asc' ? '▲' : '▼')}
                                                         </th>
                                                         <th className="px-3 py-4 text-left text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] min-w-[120px] border-b border-gray-200 dark:border-gray-700" onClick={() => handleInternalSort('fullName')}>
@@ -1748,7 +1759,7 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                         ))}
                                                         <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700" onClick={() => handleInternalSort('time')}>Time</th>
                                                         <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700" onClick={() => handleInternalSort('problemsSolved')}>Solved</th>
-                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">Switches</th>
+                                                        <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">Tab Switches</th>
                                                         <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">FS Exits</th>
                                                         <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">Violations</th>
                                                         <th className="px-3 py-4 text-center text-xs font-bold text-gray-900 dark:text-white uppercase whitespace-nowrap border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">Status</th>
@@ -1777,8 +1788,8 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                                 #{currentUserEntry.rank}
                                                                             </div>
                                                                         </td>
-                                                                        <td style={pinnedBg} className="px-3 py-4 whitespace-nowrap text-sm font-mono sticky left-[60px] z-40 dark:border-b dark:border-gray-700 dark:border-r dark:border-gray-700 transition-colors dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[110px] min-w-[110px] text-purple-900 dark:text-purple-300">{currentUserEntry.rollNumber}</td>
-                                                                        <td style={pinnedBg} className="px-3 py-4 text-sm font-bold max-w-[140px] min-w-[140px] truncate sticky left-[170px] z-40 dark:border-b dark:border-gray-700 dark:border-r dark:border-gray-700 dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] transition-colors text-purple-900 dark:text-purple-200" title={(currentUserEntry.isSpotUser || currentUserEntry.username?.startsWith('spot_')) ? '' : (currentUserEntry.username !== 'N/A' && currentUserEntry.username ? currentUserEntry.username : currentUserEntry.fullName)}>
+                                                                        <td style={pinnedBg} className="px-3 py-4 whitespace-nowrap text-sm font-mono static md:sticky md:left-[60px] z-40 dark:border-b dark:border-gray-700 dark:border-r dark:border-gray-700 transition-colors dark:md:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[110px] min-w-[110px] text-purple-900 dark:text-purple-300">{currentUserEntry.rollNumber}</td>
+                                                                        <td style={pinnedBg} className="px-3 py-4 text-sm font-bold max-w-[140px] min-w-[140px] truncate static md:sticky md:left-[170px] z-40 dark:border-b dark:border-gray-700 dark:border-r dark:border-gray-700 dark:md:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] transition-colors text-purple-900 dark:text-purple-200" title={(currentUserEntry.isSpotUser || currentUserEntry.username?.startsWith('spot_')) ? '' : (currentUserEntry.username !== 'N/A' && currentUserEntry.username ? currentUserEntry.username : currentUserEntry.fullName)}>
                                                                             {(currentUserEntry.isSpotUser || currentUserEntry.username?.startsWith('spot_')) ? (
                                                                                 <span className="text-gray-400 font-medium">-</span>
                                                                             ) : currentUserEntry.username && currentUserEntry.username !== 'N/A' ? (
@@ -1797,7 +1808,15 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                             const status = pData?.status || 'Not Attempted';
                                                                             const rawTime = pData?.submittedAt;
                                                                             let formattedSubTime = (rawTime !== undefined && rawTime !== null)
-                                                                                ? `${(rawTime / 60).toFixed(2)} hrs`
+                                                                                ? (() => {
+                                                                                    const totalSeconds = Math.round(rawTime * 60);
+                                                                                    const h = Math.floor(totalSeconds / 3600);
+                                                                                    const m = Math.floor((totalSeconds % 3600) / 60);
+                                                                                    const s = totalSeconds % 60;
+                                                                                    return h > 0
+                                                                                        ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+                                                                                        : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                                                                                })()
                                                                                 : null;
 
                                                                             let bgClass = 'bg-gray-50 dark:bg-[#111117]/40 border-gray-200 dark:border-gray-700';
@@ -1835,7 +1854,15 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                         })}
 
                                                                         <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-sm text-center text-purple-900 dark:text-purple-400 font-mono dark:border-b dark:border-gray-700 dark:border-l dark:border-gray-700">
-                                                                            {(currentUserEntry.time / 60).toFixed(2)} hrs
+                                                                            {(() => {
+                                                                                const totalSeconds = Math.round(currentUserEntry.time * 60);
+                                                                                const h = Math.floor(totalSeconds / 3600);
+                                                                                const m = Math.floor((totalSeconds % 3600) / 60);
+                                                                                const s = totalSeconds % 60;
+                                                                                return h > 0
+                                                                                    ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+                                                                                    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                                                                            })()}
                                                                         </td>
                                                                         <td style={pinnedBg} className="px-3 py-2 whitespace-nowrap text-center dark:border-b dark:border-gray-700 dark:border-l dark:border-gray-700">
                                                                             <span className="inline-block bg-purple-200 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded-full text-xs font-bold border border-purple-300 dark:border-purple-700">
@@ -1907,9 +1934,9 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                                 </div>
                                                                             </td>
                                                                             {/* Roll No - sticky */}
-                                                                            <td className="px-3 py-4 whitespace-nowrap text-sm font-mono sticky left-[60px] z-40 border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[110px] min-w-[110px] bg-white dark:bg-[#111117] text-gray-700 dark:text-gray-300 group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">{entry.rollNumber}</td>
+                                                                            <td className="px-3 py-4 whitespace-nowrap text-sm font-mono static md:sticky md:left-[60px] z-40 border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 transition-colors md:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:md:shadow-[2px_0_8px_-2px_rgba(0,0,0,0.5)] w-[110px] min-w-[110px] bg-white dark:bg-[#111117] text-gray-700 dark:text-gray-300 group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]">{entry.rollNumber}</td>
                                                                             {/* Username Column */}
-                                                                            <td className="px-3 py-4 text-sm font-bold max-w-[140px] min-w-[140px] truncate sticky left-[170px] z-40 border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] transition-colors bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e] text-gray-900 dark:text-gray-100" title={(entry.isSpotUser || entry.username?.startsWith('spot_')) ? '' : (entry.username !== 'N/A' && entry.username ? entry.username : entry.fullName)}>
+                                                                            <td className="px-3 py-4 text-sm font-bold max-w-[140px] min-w-[140px] truncate static md:sticky md:left-[170px] z-40 border-b border-gray-200 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 dark:md:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.7)] transition-colors bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e] text-gray-900 dark:text-gray-100" title={(entry.isSpotUser || entry.username?.startsWith('spot_')) ? '' : (entry.username !== 'N/A' && entry.username ? entry.username : entry.fullName)}>
                                                                                 {(entry.isSpotUser || entry.username?.startsWith('spot_')) ? (
                                                                                     <span className="text-gray-400 font-medium">-</span>
                                                                                 ) : entry.username && entry.username !== 'N/A' ? (
@@ -1931,7 +1958,15 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                                 const status = pData?.status || 'Not Attempted';
                                                                                 const rawTime = pData?.submittedAt;
                                                                                 let formattedSubTime = (rawTime !== undefined && rawTime !== null)
-                                                                                    ? `${(rawTime / 60).toFixed(2)} hrs`
+                                                                                    ? (() => {
+                                                                                        const totalSeconds = Math.round(rawTime * 60);
+                                                                                        const h = Math.floor(totalSeconds / 3600);
+                                                                                        const m = Math.floor((totalSeconds % 3600) / 60);
+                                                                                        const s = totalSeconds % 60;
+                                                                                        return h > 0
+                                                                                            ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+                                                                                            : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                                                                                    })()
                                                                                     : null;
 
                                                                                 let bgClass = 'bg-gray-50 dark:bg-[#111117]/40 border-gray-200 dark:border-gray-700';
@@ -1969,7 +2004,15 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                                             })}
 
                                                                             <td className="px-3 py-2 whitespace-nowrap text-sm text-center text-gray-600 dark:text-gray-400 font-mono border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">
-                                                                                {(entry.time / 60).toFixed(2)} hrs
+                                                                                {(() => {
+                                                                                    const totalSeconds = Math.round(entry.time * 60);
+                                                                                    const h = Math.floor(totalSeconds / 3600);
+                                                                                    const m = Math.floor((totalSeconds % 3600) / 60);
+                                                                                    const s = totalSeconds % 60;
+                                                                                    return h > 0
+                                                                                        ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+                                                                                        : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                                                                                })()}
                                                                             </td>
                                                                             <td className="px-3 py-2 whitespace-nowrap text-center border-b border-gray-200 dark:border-gray-700 border-l border-gray-200 dark:border-gray-700">
                                                                                 <span className="inline-block bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 px-2 py-0.5 rounded-full text-xs font-bold border border-primary-100 dark:border-primary-900/50">

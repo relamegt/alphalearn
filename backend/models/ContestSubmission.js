@@ -223,7 +223,7 @@ class ContestSubmission {
 
         return {
             score: totalScore,
-            time: Math.round(totalTime),
+            time: totalTime,
             problemsSolved: acceptedProblemsIds.length
         };
     }
@@ -475,12 +475,12 @@ class ContestSubmission {
                                     const firstAccepted = acceptedSubs.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt))[0];
                                     const timeTaken = (new Date(firstAccepted.submittedAt) - new Date(contest.startTime)) / (1000 * 60);
                                     totalTime = Math.max(totalTime, timeTaken);
-                                    submittedOffset = Math.max(0, Math.floor(timeTaken));
+                                    submittedOffset = Math.max(0, timeTaken);
                                 } else {
                                     status = 'Wrong Answer';
                                     const lastSub = pSubs[0];
                                     const timeTaken = (new Date(lastSub.submittedAt) - new Date(contest.startTime)) / (1000 * 60);
-                                    submittedOffset = Math.max(0, Math.floor(timeTaken));
+                                    submittedOffset = Math.max(0, timeTaken);
                                 }
                             }
                             problemsStatus[pIdStr] = { status, tries, submittedAt: submittedOffset };
@@ -494,7 +494,7 @@ class ContestSubmission {
                             branch: user.education?.branch || 'N/A',
                             section: user.profile?.section || 'N/A', // HIGH-8 FIX: included from projection above
                             score: totalScore,
-                            time: Math.round(totalTime),
+                            time: totalTime,
                             problemsSolved,
                             tabSwitchCount: latestViolation.tabSwitchCount,
                             tabSwitchDuration: latestViolation.tabSwitchDuration,

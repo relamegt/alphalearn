@@ -187,15 +187,23 @@ const BookOpenIcon = ({ size = 14, className = '' }) => (
 );
 
 // ─── Drag‑Handle helpers ─────────────────────────────────────────────────────
-const DragHandleH = ({ onMouseDown }) => (
-    <div onMouseDown={onMouseDown} className="w-1.5 bg-gray-50 dark:bg-[#111117] hover:bg-purple-100 dark:hover:bg-purple-900/30 border-l border-r border-gray-100 dark:border-gray-700 cursor-col-resize shrink-0 transition-colors z-10 relative group flex flex-col justify-center items-center">
+const DragHandleH = ({ onMouseDown, onTouchStart }) => (
+    <div 
+        onMouseDown={onMouseDown} 
+        onTouchStart={onTouchStart}
+        className="w-1.5 bg-gray-50 dark:bg-[#111117] hover:bg-purple-100 dark:hover:bg-purple-900/30 border-l border-r border-gray-100 dark:border-gray-700 cursor-col-resize shrink-0 transition-colors z-10 relative group flex flex-col justify-center items-center"
+    >
         <div className="h-4 w-0.5 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-purple-400" />
     </div>
 );
 
-const DragHandleV = ({ onMouseDown }) => (
-    <div onMouseDown={onMouseDown} className="h-1.5 bg-gray-50 dark:bg-[#111117] hover:bg-purple-100 dark:hover:bg-purple-900/30 border-t border-b border-gray-100 dark:border-gray-700 cursor-row-resize shrink-0 transition-colors z-10 relative flex justify-center items-center group">
-        <div className="w-4 h-0.5 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-purple-400" />
+const DragHandleV = ({ onMouseDown, onTouchStart }) => (
+    <div 
+        onMouseDown={onMouseDown} 
+        onTouchStart={onTouchStart}
+        className="h-2 sm:h-1.5 bg-gray-50 dark:bg-[#111117] hover:bg-purple-100 dark:hover:bg-purple-900/30 border-t border-b border-gray-100 dark:border-gray-700 cursor-row-resize shrink-0 transition-colors z-10 relative flex justify-center items-center group touch-none"
+    >
+        <div className="w-8 sm:w-4 h-1 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-purple-400" />
     </div>
 );
 
@@ -344,17 +352,17 @@ const ProblemTimer = () => {
     };
 
     return (
-        <div className="flex items-center gap-2 bg-gray-100/80 dark:bg-[#111117]/80 hover:bg-gray-100 dark:hover:bg-gray-700/80 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 transition-colors">
-            <Clock size={14} className="text-gray-500 dark:text-gray-400" />
-            <span className="font-mono text-sm font-medium text-gray-700 dark:text-gray-200 min-w-[48px] text-center">
+        <div className="flex items-center gap-1.5 bg-gray-100/80 dark:bg-[#111117]/80 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 transition-colors">
+            <Clock size={12} className="text-gray-500 dark:text-gray-400" />
+            <span className="font-mono text-xs font-bold text-gray-700 dark:text-gray-200 min-w-[38px] text-center">
                 {formatTime(seconds)}
             </span>
             <button
                 onClick={() => setIsRunning(!isRunning)}
-                className="ml-1 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500 dark:text-gray-400 transition-colors"
+                className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500 dark:text-gray-400 transition-colors"
                 title={isRunning ? "Pause Timer" : "Resume Timer"}
             >
-                {isRunning ? <Pause size={12} className="fill-current" /> : <Play size={12} className="fill-current" />}
+                {isRunning ? <Pause size={10} className="fill-current" /> : <Play size={10} className="fill-current" />}
             </button>
         </div>
     );
@@ -434,6 +442,14 @@ const CodeEditor = () => {
     const editorRef = useRef(null);
     const monacoRef = useRef(null);
     const containerRef = useRef(null);
+
+    // ── responsive ──
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // ── layout widths ──
     const [sidebarW, setSidebarW] = useState(20);
@@ -827,21 +843,29 @@ const CodeEditor = () => {
     // ═══ Drag Resize Logic ════════════════════════════════════════════════════
     const dragging = useRef(null);
 
+    const getPos = useCallback((e) => {
+        if (e.touches && e.touches[0]) {
+            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+        return { x: e.clientX, y: e.clientY };
+    }, []);
+
     const onMouseMoveResize = useCallback((e) => {
         const d = dragging.current;
         if (!d || !containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
+        const { x, y } = getPos(e);
         if (d.type === 'sidebar') {
-            const newW = d.startVal + (e.clientX - d.startX) / rect.width * 100;
+            const newW = d.startVal + (x - d.startX) / rect.width * 100;
             setSidebarW(Math.min(45, Math.max(10, newW)));
         } else if (d.type === 'desc') {
-            const newW = d.startVal + (e.clientX - d.startX) / rect.width * 100;
+            const newW = d.startVal + (x - d.startX) / rect.width * 100;
             setDescW(Math.min(70, Math.max(15, newW)));
         } else if (d.type === 'editorH') {
-            const newH = d.startVal + (e.clientY - d.startY) / rect.height * 100;
+            const newH = d.startVal + (y - d.startY) / rect.height * 100;
             setEditorTopH(Math.min(90, Math.max(10, newH)));
         }
-    }, []);
+    }, [getPos]);
 
     const onMouseUpResize = useCallback(() => {
         dragging.current = null;
@@ -854,22 +878,27 @@ const CodeEditor = () => {
         if (isResizing) {
             window.addEventListener('mousemove', onMouseMoveResize);
             window.addEventListener('mouseup', onMouseUpResize);
+            window.addEventListener('touchmove', onMouseMoveResize, { passive: false });
+            window.addEventListener('touchend', onMouseUpResize);
         }
         return () => {
             window.removeEventListener('mousemove', onMouseMoveResize);
             window.removeEventListener('mouseup', onMouseUpResize);
+            window.removeEventListener('touchmove', onMouseMoveResize);
+            window.removeEventListener('touchend', onMouseUpResize);
         };
     }, [isResizing, onMouseMoveResize, onMouseUpResize]);
 
     const startDrag = (type, e) => {
-        e.preventDefault();
+        // e.preventDefault(); // removed to allow touchstart but handle movement
+        const pos = getPos(e);
         setIsResizing(true);
         // cursor is handled by the overlay
         document.body.style.userSelect = 'none';
         dragging.current = {
             type,
-            startX: e.clientX,
-            startY: e.clientY,
+            startX: pos.x,
+            startY: pos.y,
             startVal: type === 'sidebar' ? sidebarW : type === 'desc' ? descW : editorTopH,
         };
     };
@@ -981,13 +1010,19 @@ const CodeEditor = () => {
                 </div> */}
 
                 <div className="flex-1 flex overflow-hidden relative">
-                    {/* ─ Col 1: Sidebar ─ */}
+                    {/* ─ Col 1: Sidebar (Drawer on mobile) ─ */}
                     <div
-                        style={{
+                        style={isMobile ? { 
+                            width: '280px', 
+                            position: 'absolute', 
+                            height: '100%',
+                            left: 0,
+                            top: 0
+                        } : {
                             width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px`,
                             transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
                         }}
-                        className="relative flex flex-col shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] z-20 transition-colors"
+                        className={`flex flex-col shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] z-[200] transition-transform duration-300 ease-in-out ${isMobile && !showSidebar ? '-translate-x-full' : 'translate-x-0'}`}
                     >
                         <div className="flex-1 overflow-hidden flex flex-col relative h-full">
                             <div className={`flex-1 flex flex-col overflow-hidden h-full transition-opacity duration-300 ${showSidebar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none hidden'}`}>
@@ -996,10 +1031,10 @@ const CodeEditor = () => {
 
                             {!showSidebar && (
                                 <div
-                                    className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors"
+                                    className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-[#111117]/10 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#23232e] transition-colors"
                                     onClick={() => setShowSidebar(true)}
                                 >
-                                    <div style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-bold text-gray-400 tracking-widest uppercase select-none">
+                                    <div style={{ writingMode: 'vertical-rl' }} className="text-[10px] font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase select-none">
                                         <span className="rotate-180">Problem List</span>
                                     </div>
                                 </div>
@@ -1013,59 +1048,44 @@ const CodeEditor = () => {
                         </button>
                     </div>
 
+                    {/* Mobile overlay for sidebar */}
+                    {isMobile && showSidebar && (
+                        <div className="absolute inset-0 bg-black/50 z-[190]" onClick={() => setShowSidebar(false)} />
+                    )}
+
                     {showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
 
                     {pageLoading ? (
-                        <div className="flex-1 flex overflow-hidden animate-pulse">
+                        <div className={`flex-1 flex overflow-hidden animate-pulse ${isMobile ? 'flex-col' : 'flex-row'}`}>
                             {/* Left Panel (Description) */}
-                            <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] flex flex-col transition-colors">
+                            <div className={`${isMobile ? 'w-full h-[60vh]' : 'w-1/2 border-r'} border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] flex flex-col transition-colors`}>
                                 <div className="h-10 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] flex items-center px-4 gap-4 shrink-0 transition-colors">
-                                    <div className="w-20 h-4 bg-gray-200 dark:bg-[#111117] rounded"></div>
-                                    <div className="w-20 h-4 bg-gray-200 dark:bg-[#111117] rounded"></div>
+                                    <div className="w-20 h-4 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                                    <div className="w-20 h-4 bg-gray-200 dark:bg-gray-800 rounded"></div>
                                 </div>
                                 <div className="p-6 flex flex-col gap-4 flex-1">
-                                    <div className="w-3/4 h-8 bg-gray-200 dark:bg-[#111117] rounded"></div>
+                                    <div className="w-3/4 h-8 bg-gray-200 dark:bg-gray-800 rounded"></div>
                                     <div className="flex gap-2">
-                                        <div className="w-16 h-6 bg-gray-200 dark:bg-[#111117] rounded-full"></div>
-                                        <div className="w-20 h-6 bg-gray-200 dark:bg-[#111117] rounded-full"></div>
+                                        <div className="w-16 h-6 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
+                                        <div className="w-20 h-6 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
                                     </div>
-                                    <div className="w-full h-4 bg-gray-200 dark:bg-[#111117] rounded mt-4"></div>
-                                    <div className="w-5/6 h-4 bg-gray-200 dark:bg-[#111117] rounded"></div>
-                                    <div className="w-full h-4 bg-gray-200 dark:bg-[#111117] rounded"></div>
-                                    <div className="w-4/5 h-4 bg-gray-200 dark:bg-[#111117] rounded"></div>
-
-                                    <div className="w-1/3 h-6 bg-gray-200 dark:bg-[#111117] mt-8 mb-2 rounded"></div>
-                                    <div className="w-full h-32 bg-gray-100 dark:bg-[#111117] rounded-lg"></div>
+                                    <div className="w-full h-4 bg-gray-200 dark:bg-gray-800 rounded mt-4"></div>
+                                    <div className="w-5/6 h-4 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                                    <div className="w-full h-4 bg-gray-200 dark:bg-gray-800 rounded"></div>
                                 </div>
                             </div>
 
                             {/* Right Panel (Editor) */}
-                            <div className="w-1/2 flex flex-col bg-white dark:bg-[#111117] transition-colors">
+                            <div className={`${isMobile ? 'w-full h-[40vh]' : 'w-1/2'} flex flex-col bg-white dark:bg-[#111117] transition-colors`}>
                                 <div className="h-12 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] flex items-center justify-between px-3 shrink-0 transition-colors">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-32 h-8 bg-gray-200 dark:bg-[#111117] rounded"></div>
-                                        <div className="w-24 h-6 bg-gray-200 dark:bg-[#111117] rounded"></div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 bg-gray-200 dark:bg-[#111117] rounded"></div>
-                                        <div className="w-32 h-8 bg-gray-200 dark:bg-[#111117] rounded"></div>
+                                        <div className="w-32 h-8 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                                        <div className="w-24 h-6 bg-gray-200 dark:bg-gray-800 rounded"></div>
                                     </div>
                                 </div>
                                 <div className="flex-1 bg-white dark:bg-[#111117] p-6 flex flex-col gap-4 transition-colors">
-                                    <div className="w-1/3 h-4 bg-gray-200 dark:bg-[#111117] rounded"></div>
-                                    <div className="w-1/4 h-4 bg-gray-200 dark:bg-[#111117] rounded ml-4"></div>
-                                    <div className="w-1/2 h-4 bg-gray-200 dark:bg-[#111117] rounded ml-4"></div>
-                                </div>
-                                {/* Terminal area */}
-                                <div className="h-48 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] flex flex-col shrink-0 transition-colors">
-                                    <div className="h-9 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111117] flex items-center px-4 gap-4 w-full shrink-0">
-                                        <div className="w-20 h-4 bg-gray-300 dark:bg-gray-700 rounded"></div>
-                                        <div className="w-20 h-4 bg-gray-200 dark:bg-[#111117] rounded"></div>
-                                    </div>
-                                    <div className="p-4 flex flex-col gap-2">
-                                        <div className="w-1/2 h-4 bg-gray-200 dark:bg-[#111117] rounded mt-2"></div>
-                                        <div className="w-1/3 h-4 bg-gray-200 dark:bg-[#111117] rounded"></div>
-                                    </div>
+                                    <div className="w-1/3 h-4 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                                    <div className="w-1/2 h-4 bg-gray-200 dark:bg-gray-800 rounded ml-4"></div>
                                 </div>
                             </div>
                         </div>
@@ -1189,15 +1209,21 @@ const CodeEditor = () => {
 
 
             {/* ── Main 3‑column area ─────────────────────────────────────── */}
-            <div className="flex-1 flex overflow-hidden relative">
+            <div className={`flex-1 flex flex-col lg:flex-row relative ${isMobile ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}>
 
-                {/* ─ Col 1: Sidebar ─ */}
+                {/* ─ Col 1: Sidebar (Drawer on mobile) ─ */}
                 <div
-                    style={{
+                    style={isMobile ? { 
+                        width: '280px', 
+                        position: 'absolute', 
+                        height: '100%',
+                        left: 0,
+                        top: 0
+                    } : {
                         width: showSidebar ? `${sidebarW}%` : `${COLLAPSED_SIDEBAR_WIDTH}px`,
                         transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
                     }}
-                    className="relative flex flex-col shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] z-20 transition-colors"
+                    className={`flex flex-col shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] z-[200] transition-transform duration-300 ease-in-out ${isMobile && !showSidebar ? '-translate-x-full' : 'translate-x-0'}`}
                 >
                     <div className="flex-1 overflow-hidden flex flex-col relative h-full">
                         <div className={`flex-1 flex flex-col overflow-hidden h-full transition-opacity duration-300 ${showSidebar ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none hidden'}`}>
@@ -1226,12 +1252,17 @@ const CodeEditor = () => {
                     </button>
                 </div>
 
-                {showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
+                {/* Mobile overlay for sidebar */}
+                {isMobile && showSidebar && (
+                    <div className="absolute inset-0 bg-black/50 z-[190]" onClick={() => setShowSidebar(false)} />
+                )}
+
+                {!isMobile && showSidebar && <DragHandleH onMouseDown={(e) => startDrag('sidebar', e)} />}
 
                 {(!problem?.type || problem.type === 'problem') && (
                     <>
                         {/* ─ Col 2: Description / Editorial / Submissions ─ */}
-                        <div style={{ width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111117] transition-colors">
+                        <div style={isMobile ? { flex: 'none', height: '60vh', width: '100%' } : { width: `${descW}%` }} className="flex flex-col overflow-hidden shrink-0 border-r border-gray-200 dark:border-gray-700 border-b md:border-b-0 bg-white dark:bg-[#111117] transition-colors">
                             {/* Problem Header (Title & Meta) */}
                             <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111117] shrink-0 transition-colors">
                                 <div className="flex items-center justify-between mb-2">
@@ -1463,11 +1494,11 @@ const CodeEditor = () => {
                             </div>
                         </div>
 
-                        {/* drag handle between desc and editor */}
-                        <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />
+                        {/* drag handle between desc and editor (hidden on mobile) */}
+                        {!isMobile && <DragHandleH onMouseDown={(e) => startDrag('desc', e)} />}
 
                         {/* ─ Col 3: Editor + Test Cases (vertical split) ─ */}
-                        <div style={{
+                        <div style={isMobile ? { flex: 'none', height: '80vh', width: '100%' } : {
                             width: showSidebar ? `calc(${100 - sidebarW - descW}%)` : `calc(100% - ${COLLAPSED_SIDEBAR_WIDTH}px - ${descW}%)`,
                             transition: isResizing ? 'none' : 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
                         }} className="flex flex-col overflow-hidden bg-white dark:bg-[#111117] transition-colors">
@@ -1492,10 +1523,10 @@ const CodeEditor = () => {
                                     />
                                 )}
                                 {/* editor toolbar (Language + Timer + Actions) */}
-                                <div className="h-12 bg-white dark:bg-[#111117] border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3 shrink-0 transition-colors">
+                                <div className="h-12 bg-white dark:bg-[#111117] border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-2 shrink-0 transition-colors overflow-visible">
                                     {/* Left: Language & Timer */}
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-44">
+                                    <div className="flex items-center gap-1.5 sm:gap-3">
+                                        <div className="w-24 sm:w-44 shrink-0">
                                             <CustomDropdown
                                                 options={LANGUAGE_OPTIONS}
                                                 value={language}
@@ -1503,7 +1534,7 @@ const CodeEditor = () => {
                                                 size="small"
                                             />
                                         </div>
-                                        <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 transition-colors" />
+                                        <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 transition-colors shrink-0" />
                                         <ProblemTimer />
                                     </div>
 
@@ -1524,20 +1555,20 @@ const CodeEditor = () => {
                                             <button
                                                 onClick={handleRun}
                                                 disabled={isExecuting}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 rounded-md hover:bg-white dark:hover:bg-[#23232e] hover:shadow-sm transition-all disabled:opacity-50"
+                                                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 text-[10px] font-bold text-gray-700 dark:text-gray-300 rounded-md hover:bg-white dark:hover:bg-[#23232e] hover:shadow-sm transition-all disabled:opacity-50"
                                                 title="Run Sample Cases"
                                             >
-                                                {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} className="fill-current" />}
-                                                <span className="hidden sm:inline">Run</span>
+                                                {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={10} className="fill-current" />}
+                                                <span className="hidden min-[450px]:inline-block sm:inline-block">Run</span>
                                             </button>
                                             <button
                                                 onClick={handleSubmit}
                                                 disabled={isExecuting}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 ml-0.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-sm transition-all disabled:opacity-50"
+                                                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 ml-0.5 text-[10px] font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-sm transition-all disabled:opacity-50"
                                                 title="Submit Code"
                                             >
-                                                {submitting ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
-                                                <span className="hidden sm:inline">Submit</span>
+                                                {submitting ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+                                                <span className="hidden min-[450px]:inline-block sm:inline-block">Submit</span>
                                             </button>
                                         </div>
 
@@ -1630,7 +1661,10 @@ const CodeEditor = () => {
                                 </div>
                             </div>
 
-                            <DragHandleV onMouseDown={(e) => startDrag('editorH', e)} />
+                            <DragHandleV 
+                                onMouseDown={(e) => startDrag('editorH', e)} 
+                                onTouchStart={(e) => startDrag('editorH', e)}
+                            />
 
                             {/* ── Bottom: Test Cases / Results ── */}
                             <div
