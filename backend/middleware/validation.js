@@ -86,7 +86,7 @@ const validateContestCreation = [
 
 // External profile validation rules
 const validateExternalProfile = [
-    body('platform').isIn(['leetcode', 'codechef', 'codeforces', 'hackerrank', 'interviewbit']).withMessage('Invalid platform'),
+    body('platform').isIn(['leetcode', 'codechef', 'codeforces', 'hackerrank', 'interviewbit', 'github', 'linkedin']).withMessage('Invalid platform'),
     body('username').trim().notEmpty().withMessage('Username is required'),
     handleValidationErrors
 ];

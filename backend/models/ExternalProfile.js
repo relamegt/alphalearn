@@ -1,23 +1,33 @@
 const { ObjectId } = require('bson');
 const { collections } = require('../config/astra');
 
+const SOCIAL_PLATFORMS = ['github', 'linkedin'];
+
 class ExternalProfile {
+    static isSocialPlatform(platform) {
+        return SOCIAL_PLATFORMS.includes(platform?.toLowerCase());
+    }
+
     // Create new external profile link
     static async create(profileData) {
+        const isSocial = ExternalProfile.isSocialPlatform(profileData.platform);
         const profile = {
             _id: new ObjectId(),
             studentId: new ObjectId(profileData.studentId),
-            platform: profileData.platform, // 'leetcode' | 'codechef' | 'codeforces' | 'hackerrank' | 'interviewbit' | 'spoj'
+            platform: profileData.platform, // 'leetcode' | 'codechef' | 'codeforces' | 'hackerrank' | 'interviewbit' | 'github' | 'linkedin'
             username: profileData.username,
-            stats: {
-                problemsSolved: 0,
-                rating: 0,
-                totalContests: 0,
-                rank: 0
-            },
-            allContests: [], // Store ALL contests (no limit)
-            lastSynced: new Date(),
-            nextSyncAllowed: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
+            type: isSocial ? 'social' : 'coding',
+            ...(isSocial ? {} : {
+                stats: {
+                    problemsSolved: 0,
+                    rating: 0,
+                    totalContests: 0,
+                    rank: 0
+                },
+                allContests: [],
+                lastSynced: new Date(),
+                nextSyncAllowed: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            })
         };
 
         const result = await collections.externalProfiles.insertOne(profile);
@@ -86,12 +96,13 @@ class ExternalProfile {
         return { allowed: true };
     }
 
-    // Get profiles needing auto-sync (24 hours passed)
+    // Get profiles needing auto-sync (24 hours passed) — excludes social platforms
     static async findProfilesNeedingSync() {
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
         return await collections.externalProfiles.find({
-            lastSynced: { $lt: twentyFourHoursAgo }
+            lastSynced: { $lt: twentyFourHoursAgo },
+            platform: { $nin: SOCIAL_PLATFORMS }
         }).toArray();
     }
 
@@ -132,15 +143,23 @@ class ExternalProfile {
 
         const stats = {};
         profiles.forEach(profile => {
-            stats[profile.platform] = {
-                username: profile.username,
-                problemsSolved: profile.stats.problemsSolved,
-                rating: profile.stats.rating,
-                totalContests: profile.stats.totalContests,
-                rank: profile.stats.rank,
-                allContests: profile.allContests, // Include ALL contests
-                lastSynced: profile.lastSynced
-            };
+            if (ExternalProfile.isSocialPlatform(profile.platform)) {
+                // Social profiles only have username
+                stats[profile.platform] = {
+                    username: profile.username,
+                    type: 'social'
+                };
+            } else {
+                stats[profile.platform] = {
+                    username: profile.username,
+                    problemsSolved: profile.stats?.problemsSolved || 0,
+                    rating: profile.stats?.rating || 0,
+                    totalContests: profile.stats?.totalContests || 0,
+                    rank: profile.stats?.rank || 0,
+                    allContests: profile.allContests || [],
+                    lastSynced: profile.lastSynced
+                };
+            }
         });
 
         return stats;

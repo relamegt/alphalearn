@@ -160,6 +160,14 @@ const getBatchLeaderboard = async (req, res) => {
                     }
                 });
 
+                // Social stats builder
+                const socialProfiles = { github: null, linkedin: null };
+                studentProfiles.forEach(profile => {
+                    if (['linkedin', 'github'].includes(profile.platform)) {
+                        socialProfiles[profile.platform] = profile.username;
+                    }
+                });
+
                 // Internal Contests Data - ONLY for this batch
                 const internalContestsData = {};
                 let internalTotalScore = 0;
@@ -193,6 +201,7 @@ const getBatchLeaderboard = async (req, res) => {
                     alphaCoins,
                     externalScores: entry.externalScores || {},
                     detailedStats: detailedStats,
+                    socialProfiles: socialProfiles,
                     internalContests: internalContestsData,
                     branch: user?.education?.branch || 'N/A',
                     lastUpdated: entry.lastUpdated

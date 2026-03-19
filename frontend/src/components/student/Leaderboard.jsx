@@ -1351,7 +1351,18 @@ const Leaderboard = ({ batchId, isBatchView }) => {
                                                             className={`px-4 py-3 whitespace-nowrap font-bold sticky left-[220px] z-40 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 w-[260px] min-w-[260px] truncate ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117] group-hover:bg-gray-50 dark:group-hover:bg-[#23232e]'}`}
                                                             title={entry.name}
                                                         >
-                                                            <span className="text-gray-900 dark:text-gray-100">{entry.name}</span>
+                                                            {entry.socialProfiles?.linkedin ? (
+                                                                <a 
+                                                                    href={entry.socialProfiles.linkedin.startsWith('http') ? entry.socialProfiles.linkedin : `https://www.linkedin.com/in/${entry.socialProfiles.linkedin}`} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer" 
+                                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors w-fit"
+                                                                >
+                                                                    {entry.name}
+                                                                </a>
+                                                            ) : (
+                                                                <span className="text-gray-900 dark:text-gray-100">{entry.name}</span>
+                                                            )}
                                                         </td>
                                                         <td style={currentUserBg} className={`px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 border-r border-gray-200 dark:border-gray-700 ${isCurrentUser ? '' : 'bg-white dark:bg-[#111117]'}`}>
                                                             {entry.branch}

@@ -205,22 +205,28 @@ const linkExternalProfile = async (req, res) => {
     try {
         const { platform, username } = req.body;
         const studentId = req.user.userId;
+        const isSocial = ExternalProfile.isSocialPlatform(platform);
 
         // Check if profile already exists for this platform
         let profile = await ExternalProfile.findByStudentAndPlatform(studentId, platform);
 
         if (profile) {
-            // If the handle is different, update it and reset sync status to force a refresh
+            // If the handle is different, update it
             if (profile.username !== username) {
-                await ExternalProfile.update(profile._id, {
-                    username,
-                    lastSynced: new Date(0) // Forces immediate sync on next run
-                });
+                const updateData = { username };
+                if (!isSocial) {
+                    updateData.lastSynced = new Date(0); // Forces immediate sync on next run
+                }
+                await ExternalProfile.update(profile._id, updateData);
                 // Fetch the updated version to return in response
                 profile = await ExternalProfile.findById(profile._id);
 
-                // Trigger an immediate re-sync for the new username
-                await require('../services/profileSyncService').syncProfile(profile._id);
+                // Trigger an immediate re-sync for coding platforms, otherwise just update leaderboard for social profiles
+                if (!isSocial) {
+                    await require('../services/profileSyncService').syncProfile(profile._id);
+                } else {
+                    await require('../utils/workerQueues').addScoreJob(studentId);
+                }
             }
         } else {
             // Create new profile if it doesn't exist
@@ -230,8 +236,12 @@ const linkExternalProfile = async (req, res) => {
                 username
             });
 
-            // Initial sync for the brand new profile
-            await require('../services/profileSyncService').syncProfile(profile._id);
+            // Initial sync for coding platforms, otherwise just update leaderboard for social profiles
+            if (!isSocial) {
+                await require('../services/profileSyncService').syncProfile(profile._id);
+            } else {
+                await require('../utils/workerQueues').addScoreJob(studentId);
+            }
         }
 
         res.status(profile ? 200 : 201).json({
@@ -250,7 +260,7 @@ const linkExternalProfile = async (req, res) => {
 };
 
 
-// Manual sync (1 attempt per week - triggers full batch update)
+// Manual sync (1 attempt per week - triggers full batch update in background)
 const manualSyncProfiles = async (req, res) => {
     try {
         const studentId = req.user.userId;
@@ -274,32 +284,36 @@ const manualSyncProfiles = async (req, res) => {
             });
         }
 
-        // Sync entire batch (triggered by one student)
-        const result = await syncBatchProfiles(user.batchId);
-
-        // Update next sync allowed date for all students in batch (ONLY IN PRODUCTION)
+        // Determine next sync date based on environment
         let nextSyncDate = null;
-
         if (process.env.NODE_ENV === 'production') {
+            nextSyncDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days lock in prod
+            
+            // Lock all coding profiles in the batch right away
             const students = await User.getStudentsByBatch(user.batchId);
-            nextSyncDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-
             for (const student of students) {
                 const profiles = await ExternalProfile.findByStudent(student._id);
                 for (const profile of profiles) {
-                    await ExternalProfile.updateNextSyncAllowed(profile._id, nextSyncDate);
+                    if (!ExternalProfile.isSocialPlatform(profile.platform)) {
+                        await ExternalProfile.updateNextSyncAllowed(profile._id, nextSyncDate);
+                    }
                 }
             }
         } else {
-            // In development, next sync allowed immediately
+            // In development, unlock immediately (unlimited syncs)
             nextSyncDate = new Date();
         }
 
+        // Respond immediately — sync happens in the background
         res.json({
             success: true,
-            message: 'Batch profiles synced successfully',
-            nextSyncAllowed: nextSyncDate,
-            result
+            message: 'Sync started! Scores will update in a few minutes.',
+            nextSyncAllowed: nextSyncDate
+        });
+
+        // Fire-and-forget: run the actual batch sync in the background
+        syncBatchProfiles(user.batchId).catch(err => {
+            console.error('Background batch sync error:', err.message);
         });
     } catch (error) {
         console.error('Manual sync profiles error:', error);
@@ -327,10 +341,21 @@ const getExternalProfiles = async (req, res) => {
 
         const profiles = await ExternalProfile.findByStudent(studentId);
 
+        // Find the latest nextSyncAllowed across all coding profiles
+        let nextSyncAllowed = null;
+        for (const profile of profiles) {
+            if (!ExternalProfile.isSocialPlatform(profile.platform) && profile.nextSyncAllowed) {
+                if (!nextSyncAllowed || new Date(profile.nextSyncAllowed) > new Date(nextSyncAllowed)) {
+                    nextSyncAllowed = profile.nextSyncAllowed;
+                }
+            }
+        }
+
         res.json({
             success: true,
             count: profiles.length,
-            profiles
+            profiles,
+            nextSyncAllowed
         });
     } catch (error) {
         console.error('Get external profiles error:', error);

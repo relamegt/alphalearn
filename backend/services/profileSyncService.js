@@ -340,6 +340,11 @@ const syncProfile = async (profileId) => {
         const profile = await ExternalProfile.findById(profileId);
         if (!profile) throw new Error('Profile not found');
 
+        // Skip social platforms (github, linkedin) — no coding stats to fetch
+        if (ExternalProfile.isSocialPlatform(profile.platform)) {
+            return { success: true, skipped: true, reason: 'Social platform' };
+        }
+
         const stats = await fetchExternalProfileStats(profile.platform, profile.username);
         await ExternalProfile.updateStats(profileId, stats, stats.allContests || []);
 

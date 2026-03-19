@@ -53,7 +53,7 @@ const profileService = {
 
     manualSyncProfiles: async () => {
         try {
-            const response = await apiClient.post('/student/external-profiles/sync');
+            const response = await apiClient.post('/student/external-profiles/sync', {}, { timeout: 300000 });
             return response.data;
         } catch (error) {
             throw error.response?.data || { message: 'Failed to sync profiles' };

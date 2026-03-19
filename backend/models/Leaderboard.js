@@ -299,8 +299,16 @@ class Leaderboard {
       const externalScores = {
         hackerrank: 0, leetcode: 0, codechef: 0, codeforces: 0, interviewbit: 0, spoj: 0
       };
+      const socialProfiles = {
+        github: null, linkedin: null
+      };
 
       for (const profile of externalProfiles) {
+        // Collect social platforms mapping (github, linkedin)
+        if (ExternalProfile.isSocialPlatform(profile.platform)) {
+          socialProfiles[profile.platform] = profile.username;
+          continue;
+        }
         const score = scoreCalculator.calculatePlatformScore(profile.platform, profile.stats);
         externalScores[profile.platform] = score;
       }
@@ -311,6 +319,7 @@ class Leaderboard {
         username: user.email.split('@')[0],
         alphaCoins,
         externalScores,
+        socialProfiles,
         batchId: user.batchId || null
       };
 
