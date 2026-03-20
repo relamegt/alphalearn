@@ -115,12 +115,25 @@ const getVerdictColor = (verdict) => {
     }
 };
 
-// —"—"—" Description Cleaner —"—"—"
+// —"—"—" Description Cleaner & Parser —"—"—"
+const extractInputFormat = (desc) => {
+    if (!desc) return '';
+    const m = desc.match(/(?:^|\n)## Input Format\s*\n([\s\S]*?)(?=\n## |\n\*\*Example|\n### Example|$)/i);
+    return m ? m[1].trim() : '';
+};
+
+const extractOutputFormat = (desc) => {
+    if (!desc) return '';
+    const m = desc.match(/(?:^|\n)## Output Format\s*\n([\s\S]*?)(?=\n## |\n\*\*Example|\n### Example|$)/i);
+    return m ? m[1].trim() : '';
+};
+
 const cleanDescription = (desc) => {
     if (!desc) return '';
-    // Headers that are now rendered separately in dedicated sections
-    // Only strip Examples as they are the most common duplicates
     const redundantHeaders = [
+        '## Input Format',
+        '## Output Format',
+        '## Constraints',
         '**Example:**',
         '**Example**',
         '### Example',
@@ -135,16 +148,18 @@ const cleanDescription = (desc) => {
     let minIndex = desc.length;
     redundantHeaders.forEach(header => {
         const idx = desc.indexOf(header);
-        // We only want to truncate if it's likely a header (at start of line or preceded by newlines)
         if (idx !== -1 && idx < minIndex) {
-            // Check if it's the start of the string or preceded by a newline
             if (idx === 0 || desc[idx - 1] === '\n') {
                 minIndex = idx;
             }
         }
     });
 
-    return desc.substring(0, minIndex).trim();
+    let statement = desc.substring(0, minIndex).trim();
+    if (statement.startsWith('## Problem Statement')) {
+        statement = statement.substring('## Problem Statement'.length).trim();
+    }
+    return statement;
 };
 
 const ExecutionProgress = ({ isRunning, isSubmitting, total }) => {
@@ -1977,7 +1992,7 @@ const ContestInterface = ({ isPractice = false }) => {
                                     {selectedProblem.constraints?.length > 0 && (
                                         <div>
                                             <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">Constraints</h3>
-                                            <ul className="bg-gray-50 dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-1">
+                                            <ul className="bg-gray-50 dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 space-y-1">
                                                 {selectedProblem.constraints.map((c, i) => (
                                                     <li key={i} className="text-xs font-mono text-gray-700 dark:text-gray-300 list-disc list-inside">{c}</li>
                                                 ))}
@@ -1985,23 +2000,23 @@ const ContestInterface = ({ isPractice = false }) => {
                                         </div>
                                     )}
 
-                                    {selectedProblem.inputFormat && (
+                                    {(selectedProblem.inputFormat || extractInputFormat(selectedProblem.description)) && (
                                         <div>
                                             <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">Input Format</h3>
-                                            <div className="bg-gray-50 dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300 prose prose-sm max-w-none">
+                                            <div className="bg-gray-50 dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 prose prose-sm max-w-none [&>p:last-child]:!mb-0">
                                                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
-                                                    {selectedProblem.inputFormat}
+                                                    {selectedProblem.inputFormat || extractInputFormat(selectedProblem.description)}
                                                 </ReactMarkdown>
                                             </div>
                                         </div>
                                     )}
 
-                                    {selectedProblem.outputFormat && (
+                                    {(selectedProblem.outputFormat || extractOutputFormat(selectedProblem.description)) && (
                                         <div>
                                             <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">Output Format</h3>
-                                            <div className="bg-gray-50 dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300 prose prose-sm max-w-none">
+                                            <div className="bg-gray-50 dark:bg-[#111117] border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 prose prose-sm max-w-none [&>p:last-child]:!mb-0">
                                                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MarkdownComponents}>
-                                                    {selectedProblem.outputFormat}
+                                                    {selectedProblem.outputFormat || extractOutputFormat(selectedProblem.description)}
                                                 </ReactMarkdown>
                                             </div>
                                         </div>

@@ -11,7 +11,8 @@ import {
     FileText,
     Layers,
     Search,
-    Check
+    Check,
+    X
 } from 'lucide-react';
 
 const SectionManager = () => {
@@ -543,9 +544,9 @@ const SectionManager = () => {
                             />
                         </div>
 
-                        <div className="flex-1 overflow-y-auto border border-gray-100 rounded-xl mb-4 bg-gray-50/50">
+                        <div className="flex-1 overflow-y-auto border border-gray-100 dark:border-gray-800 rounded-xl mb-4 bg-gray-50/50 dark:bg-gray-800/30">
                             {filteredProblems.length > 0 ? (
-                                <ul className="divide-y divide-gray-100">
+                                <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                                     {filteredProblems.map(p => {
                                         const isSelected = Array.isArray(selectedProblemId)
                                             ? selectedProblemId.includes(p._id || p.id)
@@ -553,7 +554,7 @@ const SectionManager = () => {
                                         return (
                                             <li
                                                 key={p._id || p.id}
-                                                className={`p-3 cursor-pointer transition-colors flex justify-between items-center ${isSelected ? 'bg-primary-50' : 'hover:bg-white'}`}
+                                                className={`p-3 cursor-pointer transition-colors flex justify-between items-center ${isSelected ? 'bg-primary-50 dark:bg-primary-900/30' : 'hover:bg-white dark:hover:bg-gray-800/50'}`}
                                                 onClick={() => {
                                                     const pid = p._id || p.id;
                                                     const current = Array.isArray(selectedProblemId) ? selectedProblemId : (selectedProblemId ? [selectedProblemId] : []);
@@ -565,12 +566,12 @@ const SectionManager = () => {
                                                 }}
                                             >
                                                 <div className="flex items-center space-x-3">
-                                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary-600 border-primary-600' : 'border-gray-300 bg-white'}`}>
+                                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary-600 border-primary-600' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}>
                                                         {isSelected && <Check size={12} className="text-white" />}
                                                     </div>
-                                                    <span className="font-medium text-gray-900 text-sm">{p.title}</span>
+                                                    <span className="font-medium text-gray-900 dark:text-gray-200 text-sm">{p.title}</span>
                                                 </div>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.difficulty === 'Easy' ? 'bg-green-100 text-green-700' : p.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.difficulty === 'Easy' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : p.difficulty === 'Medium' ? 'bg-yellow-100 dark:bg-amber-900/30 text-yellow-700 dark:text-amber-400' : 'bg-red-100 dark:bg-rose-900/30 text-red-700 dark:text-rose-400'}`}>
                                                     {p.difficulty}
                                                 </span>
                                             </li>

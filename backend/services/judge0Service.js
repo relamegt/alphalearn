@@ -1,4 +1,4 @@
-﻿const axios = require('axios');
+const axios = require('axios');
 const Bottleneck = require('bottleneck');
 const util = require('util');
 const execFileAsync = util.promisify(require('child_process').execFile);
@@ -168,16 +168,42 @@ const redisGetSafe = async (client, key) => {
 // setImmediate defers execution to after pending I/O callbacks (WebSocket pings,
 // HTTP keepalives, BullMQ state updates) are processed first.
 // Due to stampede protection this blocking only ever happens ONCE per unique script.
-const runJsInSandbox = (script) => new Promise((resolve, reject) => {
+const runJsInSandbox = (script, inputStr = '') => new Promise((resolve, reject) => {
     setImmediate(() => {
         try {
             let output = '';
+            
+            const customRequire = (moduleName) => {
+                const realFs = require('fs');
+                if (moduleName === 'fs') {
+                    return {
+                        ...realFs,
+                        readFileSync: (path, options) => {
+                            if (path === 0 || path === '/dev/stdin' || path === 'C:\\dev\\stdin') {
+                                const str = inputStr || '';
+                                return typeof options === 'string' ? str : Buffer.from(str);
+                            }
+                            return realFs.readFileSync(path, options);
+                        }
+                    };
+                }
+                return require(moduleName);
+            };
+
             const sandbox = {
                 console: {
                     log: (...a) => { output += a.join(' ') + '\n'; },
                     error: (...a) => { output += a.join(' ') + '\n'; },
                     warn: (...a) => { output += a.join(' ') + '\n'; },
                 },
+                process: {
+                    stdout: { write: (str) => { output += str; return true; } },
+                    stderr: { write: (str) => { output += str; return true; } },
+                    env: {},
+                    argv: [],
+                    exit: () => {}
+                },
+                require: customRequire, Buffer,
                 Math, JSON, Number, String, Boolean, Array, Object,
                 parseInt, parseFloat, isNaN, isFinite,
             };
@@ -199,11 +225,11 @@ const runJsInSandbox = (script) => new Promise((resolve, reject) => {
  * Stampede protection: all 1000 concurrent users sharing ONE execution Promise
  * per unique script ΓÇö only one vm/Python run ever happens at a time.
  */
-const runGeneratorCached = async ({ jsScript = null, pyScript = null, label = 'script' }) => {
+const runGeneratorCached = async ({ jsScript = null, pyScript = null, label = 'script', inputStr = '' }) => {
     const canonicalScript = jsScript || pyScript;
     if (!canonicalScript) return '';
 
-    const cacheKey = `tcgen:${scriptHash(canonicalScript)}`;
+    const cacheKey = `tcgen:${scriptHash(canonicalScript + inputStr)}`;
 
     // 1. LRU hit ΓÇö instant, no I/O
     const lruHit = lruGet(cacheKey);
@@ -243,7 +269,7 @@ const runGeneratorCached = async ({ jsScript = null, pyScript = null, label = 's
             if (jsScript) {
                 // BUG-1 FIXED: setImmediate wrapper makes this non-blocking
                 console.log(`   ΓÜí [JS-vm] ${label}...`);
-                result = await runJsInSandbox(jsScript);
+                result = await runJsInSandbox(jsScript, inputStr);
                 console.log(`   Γ£à [JS-vm] ${label} done in ${Date.now() - start}ms (${(Buffer.byteLength(result) / 1024 | 0)} KB)`);
             } else {
                 console.log(`   ≡ƒÉì [Python] ${label}...`);
@@ -1149,7 +1175,8 @@ const _runExecuteWithTestCases = async (language, code, testCases, timeLimit, la
                 const raw = await runGeneratorCached({
                     jsScript: tc.jsOutputGenerator || null,
                     pyScript: tc.tcOutputGenerator || null,
-                    label: `TC${index + 1}-output`
+                    label: `TC${index + 1}-output`,
+                    inputStr: inputStr
                 });
                 tc.output = raw.trim();
             } catch (err) {
